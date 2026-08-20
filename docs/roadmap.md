@@ -32,14 +32,14 @@
 
 זה השלב הכי חשוב במסמך הזה. סעיף א.4 ב-`prd.md` פירט מה חייב להיקבע נכון מהיום הראשון, כי שינוי בדיעבד הוא מיגרציה מסוכנת על נתוני לקוחות משלמים.
 
-- [ ] מיגרציית סכמה מלאה לפי סעיף א.3, `Farm`, `FarmMember`, `Subscription`, `Settings`, `Plot`, `CropCycle`, `Task`, `TaskCostMemory`, `LogEntry`, `Expense`, `ExpenseAllocation`, `Receipt`, `RecurringRule`.
-- [ ] `deleted_at` על כל טבלה שניתנת למחיקה, soft delete בלבד, שום `DELETE` אמיתי מהקוד.
-- [ ] `Task.completed_at` הוא אירוע, לא בוליאני, אין `UPDATE` שהופך `true` ל-`false`.
-- [ ] `LogEntry` בלי מפתח זר ל-`Task`, רק `Task.created_log_id` אופציונלי בכיוון ההפוך.
-- [ ] RLS על כל טבלה מבוסס על `farm_members`, לא על `user_id` ישיר, גם אם UI ההזמנות עוד לא קיים. כתיבת בדיקות RLS אוטומטיות, לפחות מקרה של בעלים, מנהל, עובד, ומשתמש שלא שייך למשק בכלל שמנסה לגשת.
-- [ ] Storage bucket פרטי לקבלות, לפי `farm_id`, גישה רק דרך signed URL קצר מועד, לא bucket ציבורי.
+- [x] מיגרציית סכמה מלאה לפי סעיף א.3, `Farm`, `FarmMember`, `Subscription`, `Settings`, `Plot`, `CropCycle`, `Task`, `TaskCostMemory`, `LogEntry`, `Expense`, `ExpenseAllocation`, `Receipt`, `RecurringRule`.
+- [x] `deleted_at` על כל טבלה שניתנת למחיקה, soft delete בלבד, שום `DELETE` אמיתי מהקוד.
+- [x] `Task.completed_at` הוא אירוע, לא בוליאני, אין `UPDATE` שהופך `true` ל-`false`.
+- [x] `LogEntry` בלי מפתח זר ל-`Task`, רק `Task.created_log_id` אופציונלי בכיוון ההפוך.
+- [x] RLS על כל טבלה מבוסס על `farm_members`, לא על `user_id` ישיר, גם אם UI ההזמנות עוד לא קיים. כתיבת בדיקות RLS אוטומטיות, לפחות מקרה של בעלים, מנהל, עובד, ומשתמש שלא שייך למשק בכלל שמנסה לגשת.
+- [x] Storage bucket פרטי לקבלות, לפי `farm_id`, גישה רק דרך signed URL קצר מועד, לא bucket ציבורי.
 - [ ] פונקציית עזר אחת ב-`packages/shared` לחישוב `safe_harvest_date` מתוך `date` ו-`spray_phi_days`, נגזר בזמן קריאה, לא נשמר בטבלה.
-- [ ] סקריפט seed עם משק דוגמה, חלקה אחת, כמה משימות, כמה רשומות יומן כולל ריסוס, לצורך פיתוח ובדיקות.
+- [x] סקריפט seed עם משק דוגמה, חלקה אחת, כמה משימות, כמה רשומות יומן כולל ריסוס, לצורך פיתוח ובדיקות.
 
 **הגדרת סיום.** אפשר להריץ שאילתה כמשתמש בדוי מכל תפקיד ולראות שהוא רואה בדיוק את מה שמותר לו, לא פחות ולא יותר. יש בדיקות אוטומטיות ל-RLS, לא רק בדיקה ידנית חד פעמית.
 
