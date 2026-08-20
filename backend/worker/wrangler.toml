@@ -1,4 +1,4 @@
-name = "hakla-revachi-worker"
+name = "yevul-worker"
 main = "src/index.ts"
 compatibility_date = "2024-12-30"
 

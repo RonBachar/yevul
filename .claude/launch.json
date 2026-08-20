@@ -4,7 +4,7 @@
     {
       "name": "web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--workspace", "@hakla/web"],
+      "runtimeArgs": ["run", "dev", "--workspace", "@yevul/web"],
       "port": 5173
     }
   ]

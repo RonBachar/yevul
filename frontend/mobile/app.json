@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "חקלאי רווחי",
-    "slug": "hakla-revachi",
+    "slug": "yevul",
     "version": "0.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
@@ -11,10 +11,10 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.haklarevachi.app"
+      "bundleIdentifier": "com.yevul.app"
     },
     "android": {
-      "package": "com.haklarevachi.app"
+      "package": "com.yevul.app"
     },
     "plugins": []
   }

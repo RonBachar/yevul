@@ -1,5 +1,5 @@
 {
-  "name": "@hakla/mobile",
+  "name": "@yevul/mobile",
   "private": true,
   "version": "0.0.1",
   "main": "index.ts",
@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@hakla/shared": "*",
+    "@yevul/shared": "*",
     "expo": "~52.0.11",
     "expo-font": "~13.0.1",
     "expo-status-bar": "~2.0.0",
