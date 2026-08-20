@@ -20,7 +20,7 @@
 - [x] מבנה מונוריפו עם הפרדה פיזית בין צדדים, `frontend/mobile` (React Native + Expo), `frontend/web` (React + Vite), `backend/worker` (Cloudflare Worker), `backend/supabase` (מיגרציות והגדרות מסד), `packages/shared` בשורש (טיפוסים, סכמות, פורמטרים משותפים, לא שייך לאף צד).
 - [x] TypeScript strict בכל חבילה, ESLint ו-Prettier מאוחדים בשורש.
 - [x] ניהול סודות, `.env` לא נכנס ל-git, מסמך `docs/env.md` שמסביר איזה משתנה שייך לאיזה אפליקציה.
-- [ ] פרויקט Supabase חדש, Supabase CLI מותקן, תיקיית `backend/supabase/migrations` עם מיגרציה ריקה ראשונה שרק מוודאת שהחיבור עובד.
+- [x] פרויקט Supabase חדש, Supabase CLI מותקן, תיקיית `backend/supabase/migrations` עם מיגרציה ריקה ראשונה שרק מוודאת שהחיבור עובד.
 - [ ] הרצת `frontend/mobile` ריק על סימולטור או מכשיר, מסך "שלום עולם" עם כיווניות RTL ופונט OedooPro טעון, כדי לוודא שהפונט והכיווניות עובדים לפני שבונים עליהם כל השאר.
 - [x] ביקורת ארכיטקטורה ומוסכמות שמות מלאה לפני commit נוסף. בוצע, הפונטים עברו ל-`packages/assets/fonts` כמקור משותף (ttf ו-woff2 בלבד, קבצי זבל ופורמטים ישנים נמחקו), והשם הבינלאומי נקבע Yevul, שורש `yevul`, קידומת `@yevul` בכל workspace, מזהי חבילות `com.yevul.app`. השם העברי חקלאי רווחי נשאר בכל הקשר שיווקי ובמסמכי המוצר.
 
