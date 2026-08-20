@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "חקלאי רווחי",
+    "slug": "hakla-revachi",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": ["**/*"],
+    "extra": {
+      "supportsRtl": true
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.haklarevachi.app"
+    },
+    "android": {
+      "package": "com.haklarevachi.app"
+    },
+    "plugins": []
+  }
+}

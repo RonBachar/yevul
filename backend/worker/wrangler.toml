@@ -1,0 +1,6 @@
+name = "hakla-revachi-worker"
+main = "src/index.ts"
+compatibility_date = "2024-12-30"
+
+[vars]
+# secrets like OPENROUTER_API_KEY are set via `wrangler secret put`, never here

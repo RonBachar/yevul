@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Env files, never commit secrets
+.env
+.env.*
+!.env.example
+
+# Expo / React Native
+frontend/mobile/.expo/
+frontend/mobile/.expo-shared/
+frontend/mobile/dist/
+frontend/mobile/web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Vite / web build
+frontend/web/dist/
+frontend/web/.vite/
+
+# Cloudflare Worker
+backend/worker/.wrangler/
+backend/worker/dist/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Supabase local
+backend/supabase/.branches/
+backend/supabase/.temp/

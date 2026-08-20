@@ -1,0 +1,26 @@
+{
+  "name": "hakla-revachi",
+  "private": true,
+  "version": "0.0.1",
+  "workspaces": [
+    "frontend/*",
+    "backend/worker",
+    "packages/*"
+  ],
+  "scripts": {
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^9.17.0",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^17.11.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2"
+  }
+}
