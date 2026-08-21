@@ -3,9 +3,12 @@
     "name": "חקלאי רווחי",
     "slug": "yevul",
     "version": "0.0.1",
+    "scheme": "yevul",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "extra": {
       "supportsRtl": true
     },
@@ -16,6 +19,8 @@
     "android": {
       "package": "com.yevul.app"
     },
-    "plugins": []
+    "plugins": [
+      "expo-web-browser"
+    ]
   }
 }
