@@ -1,6 +1,8 @@
-// הגדרת Metro למונוריפו, לפי התיעוד הרשמי של Expo. נחוץ כי node_modules
-// מורמים לשורש המונוריפו, ו-expo-router (require.context) חייב שהפותר
-// יראה גם את node_modules של השורש וגם יעקוב אחרי קבצי כל המונוריפו.
+// הגדרת Metro למונוריפו, לפי התיעוד הרשמי של Expo. נחוץ כי הפותר
+// המובנה של Metro לא עולה מעל תיקיית האפליקציה כדי למצוא node_modules
+// שמורמים לשורש המונוריפו (כמו React Navigation) או חבילות פנימיות
+// כמו @yevul/shared, אז צריך להצביע לו במפורש גם על node_modules של
+// השורש וגם על כל קבצי המונוריפו למעקב (watchFolders).
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 

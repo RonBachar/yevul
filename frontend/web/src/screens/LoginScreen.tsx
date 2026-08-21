@@ -14,15 +14,20 @@ export function LoginScreen() {
   async function signInWith(provider: Provider) {
     setError(null);
     setPending(provider);
-    const { error: authError } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: { redirectTo: window.location.origin },
-    });
-    if (authError) {
+    try {
+      const { error: authError } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: { redirectTo: window.location.origin },
+      });
+      if (authError) {
+        setError(t('auth.error'));
+        setPending(null);
+      }
+      // בהצלחה הדפדפן מנווט לספק, אין צורך לאפס pending
+    } catch {
       setError(t('auth.error'));
       setPending(null);
     }
-    // בהצלחה הדפדפן מנווט לספק, אין צורך לאפס pending
   }
 
   return (

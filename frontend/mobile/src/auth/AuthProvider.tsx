@@ -1,41 +1,14 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import type { Session } from '@supabase/supabase-js';
+import { createContext, useContext, type ReactNode } from 'react';
+import { useAuthSession, type AuthState } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 
-// מצב האימות של הלקוח. הלקוח רק קורא את הסשן ומציג בהתאם, הוא לא מחליט
-// הרשאות, ההרשאות נאכפות ב-RLS בשרת. זהה במבנה למקבילה בווב.
-type AuthState = {
-  session: Session | null;
-  loading: boolean;
-};
-
+// עוטף את הוק מעקב הסשן המשותף (packages/shared) בקונטקסט React, כדי
+// שכל הלקוח יקרא מצב אימות אחד. לוגיקת הסשן עצמה חיה במקום אחד,
+// משותפת עם frontend/web, כדי לא לשכפל אותה בין הפלטפורמות.
 const AuthContext = createContext<AuthState>({ session: null, loading: true });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    let active = true;
-
-    void supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      setSession(data.session);
-      setLoading(false);
-    });
-
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-    });
-
-    return () => {
-      active = false;
-      sub.subscription.unsubscribe();
-    };
-  }, []);
-
-  const value = useMemo(() => ({ session, loading }), [session, loading]);
-
+  const value = useAuthSession(supabase);
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

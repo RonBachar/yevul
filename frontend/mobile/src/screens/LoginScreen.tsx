@@ -43,6 +43,9 @@ export function LoginScreen() {
         if (exchangeError) {
           setError(t('auth.error'));
         }
+      } else {
+        // המשתמש דחה את ההרשאה בספק, או שהחזרה לא כללה קוד תקין
+        setError(t('auth.error'));
       }
     } catch {
       setError(t('auth.error'));

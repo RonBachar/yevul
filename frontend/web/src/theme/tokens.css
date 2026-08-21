@@ -35,24 +35,10 @@
 }
 
 :root {
-  /* צבעי מותג ומשמעות, ראה design.md, Tokens Colors */
-  --color-field-700: #1d6b45;
-  --color-field-500: #2fa06a;
-  --color-field-300: #8fd6ae;
-  --color-field-100: #e1f4e9;
-  --color-profit-600: #26804c;
-  --color-loss-600: #c1502e;
-  --color-loss-100: #fbe7df;
-  --color-wheat-800: #8a5a12;
-  --color-wheat-500: #e3a233;
-  --color-wheat-100: #fbeed2;
-  --color-sky-500: #3e8fd0;
-  --color-ink-900: #16231c;
-  --color-slate-600: #56655d;
-  --color-mist-200: #e7efe9;
-  --color-mist-100: #f3f7f4;
-  --color-border-200: #d6e0d9;
-  --color-paper: #ffffff;
+  /* צבעי המותג מוזרקים כמשתני CSS בזמן ריצה ב-applyColorTokens.ts,
+     ממקור אמת יחיד ב-packages/shared, כדי שלא יהיה עותק ידני נפרד
+     שיכול להתפצל מהנייד. אין כאן ערכי ברירת מחדל בכוונה, ראה main.tsx
+     שקורא ל-applyColorTokens() לפני הרינדור הראשון. */
 
   /* טיפוגרפיה. הפולבק נושא משקל אמיתי: ל-OedooPro אין גליף ₪, והסימן
      נלקח מפונט המערכת per-character. ראה design.md. */

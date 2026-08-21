@@ -32,7 +32,17 @@ grant all on fixture to authenticated;
 
 -- מזהי המשתמשים קבועים, לא צריך fixture בשבילם
 -- aaaaaaaa...0001 = owner_a, ...0002 = manager_a, ...0003 = worker_a
--- bbbbbbbb...0001 = owner_b, cccccccc...0001 = stranger, בלי שום משק
+-- bbbbbbbb...0001 = owner_b, cccccccc...0001 = stranger
+--
+-- הערה, שלב 2: הטריגר on_auth_user_created (ראה המיגרציה
+-- 20260820130000) יוצר אוטומטית משק לכל אחד מחמשת המשתמשים כבר
+-- בהכנסה ל-auth.users למעלה, לפני שהבדיקות למטה קוראות ל-create_farm()
+-- באופן מפורש. כלומר owner_a ו-owner_b מחזיקים בפועל בשני משקים כל
+-- אחד (המשק האוטומטי + המשק שנוצר כאן), וגם stranger מחזיק במשק
+-- אוטומטי משלו, לא "בלי שום משק" כפי שהיה נכון לפני שלב 2. זה לא שובר
+-- אף בדיקה כאן כי כל הבדיקות מסננות לפי farm_id ספציפי מה-fixture
+-- (farm_a/farm_b), לא סופרות "כל המשקים של המשתמש". בדיקה עתידית
+-- שכן סופרת משקים לפי משתמש חייבת לקחת את זה בחשבון.
 
 -- --- משק א, כ-owner_a ---
 select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
