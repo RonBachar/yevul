@@ -1,0 +1,114 @@
+.login {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-24);
+  background: var(--color-paper);
+}
+
+.login__card {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--spacing-32);
+  padding: var(--spacing-48) var(--spacing-32);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-lg);
+  background: var(--color-paper);
+}
+
+.login__brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--spacing-8);
+}
+
+.login__logomark {
+  font-size: 56px;
+  line-height: 1;
+}
+
+.login__title {
+  margin: 0;
+  font-size: var(--text-heading);
+  font-weight: 900;
+  color: var(--color-field-700);
+  line-height: 1.15;
+}
+
+.login__tagline {
+  margin: 0;
+  font-size: var(--text-body-lg);
+  color: var(--color-slate-600);
+  line-height: 1.4;
+}
+
+.login__actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-12);
+}
+
+.login__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-12);
+  min-height: 56px;
+  padding: 0 var(--spacing-24);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-family: var(--font-oedoopro);
+  font-size: var(--text-body);
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    filter 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.login__btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.login__btn:not(:disabled):hover {
+  filter: brightness(0.97);
+}
+
+.login__btn--google {
+  background: var(--color-paper);
+  color: var(--color-ink-900);
+  border-color: var(--color-border-200);
+}
+
+.login__btn--apple {
+  background: var(--color-ink-900);
+  color: var(--color-paper);
+}
+
+.login__icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.login__error {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-body-sm);
+  color: var(--color-loss-600);
+}
+
+.login__legal {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-caption);
+  color: var(--color-slate-600);
+  line-height: 1.4;
+}

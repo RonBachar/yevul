@@ -1,0 +1,112 @@
+/*
+  טוקני עיצוב ללקוח הווב, נגזרים מ-docs/design.md.
+  זהו הבסיס המשותף לכל מסכי הווב, אותם טוקנים ואותה טיפוגרפיה כמו הנייד.
+  רקע הדף לבן טהור #FFFFFF בכוונה, ראה design.md, לעולם לא גוון קרם.
+*/
+
+/* OedooPro, המשפחה היחידה במערכת. קבצי woff2 מ-packages/assets. */
+@font-face {
+  font-family: 'OedooPro';
+  src: url('../../../../packages/assets/fonts/OedooPro-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'OedooPro';
+  src: url('../../../../packages/assets/fonts/OedooPro-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'OedooPro';
+  src: url('../../../../packages/assets/fonts/OedooPro-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'OedooPro';
+  src: url('../../../../packages/assets/fonts/OedooPro-Black.woff2') format('woff2');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* צבעי מותג ומשמעות, ראה design.md, Tokens Colors */
+  --color-field-700: #1d6b45;
+  --color-field-500: #2fa06a;
+  --color-field-300: #8fd6ae;
+  --color-field-100: #e1f4e9;
+  --color-profit-600: #26804c;
+  --color-loss-600: #c1502e;
+  --color-loss-100: #fbe7df;
+  --color-wheat-800: #8a5a12;
+  --color-wheat-500: #e3a233;
+  --color-wheat-100: #fbeed2;
+  --color-sky-500: #3e8fd0;
+  --color-ink-900: #16231c;
+  --color-slate-600: #56655d;
+  --color-mist-200: #e7efe9;
+  --color-mist-100: #f3f7f4;
+  --color-border-200: #d6e0d9;
+  --color-paper: #ffffff;
+
+  /* טיפוגרפיה. הפולבק נושא משקל אמיתי: ל-OedooPro אין גליף ₪, והסימן
+     נלקח מפונט המערכת per-character. ראה design.md. */
+  --font-oedoopro: 'OedooPro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --text-micro: 13px;
+  --text-caption: 15px;
+  --text-body-sm: 17px;
+  --text-body: 19px;
+  --text-body-lg: 22px;
+  --text-subheading: 26px;
+  --text-heading-sm: 34px;
+  --text-heading: 44px;
+  --text-heading-lg: 60px;
+  --text-display: 84px;
+
+  /* מרווחים וצורות */
+  --spacing-4: 4px;
+  --spacing-8: 8px;
+  --spacing-12: 12px;
+  --spacing-16: 16px;
+  --spacing-24: 24px;
+  --spacing-32: 32px;
+  --spacing-48: 48px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-pill: 999px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink-900);
+  font-family: var(--font-oedoopro);
+  font-size: var(--text-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.app-loading {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-slate-600);
+  font-size: var(--text-body);
+}
