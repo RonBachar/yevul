@@ -28,7 +28,7 @@
 
 ## הסטאק, קבוע, לא לשנות בלי לעצור ולשאול
 
-לקוח נייד, React Native עם Expo, אייפון ואנדרואיד, כיווניות מלאה. לקוח ווב, React עם Vite, לקוח נפרד, לא מתיחה של מסך הנייד, מדבר מול אותו שרת בדיוק. מסד נתונים ואימות, Supabase, Postgres עם Auth ו-Row Level Security ו-Storage לקבלות, מקור האמת היחיד, כניסה עם גוגל ועם אפל. קאש מקומי, TanStack Query עם persistence, תשובה אחרונה בלבד, לא מסד רלציוני מקומי. תור כתיבה, Outbox פשוט עם retry. שרת, Cloudflare Worker כשומר סף מול OpenRouter, אוכף מכסות ומסלולים. AI, OpenRouter, תמלול עברית, חילוץ JSON מובנה, OCR. תשלומים, RevenueCat, entitlement ברמת המשק ולא ברמת המשתמש.
+לקוח נייד, React Native עם Expo, אייפון ואנדרואיד, כיווניות מלאה. ניווט בנייד, React Navigation, לא expo-router, כי expo-router לא מתקמפל במבנה המונוריפו הזה (hoisting מול react-native-reanimated 4). אל תציע expo-router שוב. לקוח ווב, React עם Vite, לקוח נפרד, לא מתיחה של מסך הנייד, מדבר מול אותו שרת בדיוק. מסד נתונים ואימות, Supabase, Postgres עם Auth ו-Row Level Security ו-Storage לקבלות, מקור האמת היחיד, כניסה עם גוגל ועם אפל. קאש מקומי, TanStack Query עם persistence, תשובה אחרונה בלבד, לא מסד רלציוני מקומי. תור כתיבה, Outbox פשוט עם retry. שרת, Cloudflare Worker כשומר סף מול OpenRouter, אוכף מכסות ומסלולים. AI, OpenRouter, תמלול עברית, חילוץ JSON מובנה, OCR. תשלומים, RevenueCat, entitlement ברמת המשק ולא ברמת המשתמש.
 
 זה סבילות לרשת, לא offline first מלא. גרסה קודמת של הפרויקט תכננה מסד מקומי מלא עם סנכרון דו כיווני, זה בוטל במכוון כי זה שלושים עד ארבעים אחוז מזמן הפיתוח, רוב הבאגים, ומייצר קונפליקטים אמיתיים על נתוני כסף כששני משתמשים כותבים. הפתרון הוא קאש לקריאה ותור לכתיבה בלבד. אל תציע לחזור ל-offline first מלא.
 
