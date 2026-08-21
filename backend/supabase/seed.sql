@@ -1,17 +1,24 @@
 -- נתוני פיתוח ובדיקות בלבד. הקובץ הזה רץ רק מקומית (supabase db reset /
 -- start), אף פעם לא נגד הפרויקט האמיתי בענן.
 
+-- עמודות הטוקן (confirmation_token וכו') חייבות להיות מחרוזת ריקה ולא
+-- NULL. GoTrue סורק אותן כמחרוזת, והכנסה ישירה דרך SQL שמשאירה אותן
+-- NULL מפילה כל התחברות בשגיאת "converting NULL to string". בדיקות
+-- pgTAP לא נתקלות בזה כי הן קובעות JWT ישירות בלי לעבור דרך GoTrue.
 insert into auth.users (
   instance_id, id, aud, role, email, encrypted_password,
   email_confirmed_at, created_at, updated_at,
-  raw_app_meta_data, raw_user_meta_data
+  raw_app_meta_data, raw_user_meta_data,
+  confirmation_token, recovery_token, email_change_token_new, email_change,
+  phone_change, phone_change_token, email_change_token_current, reauthentication_token
 ) values (
   '00000000-0000-0000-0000-000000000000',
   '11111111-1111-1111-1111-111111111111',
   'authenticated', 'authenticated', 'demo-owner@yevul.app',
   crypt('password123', gen_salt('bf')),
   now(), now(), now(),
-  '{"provider":"email","providers":["email"]}', '{}'
+  '{"provider":"email","providers":["email"]}', '{}',
+  '', '', '', '', '', '', '', ''
 );
 
 do $$
@@ -20,8 +27,10 @@ declare
   v_plot_id uuid;
   v_crop_cycle_id uuid;
 begin
-  -- מדמה בקשה מאומתת של המשתמש שנוצר למעלה, כדי לעשות שימוש חוזר
-  -- ב-create_farm() בדיוק כמו שהאפליקציה תעשה, ולא לשכפל את הלוגיקה.
+  -- מדמה בקשה מאומתת של המשתמש שנוצר למעלה. הכנסת המשתמש כבר הפעילה
+  -- את הטריגר on_auth_user_created שיצר לו משק אוטומטית בשם "המשק שלי",
+  -- בדיוק כמו בהתחברות ראשונה אמיתית. כאן מאמצים אותו ומשנים את שמו,
+  -- בדיוק כמו שמשתמש אמיתי יעשה במסך ההגדרות, ולא יוצרים משק שני.
   perform set_config(
     'request.jwt.claims',
     json_build_object('sub', '11111111-1111-1111-1111-111111111111', 'role', 'authenticated')::text,
@@ -29,7 +38,14 @@ begin
   );
   set local role authenticated;
 
-  v_farm_id := public.create_farm('משק הדגמה', 'ILS', 'dunam', 'he');
+  select farm_id into v_farm_id
+    from public.farm_members
+    where user_id = '11111111-1111-1111-1111-111111111111'
+      and role = 'owner'
+      and deleted_at is null
+    limit 1;
+
+  update public.farms set name = 'משק הדגמה' where id = v_farm_id;
 
   insert into public.plots (farm_id, name, area, area_unit)
     values (v_farm_id, 'חלקה צפונית', 12.5, 'dunam')
