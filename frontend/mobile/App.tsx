@@ -3,11 +3,11 @@ import { ActivityIndicator, I18nManager, StyleSheet, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { DefaultTheme, NavigationContainer, type Theme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthProvider, useAuth } from './src/auth/AuthProvider';
 import { LoginScreen } from './src/screens/LoginScreen';
-import { AuthedShell } from './src/screens/AuthedShell';
+import { RootTabs } from './src/navigation/RootTabs';
 import { colors } from './src/theme/tokens';
 
 // כיווניות RTL נכפית לפני הרינדור, כמו בשלד שלב 0.
@@ -18,9 +18,25 @@ if (!I18nManager.isRTL) {
 
 const Stack = createNativeStackNavigator();
 
+// ברירת המחדל של React Navigation צובעת את רקע הניווט ב-rgb(242,242,242),
+// אפור בהיר. זה מציץ בכל מקום שהמסך לא מכסה במלואו, למשל ברצועה שמעליה
+// מתרומם כפתור הרישום. design.md קובע ש-Paper, לבן טהור, הוא קנבס ברירת
+// המחדל בכל מקום, ולכן הטוקנים שלנו נכפים על ערכת הנושא של הניווט במקום
+// לתקן כל מסך בנפרד.
+const navigationTheme: Theme = {
+  ...DefaultTheme,
+  colors: {
+    ...DefaultTheme.colors,
+    background: colors.paper,
+    card: colors.paper,
+    primary: colors.field700,
+    text: colors.ink900,
+    border: colors.border200,
+  },
+};
+
 // דפוס זרימת אימות של React Navigation: מציגים סטאק שונה לפי מצב הסשן.
-// הניווט המלא, ארבעה טאבים וכפתור Capture, ייבנה במשימת שלד הניווט
-// בהמשך שלב 2, מתחת למסך המאומת.
+// מחובר, נכנסים לניווט הטאבים המלא. לא מחובר, מסך הכניסה.
 function RootNavigator() {
   const { session, loading } = useAuth();
 
@@ -33,10 +49,10 @@ function RootNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navigationTheme}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {session ? (
-          <Stack.Screen name="Home">{() => <AuthedShell session={session} />}</Stack.Screen>
+          <Stack.Screen name="Main" component={RootTabs} />
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />
         )}

@@ -25,7 +25,26 @@ export const spacing = {
 export const radius = {
   md: 12,
   lg: 16,
+  // design.md, Border Radius: גיליון תחתון 28 בפינות העליונות בלבד.
+  sheet: 28,
   pill: 999,
+} as const;
+
+// design.md, Elevation: המערכת היא hairline first, צל שמור אך ורק
+// לאלמנטים מרחפים, כפתור הרישום וגיליונות תחתונים.
+// המקור: --shadow-float: 0 10px 28px rgba(22, 35, 28, 0.18)
+export const shadowFloat = {
+  shadowColor: '#16231c',
+  shadowOffset: { width: 0, height: 10 },
+  shadowRadius: 28,
+  shadowOpacity: 0.18,
+  elevation: 12,
+} as const;
+
+// design.md, Touch Targets: 56 מינימום לכל אלמנט לחיץ, 88 לכפתור הראשי.
+export const touchTarget = {
+  min: 56,
+  primary: 88,
 } as const;
 
 export const fontSize = {

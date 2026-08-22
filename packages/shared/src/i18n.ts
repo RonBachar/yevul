@@ -18,6 +18,29 @@ const strings: Record<string, string> = {
   'shell.signedInAs': 'מחוברים בתור',
   'shell.signOut': 'התנתקות',
   'shell.placeholder': 'המשק שלכם מוכן. המסכים ייבנו בשלבים הבאים.',
+
+  // ניווט ראשי, ארבעה טאבים וכפתור רישום מרכזי, design.md, Bottom Tab Bar
+  'nav.home': 'בית',
+  'nav.plots': 'חלקות',
+  'nav.money': 'כסף',
+  'nav.more': 'עוד',
+  'nav.capture': 'רישום',
+
+  // גיליון הרישום, design.md, Capture Tab & Sheet
+  'capture.expense': 'הוצאה',
+  'capture.expenseHint': 'סכום, קטגוריה, חלקה',
+  'capture.task': 'משימה',
+  'capture.taskHint': 'מה צריך לעשות',
+  'capture.journal': 'יומן',
+  'capture.journalHint': 'מה עשיתי, כולל ריסוס',
+  'capture.micHint': 'לחיצה ארוכה על הכפתור פותחת ישר את המיקרופון',
+  'capture.close': 'סגירה',
+
+  'screen.home': 'בית',
+  'screen.plots': 'חלקות',
+  'screen.money': 'כסף',
+  'screen.more': 'עוד',
+  'screen.comingSoon': 'המסך הזה ייבנה בשלב הבא לפי הרודמאפ.',
 };
 
 // מחזיר את המחרוזת לפי המפתח, ואם אין, מחזיר את המפתח עצמו כדי

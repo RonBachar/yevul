@@ -1,4 +1,5 @@
 # חקלאי רווחי, Style Reference
+
 > Field green on white, a live profit number a tired farmer can read from an arm's length away, in direct sun, without his glasses.
 
 **Theme:** light (only, see rationale below)
@@ -6,19 +7,23 @@
 **Tracks:** PRD v3.0 (20.08.2026), a from-scratch rewrite. This document has been re-synced to match, not incrementally patched.
 
 > ### ✍️ House style: no long dashes, no tables in prose
+>
 > This project forbids the em-dash and en-dash characters everywhere, in prose, in code, in UI copy. Use a colon, a comma, or a regular hyphen instead. This project also avoids markdown tables in newly written explanatory prose, the collaborator on this project finds tables hard to read; the existing reference tables below (color tokens, type scale, icon maps) predate that preference and are genuine lookup data, not prose, so they stay as tables. New writing in this document should default to plain paragraphs.
 
 > ### ✓ Naming decision resolved
+>
 > 1. **Color tokens renamed from `--color-yevul-*` to `--color-field-*`**, matching the product's name ("חקלאי רווחי"). Applied throughout this document and regenerated into `design.html`.
 > 2. `--color-profit-600` / `--color-loss-600` remain semantically separate from brand green, that separation is load-bearing, not cosmetic, and doesn't change with the token rename.
 
 > ### What changed in this revision
+>
 > PRD v3.0 is built around four independent records, a Plot, a Task, a Journal (log) entry, and a Money movement, and every screen is a view over one or more of them. That reshaped the navigation and added several component families that did not exist before:
-> - **Navigation rebuilt around four tabs and one center action:** בית (home), חלקות (plots), a center **Capture** tab that opens a three-way picker (Expense, Task, Journal, with a long-press straight to the mic), כסף (money, merging the old separate ledger and reports destinations), and עוד (settings). See *Bottom Tab Bar* and *Capture Tab & Sheet*.
-> - **Journal is now a first-class, independent record**, not a byproduct of tasks. It has its own entry sheet, its own list, and two ways in: automatically when a costed task is marked done and the farmer confirms, or directly through the Capture Sheet with no task involved. Spray is one entry type among several (plow, seed, fertilize, spray, irrigate, prune, thin, harvest, repair, other), and it additionally gets **its own dedicated screen**, because what a farmer must show a regulator or an export company needs to be found without digging through a filter. See *Components: Journal*.
-> - **Task completion now asks two independent questions**, save to the journal, and record as an expense, never either one automatically. See *Completion Prompts*.
-> - **Plot detail is a real screen now**, four tabs (Profitability, Tasks, Journal, Expenses), not just an implied destination behind a tappable card. Profitability carries a prominent **Forecast Update** action, since the PRD is explicit that projected income is always an estimate and must be trivially easy to revise. See *Plot Detail Screen* and *Forecast Update*.
-> - **Pricing display flips to monthly-first.** The headline number on both the Plans Screen and the Upgrade Gate Sheet is now the monthly charge, with the annual total shown as a small informational line beneath it, not the other way around. See *Plans Screen* and *Upgrade Gate Sheet*.
+>
+> - **Navigation rebuilt around four tabs and one center action:** בית (home), חלקות (plots), a center **Capture** tab that opens a three-way picker (Expense, Task, Journal, with a long-press straight to the mic), כסף (money, merging the old separate ledger and reports destinations), and עוד (settings). See _Bottom Tab Bar_ and _Capture Tab & Sheet_.
+> - **Journal is now a first-class, independent record**, not a byproduct of tasks. It has its own entry sheet, its own list, and two ways in: automatically when a costed task is marked done and the farmer confirms, or directly through the Capture Sheet with no task involved. Spray is one entry type among several (plow, seed, fertilize, spray, irrigate, prune, thin, harvest, repair, other), and it additionally gets **its own dedicated screen**, because what a farmer must show a regulator or an export company needs to be found without digging through a filter. See _Components: Journal_.
+> - **Task completion now asks two independent questions**, save to the journal, and record as an expense, never either one automatically. See _Completion Prompts_.
+> - **Plot detail is a real screen now**, four tabs (Profitability, Tasks, Journal, Expenses), not just an implied destination behind a tappable card. Profitability carries a prominent **Forecast Update** action, since the PRD is explicit that projected income is always an estimate and must be trivially easy to revise. See _Plot Detail Screen_ and _Forecast Update_.
+> - **Pricing display flips to monthly-first.** The headline number on both the Plans Screen and the Upgrade Gate Sheet is now the monthly charge, with the annual total shown as a small informational line beneath it, not the other way around. See _Plans Screen_ and _Upgrade Gate Sheet_.
 > - **Sharing, freemium and the offline-to-queue architecture carry over unchanged** in their visual treatment (Task Row, Data Freshness Chip, Worker Mode, the three-tier Plans Screen), only the pricing numbers and headline hierarchy moved.
 
 חקלאי רווחי speaks in a calm, plainspoken voice: a grounded field green (`#1D6B45`) carries brand moments, active states and the primary microphone action, while the interface itself stays almost entirely white, black-on-white text, and hairline borders, because the product lives in direct outdoor sunlight where soft shadows and pale tints wash out. Numbers are the hero: the live profit/loss figure is the largest thing on the screen, held to a fixed-width digit grid so it doesn't jitter as it updates (see the typography section, this font needed a real workaround, not just a CSS property). Profit and loss are never color-only, every figure carries a sign (+/−) and a small directional glyph, because roughly 1 in 12 men are red‑green colorblind and this is a financial tool, not a mood board. One typeface (OedooPro, a purchased, licensed family) does everything, at sizes and weights meaningfully larger than a typical consumer app, because the reading distance, lighting and average age of this audience all argue against being clever with type.
@@ -30,15 +35,17 @@
 Four things in the brief are right and worth defending, one needs a caveat, and there are two gaps worth naming.
 
 **Right, and worth defending explicitly:**
+
 - **Light mode.** Correct call, not just a preference: dark UI in direct sun has near-zero effective contrast (glare on the glass washes out dark backgrounds far worse than light ones), and OLED-style pure blacks look muddy/gray outdoors. This system is light-only by design, not "light mode as the default theme."
-- **Green as primary.** Works on two levels at once, brand color *and* the emotional shorthand for "you're making money", which is unusually efficient for a P&L app. Kept it, but see the caveat below.
+- **Green as primary.** Works on two levels at once, brand color _and_ the emotional shorthand for "you're making money", which is unusually efficient for a P&L app. Kept it, but see the caveat below.
 - **Rounded, friendly, not tight like Wise.** Correct instinct. Wise's −0.03em tracking and 900-weight block caps are legible on a designer's laptop; at arm's length in a field they blur into gray mush. This system uses zero negative tracking anywhere.
 - **High accessibility for 55-70.** Right target, but "accessible" needs to mean specific numbers, not a vibe. See the type scale and contrast floors below.
 
-**Needs a caveat: green as the *brand* color.**
-The app's hero number flips between profit (green) and loss (red) constantly, that's the whole point of the product. If green is *also* the permanent brand/chrome color, a bad week can visually clash with a UI that's aggressively green everywhere, and worse, a farmer glancing quickly could subconsciously read "green screen = I'm fine" even when the actual number is red. This system solves it by treating brand-green and profit-green as **separate tokens** that happen to share a hue family, and by keeping the app's chrome (nav, cards, backgrounds) neutral white/ink rather than green-washed, green is reserved for the primary action (the mic button) and for genuinely positive numbers. Loss uses a warm clay red (`#C1502E`, "Adama"), not a harsh alarm red, so it reads as "attention" rather than "error."
+**Needs a caveat: green as the _brand_ color.**
+The app's hero number flips between profit (green) and loss (red) constantly, that's the whole point of the product. If green is _also_ the permanent brand/chrome color, a bad week can visually clash with a UI that's aggressively green everywhere, and worse, a farmer glancing quickly could subconsciously read "green screen = I'm fine" even when the actual number is red. This system solves it by treating brand-green and profit-green as **separate tokens** that happen to share a hue family, and by keeping the app's chrome (nav, cards, backgrounds) neutral white/ink rather than green-washed, green is reserved for the primary action (the mic button) and for genuinely positive numbers. Loss uses a warm clay red (`#C1502E`, "Adama"), not a harsh alarm red, so it reads as "attention" rather than "error."
 
 **Three things not in the brief, found by inspecting the actual font files, not assumed:**
+
 1. **OedooPro's Hebrew coverage is real and complete.** This is a purchased/licensed family (`fonts/oedoopro-*-webfont.woff2`, 8 static weights: Thin, ExtraLight, Light, Book, Regular, Medium, Bold, Black). Checked the glyph tables directly with `fontTools` rather than trusting the font's name: every weight covers the full Hebrew alphabet, niqqud (vowel points, U+05B0-05C7), and geresh/gershayim, consistently across all 8 files. That's a genuine, verified pass on the Hebrew-first requirement, and it gives the system real weight range (100-900) instead of one variable font faking every step.
 2. **OedooPro has no ₪ glyph, in any weight.** Also confirmed directly in the cmap, not assumed. Every price and figure in this product needs the shekel sign, so the font stack keeps a system fallback (`'OedooPro', ui-sans-serif, system-ui, ...`) specifically so ₪ renders from the platform's Hebrew font on a per-character basis, invisible to the user, but a real dependency, not a decorative fallback.
 3. **OedooPro's digits are proportional-width with no OpenType `tnum` feature.** Measured the digit advance widths directly (e.g. Black weight: "1" is 0.468em, "4" is 0.666em), `font-variant-numeric: tabular-nums` has nothing to invoke here, so on its own the live P&L number would visually reflow every time it updates. Fixed with a small technique instead of a CSS property: every live figure wraps each digit in a fixed-width span (`.tnum-digit`, 0.68em) via a tiny script, so digits sit on a stable grid regardless of which numerals appear. Numerals also carry `direction: ltr; unicode-bidi: isolate;` per the PRD's own note (Appendix A.6) on embedding LTR numbers inside RTL sentences.
@@ -47,35 +54,35 @@ The app's hero number flips between profit (green) and loss (red) constantly, th
 
 ## Tokens, Colors
 
-| Name | Value | Token | Role |
-|------|-------|-------|------|
-| Field 700 (Field, deep) | `#1D6B45` | `--color-field-700` | Text-safe brand green, links, active nav icon, small brand marks, focus rings. The only green allowed on body text. |
-| Field 500 (Growth) | `#2FA06A` | `--color-field-500` | Icon-only fills, the mic button glyph, active tab indicator. **Not** for filled buttons with a text label: white text on Field-500 measures 3.3:1, below the 4.5:1 floor. Use Field-700 as the fill wherever the button carries a text label. |
-| Field 300 | `#8FD6AE` | `--color-field-300` | Decorative fill only, chart bars, progress tracks, disabled-state hints. |
-| Field 100 (Sprout wash) | `#E1F4E9` | `--color-field-100` | Pale tint for selected states, positive-figure card backgrounds, success chips. |
-| Profit 600 | `#26804C` | `--color-profit-600` | Semantic, positive P&L figures only. Deliberately a distinct token from Field even though the hue is close, so re-theming brand color never silently changes what "profit" looks like. |
-| Adama 600 (Soil red) | `#C1502E` | `--color-loss-600` | Semantic, negative P&L figures, destructive actions. Warm clay red, not a clinical alarm red, reads as "pay attention" not "you broke something." |
-| Adama 100 | `#FBE7DF` | `--color-loss-100` | Pale wash for loss-state card backgrounds and low-emphasis warning chips. |
-| Wheat 800 (Harvest, deep) | `#8A5A12` | `--color-wheat-800` | **Text-safe** wheat, overdue-task labels, pending-chip text, fuel/harvest category icons. 6.6:1 on Paper. Wheat-500 fails as text; this is its readable counterpart. *(Referenced throughout the original icon spec but never defined, added here.)* |
-| Wheat 500 (Harvest gold) | `#E3A233` | `--color-wheat-500` | Secondary accent, OCR/scan affordances, queued-write states, pending badges, the overdue banner's left rule. Never used for pass/fail meaning, and never as text. |
-| Wheat 100 | `#FBEED2` | `--color-wheat-100` | Pale wash for pending and overdue card backgrounds. |
-| Sky 500 | `#3E8FD0` | `--color-sky-500` | Informational only, sync status, tooltips. Used sparingly; this is not a three-accent system. |
-| Ink 900 | `#16231C` | `--color-ink-900` | Primary text, headings, icon strokes. Warm near-black (green-tinted), not pure `#000`, softer under bright screens. |
-| Slate 600 | `#56655D` | `--color-slate-600` | Secondary text, field labels, timestamps, helper copy. |
-| Mist 200 | `#E7EFE9` | `--color-mist-200` | Dividers, disabled fills, subtle section backgrounds. |
-| Mist 100 | `#F3F7F4` | `--color-mist-100` | Card surface alternate, used when a card needs to sit apart from pure white without a border. |
-| Border 200 | `#D6E0D9` | `--color-border-200` | Hairline borders, the primary elevation cue in this system (see Elevation). |
-| Paper | `#FFFFFF` | `--color-paper` | Page canvas. Pure white, deliberately, see rationale under Do's/Don'ts. |
+| Name                      | Value     | Token                | Role                                                                                                                                                                                                                                                 |
+| ------------------------- | --------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Field 700 (Field, deep)   | `#1D6B45` | `--color-field-700`  | Text-safe brand green, links, active nav icon, small brand marks, focus rings. The only green allowed on body text.                                                                                                                                  |
+| Field 500 (Growth)        | `#2FA06A` | `--color-field-500`  | Icon-only fills, the mic button glyph, active tab indicator. **Not** for filled buttons with a text label: white text on Field-500 measures 3.3:1, below the 4.5:1 floor. Use Field-700 as the fill wherever the button carries a text label.        |
+| Field 300                 | `#8FD6AE` | `--color-field-300`  | Decorative fill only, chart bars, progress tracks, disabled-state hints.                                                                                                                                                                             |
+| Field 100 (Sprout wash)   | `#E1F4E9` | `--color-field-100`  | Pale tint for selected states, positive-figure card backgrounds, success chips.                                                                                                                                                                      |
+| Profit 600                | `#26804C` | `--color-profit-600` | Semantic, positive P&L figures only. Deliberately a distinct token from Field even though the hue is close, so re-theming brand color never silently changes what "profit" looks like.                                                               |
+| Adama 600 (Soil red)      | `#C1502E` | `--color-loss-600`   | Semantic, negative P&L figures, destructive actions. Warm clay red, not a clinical alarm red, reads as "pay attention" not "you broke something."                                                                                                    |
+| Adama 100                 | `#FBE7DF` | `--color-loss-100`   | Pale wash for loss-state card backgrounds and low-emphasis warning chips.                                                                                                                                                                            |
+| Wheat 800 (Harvest, deep) | `#8A5A12` | `--color-wheat-800`  | **Text-safe** wheat, overdue-task labels, pending-chip text, fuel/harvest category icons. 6.6:1 on Paper. Wheat-500 fails as text; this is its readable counterpart. _(Referenced throughout the original icon spec but never defined, added here.)_ |
+| Wheat 500 (Harvest gold)  | `#E3A233` | `--color-wheat-500`  | Secondary accent, OCR/scan affordances, queued-write states, pending badges, the overdue banner's left rule. Never used for pass/fail meaning, and never as text.                                                                                    |
+| Wheat 100                 | `#FBEED2` | `--color-wheat-100`  | Pale wash for pending and overdue card backgrounds.                                                                                                                                                                                                  |
+| Sky 500                   | `#3E8FD0` | `--color-sky-500`    | Informational only, sync status, tooltips. Used sparingly; this is not a three-accent system.                                                                                                                                                        |
+| Ink 900                   | `#16231C` | `--color-ink-900`    | Primary text, headings, icon strokes. Warm near-black (green-tinted), not pure `#000`, softer under bright screens.                                                                                                                                  |
+| Slate 600                 | `#56655D` | `--color-slate-600`  | Secondary text, field labels, timestamps, helper copy.                                                                                                                                                                                               |
+| Mist 200                  | `#E7EFE9` | `--color-mist-200`   | Dividers, disabled fills, subtle section backgrounds.                                                                                                                                                                                                |
+| Mist 100                  | `#F3F7F4` | `--color-mist-100`   | Card surface alternate, used when a card needs to sit apart from pure white without a border.                                                                                                                                                        |
+| Border 200                | `#D6E0D9` | `--color-border-200` | Hairline borders, the primary elevation cue in this system (see Elevation).                                                                                                                                                                          |
+| Paper                     | `#FFFFFF` | `--color-paper`      | Page canvas. Pure white, deliberately, see rationale under Do's/Don'ts.                                                                                                                                                                              |
 
 **Contrast floors (non-negotiable, not aspirational):** body text on Paper ≥ 7:1 (AAA, sunlight, not just AA), large numerals ≥ 4.5:1 minimum even at Field-500 fill, every interactive element ≥ 3:1 against its immediate background. Any token pairing that fails these on your build should be treated as a bug, not a style note.
 
 **Three separate semantic axes, never let them borrow each other's colors:**
 
-| Axis | Positive / calm | Attention | Where |
-|---|---|---|---|
-| **Money** | Profit-600 | Loss-600 | P&L figures only |
+| Axis        | Positive / calm                       | Attention                  | Where                          |
+| ----------- | ------------------------------------- | -------------------------- | ------------------------------ |
+| **Money**   | Profit-600                            | Loss-600                   | P&L figures only               |
 | **Urgency** | Slate-600 (no date) / Ink-900 (dated) | **Wheat-800 on Wheat-100** | Task due dates, overdue banner |
-| **Sync** | Field-100 chip | Wheat-100 chip | Data freshness, queued writes |
+| **Sync**    | Field-100 chip                        | Wheat-100 chip             | Data freshness, queued writes  |
 
 Overdue tasks use **wheat, never Loss-600**. A task the farmer hasn't gotten to is not an error and not a loss, it's a nudge. Reserving red for money keeps red meaningful: on this product's home screen, red should mean exactly one thing.
 
@@ -84,6 +91,7 @@ Overdue tasks use **wheat, never Loss-600**. A task the farmer hasn't gotten to 
 ## Tokens, Typography
 
 ### OedooPro, the only typeface in the system. A purchased, licensed family (`fonts/oedoopro-*-webfont.woff2`), 8 real static weights, not a single variable font faking the range. Verified by inspecting the font's glyph tables directly: full Hebrew coverage (letters, niqqud, geresh/gershayim) on every weight, consistent across the family. · `--font-oedoopro`
+
 - **Source:** Local, licensed asset, `fonts/oedoopro-{weight}-webfont.woff2`. Not a Google Font; no CDN dependency.
 - **Weights available:** 100 Thin, 200 ExtraLight, 300 Light, 400 Book, 500 Regular, 600 Medium, 700 Bold, 900 Black
 - **Weights actively used in this system:** 400 (Book, body default), 600 (Medium, labels, chips, active states), 700 (Bold, card titles, buttons), 900 (Black, hero P&L number, screen titles). 100/200/300 are available but reserved, see the accessibility note below.
@@ -96,18 +104,18 @@ Overdue tasks use **wheat, never Loss-600**. A task the farmer hasn't gotten to 
 
 Deliberately larger than a typical consumer app default at every step, this is the accessibility spec, not a suggestion.
 
-| Role | Size | Weight | Line height | Token | Usage |
-|------|------|--------|-------------|-------|-------|
-| micro | 13px | 600 | 1.4 | `--text-micro` | Sync timestamps, legal fine print, used as rarely as possible |
-| caption | 15px | 600 | 1.4 | `--text-caption` | Chip labels, field hints |
-| body-sm | 17px | 400 | 1.5 | `--text-body-sm` | Secondary body copy, list metadata |
-| body | 19px | 400 | 1.55 | `--text-body` | Default body text, this system's "16px" |
-| body-lg | 22px | 400 | 1.5 | `--text-body-lg` | Confirmation-sheet field values, primary reading copy |
-| subheading | 26px | 700 | 1.3 | `--text-subheading` | Plot card titles, list section headers |
-| heading-sm | 34px | 700 | 1.2 | `--text-heading-sm` | In-screen section headers |
-| heading | 44px | 900 | 1.15 | `--text-heading` | Screen titles |
-| heading-lg | 60px | 900 | 1.05 | `--text-heading-lg` | Per-plot profit figures on cards |
-| display | 84px | 900 | 0.98 | `--text-display` | The live farm-level P&L number on the home dashboard, the single largest element in the product |
+| Role       | Size | Weight | Line height | Token               | Usage                                                                                           |
+| ---------- | ---- | ------ | ----------- | ------------------- | ----------------------------------------------------------------------------------------------- |
+| micro      | 13px | 600    | 1.4         | `--text-micro`      | Sync timestamps, legal fine print, used as rarely as possible                                   |
+| caption    | 15px | 600    | 1.4         | `--text-caption`    | Chip labels, field hints                                                                        |
+| body-sm    | 17px | 400    | 1.5         | `--text-body-sm`    | Secondary body copy, list metadata                                                              |
+| body       | 19px | 400    | 1.55        | `--text-body`       | Default body text, this system's "16px"                                                         |
+| body-lg    | 22px | 400    | 1.5         | `--text-body-lg`    | Confirmation-sheet field values, primary reading copy                                           |
+| subheading | 26px | 700    | 1.3         | `--text-subheading` | Plot card titles, list section headers                                                          |
+| heading-sm | 34px | 700    | 1.2         | `--text-heading-sm` | In-screen section headers                                                                       |
+| heading    | 44px | 900    | 1.15        | `--text-heading`    | Screen titles                                                                                   |
+| heading-lg | 60px | 900    | 1.05        | `--text-heading-lg` | Per-plot profit figures on cards                                                                |
+| display    | 84px | 900    | 0.98        | `--text-display`    | The live farm-level P&L number on the home dashboard, the single largest element in the product |
 
 **Minimum floor:** nothing in the shipped product should render below 15px. If a design calls for smaller, the answer is fewer words, not a smaller token.
 
@@ -120,30 +128,30 @@ Deliberately larger than a typical consumer app default at every step, this is t
 
 ### Spacing Scale
 
-| Name | Value | Token |
-|------|-------|-------|
-| 4 | 4px | `--spacing-4` |
-| 8 | 8px | `--spacing-8` |
-| 12 | 12px | `--spacing-12` |
-| 16 | 16px | `--spacing-16` |
-| 20 | 20px | `--spacing-20` |
-| 24 | 24px | `--spacing-24` |
-| 32 | 32px | `--spacing-32` |
-| 40 | 40px | `--spacing-40` |
-| 48 | 48px | `--spacing-48` |
-| 64 | 64px | `--spacing-64` |
-| 80 | 80px | `--spacing-80` |
+| Name | Value | Token          |
+| ---- | ----- | -------------- |
+| 4    | 4px   | `--spacing-4`  |
+| 8    | 8px   | `--spacing-8`  |
+| 12   | 12px  | `--spacing-12` |
+| 16   | 16px  | `--spacing-16` |
+| 20   | 20px  | `--spacing-20` |
+| 24   | 24px  | `--spacing-24` |
+| 32   | 32px  | `--spacing-32` |
+| 40   | 40px  | `--spacing-40` |
+| 48   | 48px  | `--spacing-48` |
+| 64   | 64px  | `--spacing-64` |
+| 80   | 80px  | `--spacing-80` |
 
 ### Border Radius
 
-| Element | Value | Note |
-|---------|-------|------|
-| chips/tags | 9999px | |
-| buttons | 9999px | Pill, large touch target, unambiguous "tap me" shape |
-| cards | 20px | Soft, not sharp, friendly without going full-pill (pill cards at this content density look childish, not warm) |
-| large cards / hero | 28px | Home dashboard hero card, paywall card |
-| bottom sheets | 28px (top corners only) | Voice/OCR confirmation |
-| inputs | 16px | |
+| Element            | Value                   | Note                                                                                                           |
+| ------------------ | ----------------------- | -------------------------------------------------------------------------------------------------------------- |
+| chips/tags         | 9999px                  |                                                                                                                |
+| buttons            | 9999px                  | Pill, large touch target, unambiguous "tap me" shape                                                           |
+| cards              | 20px                    | Soft, not sharp, friendly without going full-pill (pill cards at this content density look childish, not warm) |
+| large cards / hero | 28px                    | Home dashboard hero card, paywall card                                                                         |
+| bottom sheets      | 28px (top corners only) | Voice/OCR confirmation                                                                                         |
+| inputs             | 16px                    |                                                                                                                |
 
 ### Touch Targets
 
@@ -156,6 +164,7 @@ Deliberately larger than a typical consumer app default at every step, this is t
 **Style:** Outline/line icons only, no filled or duotone icons anywhere in the product. 2px stroke at the 24px grid, **round line caps and round line joins** (not miter/butt), this is what actually reads as "friendly rounded" in an icon, the same way OedooPro's letterforms do. Never mix a stroke icon next to a filled one in the same context (e.g. don't pair an outline nav icon with a filled active-state icon, see the active-state rule below instead).
 
 **Library: [Lucide](https://lucide.org)** (MIT license, free). Reasons, not just a default pick:
+
 - Its default export is already 24×24, `stroke-width="2"`, `stroke-linecap="round"`, `stroke-linejoin="round"`, `fill="none"`, i.e. it matches this system's spec with zero configuration, not by coincidence.
 - Full SVG source, so every icon recolors via `currentColor`, no icon font, no build step beyond copying markup, works identically in React Native (`lucide-react-native`) and plain web.
 - Deep enough set to cover agriculture-adjacent categories without inventing custom iconography: `fuel`, `sprout`, `bug`, `droplets`, `wheat` all exist natively and read correctly at a glance, verified by pulling the real SVG source for every icon below, not assumed from the icon's name alone.
@@ -164,95 +173,96 @@ Deliberately larger than a typical consumer app default at every step, this is t
 
 **Sizing:**
 
-| Context | Size | Stroke |
-|---|---|---|
-| Bottom nav, category icons, most UI | 24px | 2px |
-| Inline/chip icons (sync status, small badges) | 18px | 1.75px (scale down proportionally, never below 1.5px) |
-| Mic glyph inside the FAB | 32px | 2.5px (scales up with the button, stays legible against the green fill) |
-| Empty/error state illustration icon | 48px | 2px (stroke width does not scale with size past 32px, or it starts looking bold instead of large) |
+| Context                                       | Size | Stroke                                                                                            |
+| --------------------------------------------- | ---- | ------------------------------------------------------------------------------------------------- |
+| Bottom nav, category icons, most UI           | 24px | 2px                                                                                               |
+| Inline/chip icons (sync status, small badges) | 18px | 1.75px (scale down proportionally, never below 1.5px)                                             |
+| Mic glyph inside the FAB                      | 32px | 2.5px (scales up with the button, stays legible against the green fill)                           |
+| Empty/error state illustration icon           | 48px | 2px (stroke width does not scale with size past 32px, or it starts looking bold instead of large) |
 
 **Color:** icons inherit `currentColor`, following the same rules already set for text, Ink-900 default, Field-700 for active/links, white on filled Field-500 surfaces (mic button), Slate-600 for muted/secondary icons (e.g. the edit pencil before it's tapped). Never Field-500 as an icon-on-white color, for the same contrast reason it's banned as body text.
 
-**Active nav state:** don't switch the icon shape or swap to a filled variant, switch only the *color* (Slate-600 → Field-700) plus the label weight, exactly as already specified in the Bottom Tab Bar component. One icon set, state expressed through color and type weight, not through a second icon family.
+**Active nav state:** don't switch the icon shape or swap to a filled variant, switch only the _color_ (Slate-600 → Field-700) plus the label weight, exactly as already specified in the Bottom Tab Bar component. One icon set, state expressed through color and type weight, not through a second icon family.
 
 ### Icon Map
 
 Every placeholder icon block in the product now maps to a real, named Lucide icon:
 
-| Placeholder | Component | Lucide icon | Notes |
-|---|---|---|---|
-| `.ti` (tab 1) | Bottom nav, בית / Home | `home` | |
-| `.ti` (tab 2) | Bottom nav, חלקות / Plots | `layout-grid` | Reads as "a set of parcels," not a single document, distinct from the money icon below |
-| `.ti` (center) | Capture tab | `plus` | Sits raised above the bar in a filled Field-500 circle, the one non-flat element in the nav; tap opens the Capture Sheet, long-press jumps straight to the mic |
-| `.ti` (tab 3) | Bottom nav, כסף / Money | `wallet` | Merges what used to be separate Ledger and Reports destinations, expenses, receipts and export all live here now |
-| `.ti` (tab 4) | Bottom nav, עוד / More | `more-horizontal` | Plots and crops, farm members, subscription, notification hour |
-| `.mic-glyph` | Primary voice FAB | `mic` | White stroke on Field-500 fill, 32px |
-| `.pd-back` | Plot detail, back navigation | `chevron-right` | **RTL-specific:** back points right, not left. Never reuse an LTR `chevron-left` here, pick the direction-correct icon, don't mirror a wrong one with CSS |
-| `.edit-ic` (×2) | Confirmation sheet, editable field affordance | `pencil-line` | Slate-600 at rest, Field-700 on focus |
-| Sync chip dot | Sync Status Chip, synced | `check-circle` | Replaces the plain colored dot, pairs meaning with shape, not color alone (same rule as P&L figures) |
-| Sync chip dot | Sync Status Chip, pending | `clock` | Wheat-800, never Adama/red, offline queueing is not an error |
-| `.cdot` | Expense row, fuel | `fuel` | |
-| `.cdot` | Expense row, fertilizer | `sprout` | |
-| `.cdot` | Expense row, pest control | `bug` | |
+| Placeholder     | Component                                     | Lucide icon       | Notes                                                                                                                                                          |
+| --------------- | --------------------------------------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.ti` (tab 1)   | Bottom nav, בית / Home                        | `home`            |                                                                                                                                                                |
+| `.ti` (tab 2)   | Bottom nav, חלקות / Plots                     | `layout-grid`     | Reads as "a set of parcels," not a single document, distinct from the money icon below                                                                         |
+| `.ti` (center)  | Capture tab                                   | `plus`            | Sits raised above the bar in a filled Field-500 circle, the one non-flat element in the nav; tap opens the Capture Sheet, long-press jumps straight to the mic |
+| `.ti` (tab 3)   | Bottom nav, כסף / Money                       | `wallet`          | Merges what used to be separate Ledger and Reports destinations, expenses, receipts and export all live here now                                               |
+| `.ti` (tab 4)   | Bottom nav, עוד / More                        | `more-horizontal` | Plots and crops, farm members, subscription, notification hour                                                                                                 |
+| `.mic-glyph`    | Primary voice FAB                             | `mic`             | White stroke on Field-500 fill, 32px                                                                                                                           |
+| `.pd-back`      | Plot detail, back navigation                  | `chevron-right`   | **RTL-specific:** back points right, not left. Never reuse an LTR `chevron-left` here, pick the direction-correct icon, don't mirror a wrong one with CSS      |
+| `.edit-ic` (×2) | Confirmation sheet, editable field affordance | `pencil-line`     | Slate-600 at rest, Field-700 on focus                                                                                                                          |
+| Sync chip dot   | Sync Status Chip, synced                      | `check-circle`    | Replaces the plain colored dot, pairs meaning with shape, not color alone (same rule as P&L figures)                                                           |
+| Sync chip dot   | Sync Status Chip, pending                     | `clock`           | Wheat-800, never Adama/red, offline queueing is not an error                                                                                                   |
+| `.cdot`         | Expense row, fuel                             | `fuel`            |                                                                                                                                                                |
+| `.cdot`         | Expense row, fertilizer                       | `sprout`          |                                                                                                                                                                |
+| `.cdot`         | Expense row, pest control                     | `bug`             |                                                                                                                                                                |
 
-### Task, Sharing & Plan Icons *(added in this revision)*
+### Task, Sharing & Plan Icons _(added in this revision)_
 
-| Component | Lucide icon | Notes |
-|---|---|---|
-| Task row, unchecked | `circle` | 28px. Not a native checkbox, the tap target is the full row |
-| Task row, completing | `check` | White on Field-500, revealed by the swipe |
-| Swipe-left, snooze | `clock-arrow-up` | White on Wheat-500. Falls back to `clock` if unavailable |
-| Overdue indicator | *(none)* | **Deliberately no icon.** The Wheat rule + Wheat-800 date carries it; an alert glyph would read as an error |
-| Due date, in sheet | `calendar` | Only on the `עד תאריך` chip, not on the other two |
-| Estimated cost | *(none)* | The `₪` suffix is the affordance; an icon beside a currency field is redundant |
-| Task photo attach | `camera` | 56px icon button in the task sheet |
-| Task voice note | `mic` | Same glyph as the primary FAB, one meaning, one icon |
-| Round, entry point | `route` | Reads as "a path through the plots" more directly than `map` or `list` |
-| Round, position | *(none)* | Numeric `3 / 7`, never a dot row |
-| Recurring expense | `repeat` | Ledger rows and the fixed-expense form |
-| Member avatar | *(none)* | Initials, not a `user` glyph, initials distinguish people, an icon doesn't |
-| Sync, queued writes | `upload-cloud` | Wheat-800 |
-| Sync, offline | `cloud-off` | Wheat-800, never Adama/red |
-| Sync, stale read | `clock` | Slate-600 |
-| Plans, feature included | `check` | Profit-600 |
-| Plans, feature absent | *(none)* | An em-dash in Slate-600. **Never a red ✗** |
+| Component               | Lucide icon      | Notes                                                                                                       |
+| ----------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------- |
+| Task row, unchecked     | `circle`         | 28px. Not a native checkbox, the tap target is the full row                                                 |
+| Task row, completing    | `check`          | White on Field-500, revealed by the swipe                                                                   |
+| Swipe-left, snooze      | `clock-arrow-up` | White on Wheat-500. Falls back to `clock` if unavailable                                                    |
+| Overdue indicator       | _(none)_         | **Deliberately no icon.** The Wheat rule + Wheat-800 date carries it; an alert glyph would read as an error |
+| Due date, in sheet      | `calendar`       | Only on the `עד תאריך` chip, not on the other two                                                           |
+| Estimated cost          | _(none)_         | The `₪` suffix is the affordance; an icon beside a currency field is redundant                              |
+| Task photo attach       | `camera`         | 56px icon button in the task sheet                                                                          |
+| Task voice note         | `mic`            | Same glyph as the primary FAB, one meaning, one icon                                                        |
+| Round, entry point      | `route`          | Reads as "a path through the plots" more directly than `map` or `list`                                      |
+| Round, position         | _(none)_         | Numeric `3 / 7`, never a dot row                                                                            |
+| Recurring expense       | `repeat`         | Ledger rows and the fixed-expense form                                                                      |
+| Member avatar           | _(none)_         | Initials, not a `user` glyph, initials distinguish people, an icon doesn't                                  |
+| Sync, queued writes     | `upload-cloud`   | Wheat-800                                                                                                   |
+| Sync, offline           | `cloud-off`      | Wheat-800, never Adama/red                                                                                  |
+| Sync, stale read        | `clock`          | Slate-600                                                                                                   |
+| Plans, feature included | `check`          | Profit-600                                                                                                  |
+| Plans, feature absent   | _(none)_         | An em-dash in Slate-600. **Never a red ✗**                                                                  |
 
-### Journal & Capture Icons *(added in this revision)*
+### Journal & Capture Icons _(added in this revision)_
 
-| Component | Lucide icon | Notes |
-|---|---|---|
-| Capture tab (center nav) | `plus` | White on Field-500, raised circle |
-| Capture Sheet, expense option | `wallet` | Matches the Money tab icon, same meaning everywhere |
-| Capture Sheet, task option | `list-checks` | |
-| Capture Sheet, journal option | `notebook-pen` | Distinct from the task icon, a journal entry is a record of what happened, not a to-do |
-| Journal row, generic entry | `notebook-pen` | Same glyph as the capture option, one meaning |
-| Journal row, spray entry | `spray-can` | The one entry type that gets a distinct icon, since it is also the one with its own dedicated screen |
-| Journal row, harvest entry | `wheat` | Shared with the harvest expense category, both mean the same thing |
-| Safe-to-harvest chip | `shield-check` | Field-700, calm and informational, never the Adama/red family |
-| Forecast update button | `pencil-line` | Same pencil used for the Confirmation Sheet's edit affordance, one meaning: "this number is editable" |
-| Plot detail, tab bar | *(none)* | Text-only tabs, an icon per tab at this size adds noise without adding meaning |
+| Component                     | Lucide icon    | Notes                                                                                                 |
+| ----------------------------- | -------------- | ----------------------------------------------------------------------------------------------------- |
+| Capture tab (center nav)      | `plus`         | White on Field-500, raised circle                                                                     |
+| Capture Sheet, expense option | `wallet`       | Matches the Money tab icon, same meaning everywhere                                                   |
+| Capture Sheet, task option    | `list-checks`  |                                                                                                       |
+| Capture Sheet, journal option | `notebook-pen` | Distinct from the task icon, a journal entry is a record of what happened, not a to-do                |
+| Journal row, generic entry    | `notebook-pen` | Same glyph as the capture option, one meaning                                                         |
+| Journal row, spray entry      | `spray-can`    | The one entry type that gets a distinct icon, since it is also the one with its own dedicated screen  |
+| Journal row, harvest entry    | `wheat`        | Shared with the harvest expense category, both mean the same thing                                    |
+| Safe-to-harvest chip          | `shield-check` | Field-700, calm and informational, never the Adama/red family                                         |
+| Forecast update button        | `pencil-line`  | Same pencil used for the Confirmation Sheet's edit affordance, one meaning: "this number is editable" |
+| Plot detail, tab bar          | _(none)_       | Text-only tabs, an icon per tab at this size adds noise without adding meaning                        |
 
 ### Expense Category Icons
 
-The PRD's crop model is free-text (PRD §2 and §5) but expense *categories* are a small, known set. Full mapping, including categories not yet shown in a mockup:
+The PRD's crop model is free-text (PRD §2 and §5) but expense _categories_ are a small, known set. Full mapping, including categories not yet shown in a mockup:
 
-| Category (Hebrew) | Icon | Token color |
-|---|---|---|
-| דלק (Fuel) | `fuel` | Wheat-800 |
-| דשן (Fertilizer) | `sprout` | Field-700 |
-| הדברה (Pest control) | `bug` | Adama-600 |
-| השקיה (Irrigation) | `droplets` | Sky-500 |
-| זרעים ושתילה (Seeds / planting) | `flower-2` | Field-700 |
-| ציוד ותיקונים (Equipment / repairs) | `wrench` | Slate-600 |
-| עבודה ושכר (Labor / wages) | `users` | Slate-600 |
-| יבול וקציר (Harvest / yield) | `wheat` | Wheat-800 |
-| אחר / לא מסווג (Other / uncategorized) | `receipt` | Slate-600, **also the fallback for any category text the system doesn't recognize.** Since crop and expense-category names are free text, there is always exactly one icon that can't be missing: this one. |
+| Category (Hebrew)                      | Icon       | Token color                                                                                                                                                                                                 |
+| -------------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| דלק (Fuel)                             | `fuel`     | Wheat-800                                                                                                                                                                                                   |
+| דשן (Fertilizer)                       | `sprout`   | Field-700                                                                                                                                                                                                   |
+| הדברה (Pest control)                   | `bug`      | Adama-600                                                                                                                                                                                                   |
+| השקיה (Irrigation)                     | `droplets` | Sky-500                                                                                                                                                                                                     |
+| זרעים ושתילה (Seeds / planting)        | `flower-2` | Field-700                                                                                                                                                                                                   |
+| ציוד ותיקונים (Equipment / repairs)    | `wrench`   | Slate-600                                                                                                                                                                                                   |
+| עבודה ושכר (Labor / wages)             | `users`    | Slate-600                                                                                                                                                                                                   |
+| יבול וקציר (Harvest / yield)           | `wheat`    | Wheat-800                                                                                                                                                                                                   |
+| אחר / לא מסווג (Other / uncategorized) | `receipt`  | Slate-600, **also the fallback for any category text the system doesn't recognize.** Since crop and expense-category names are free text, there is always exactly one icon that can't be missing: this one. |
 
 ---
 
 ## Components
 
-### Capture Tab & Sheet *(the product's core interaction)*
+### Capture Tab & Sheet _(the product's core interaction)_
+
 **Role:** The single entry point for everything the farmer records, always reachable in one tap from anywhere in the app, never buried in a menu.
 
 The center item of the Bottom Tab Bar, raised above the bar line as an 88px Field-500 circle with a white `plus` glyph and the same soft ambient shadow (`--shadow-float`) the rest of the system reserves for floating elements. It is visually the loudest thing in the nav on purpose, this is the button used roughly nine times out of ten.
@@ -262,6 +272,7 @@ The center item of the Bottom Tab Bar, raised above the bar line as an 88px Fiel
 **A long press skips the sheet and opens the mic directly**, on the assumption that the farmer already knows what he wants to record and is choosing to speak it rather than tap through a menu. Which form the mic fills, expense, task or journal, is decided the same way voice already decides it elsewhere: by what the farmer says, extracted by the LLM against the relevant schema, never guessed by the button itself.
 
 ### Mic Capture Button (the shared voice affordance)
+
 **Role:** The visual and behavioral spec for "listening," reused identically wherever the app records voice, inside the Capture Sheet's long-press, inside the Round screen, and inside the Task and Journal sheets' own mic buttons.
 
 88px circle (56px where it appears inline rather than as a primary action, e.g. the Task Sheet's mic icon button), Field-500 fill, white mic glyph, soft ambient shadow (`--shadow-float`) so it reads as "raised" even in flat outdoor light. While listening: a soft pulsing ring in Field-300 at low opacity, animating outward, the only animated element allowed to loop, and it respects `prefers-reduced-motion`.
@@ -269,16 +280,19 @@ The center item of the Bottom Tab Bar, raised above the bar line as an 88px Fiel
 **Listening hint:** the instant recording starts, a `caption`-size label fades in above the ring, same slot the "מעבד..." processing label uses later: "אמרו: מה, כמה, לאיזו חלקה" for an expense, with the equivalent three-field prompt for a task or journal entry depending on which form the mic is filling. It exists to shape the utterance before it happens rather than correct it after, since the single-item extraction rule (PRD Appendix A.5) depends on the farmer actually saying one thing with its handful of fields. The label disappears the moment recording stops, it is coaching for the three seconds it is needed, not a persistent instruction the farmer has to read every time.
 
 ### Live P&L Hero Card
+
 **Role:** The first thing the farmer sees on opening the app.
 
 Full-width card, 28px radius, white background with a 1px Border-200 hairline (not a shadow-driven card, see Elevation). Farm name in `body-sm`/Slate-600 at top. The number itself in `display` (84px/900), color-flipping between Profit-600 and Loss-600, always prefixed with an explicit `+`/`−` sign and a small ▲/▼ glyph beside it, color is reinforcement, never the only signal. On update, the number does a brief (200ms) scale-pulse (1.0 → 1.03 → 1.0) to confirm "this just changed," per the PRD's UX spec (Appendix A.6) requirement for immediate visual feedback.
 
 ### Plot Card (כרטיס חלקה)
-**Role:** One per parcel, stacked below the hero card, the summary view of a plot. See *Plot Detail Screen* for what it opens into.
+
+**Role:** One per parcel, stacked below the hero card, the summary view of a plot. See _Plot Detail Screen_ for what it opens into.
 
 20px radius, Mist-100 background (no border needed, the tonal shift from the white hero above is enough separation), 20px padding. Plot name in `subheading`/Ink-900. Profit figure in `heading-lg` (60px/900) with the same sign+glyph+color treatment as the hero. Small `caption` line underneath: estimated income vs. actual spend. Entire card is tappable → plot detail.
 
 ### Plot Detail Screen
+
 **Role:** The screen a farmer thinks of as "the Southern plot," not "my expenses." Reached by tapping a Plot Card or a row in the Plots tab.
 
 Header: plot name in `heading-sm` (34px/700), a `body-sm`/Slate-600 line beneath it giving area, crop and season ("40 דונם · זיתים · עונה 2026"), and a `chevron-right`-style RTL back affordance (see the icon map's RTL note, back points right in this system).
@@ -286,13 +300,14 @@ Header: plot name in `heading-sm` (34px/700), a `body-sm`/Slate-600 line beneath
 Below the header, four tabs in the same segmented-control shape used elsewhere (Mist-200 track, white active pill, Field-700 active text): רווחיות, משימות, יומן, הוצאות. Each tab scopes an existing component to this one plot rather than inventing new ones:
 
 - **רווחיות** shows the plot's own P&L figure at `heading-lg`, a two-line breakdown (הכנסה צפויה, הוצאות בפועל) in the same `kv`-row style as the ledger, the **Forecast Update** button (see below), and, only when the plot has an open spray record with `phi_days` set, a Field-100 "בטוח לקטיף מ-…" chip, the plot-scoped instance of a safe-harvest indicator.
-- **משימות** is a Task Board (see *Components: Tasks*) filtered to this plot, identical row and swipe behavior, just a narrower query.
-- **יומן** is a Journal list (see *Components: Journal*) filtered to this plot.
+- **משימות** is a Task Board (see _Components: Tasks_) filtered to this plot, identical row and swipe behavior, just a narrower query.
+- **יומן** is a Journal list (see _Components: Journal_) filtered to this plot.
 - **הוצאות** is the ledger filtered to this plot, same Expense rows as the Money tab.
 
 No tab introduces a new visual language. A farmer who has learned any one of these four already knows how to read the other three, that consistency is the point of scoping instead of building four separate screens.
 
 ### Forecast Update
+
 **Role:** Keep the estimated-income figure honest by making it trivially fast to revise, since the PRD is explicit that this number is a projection the real world can invalidate overnight (hail, a price swing, a yield that came in lighter or heavier than expected).
 
 A Mist-200 pill button, `body-sm`/700, reading "עדכון צפי", sitting directly under the plot's profitability breakdown, not in Settings, not behind an edit icon on a field, a first-class button on the screen the farmer is already looking at when the number stops matching reality.
@@ -302,57 +317,66 @@ Tapping it opens a two-field bottom sheet, יבול צפוי and מחיר משו
 **Staleness nudge:** if a plot's forecast hasn't been touched in a set number of months, the profitability tab surfaces a single `caption`/Slate-600 line above the figure, "לא עודכן מאז אפריל, עדיין נכון?", linking straight into the same two-field sheet. This is a text line, not a card or a modal, the dashboard-level Recurring Expense Nudge Card pattern is for something the farmer hasn't set up yet; this is a gentle check on something he already has.
 
 ### Voice / OCR Confirmation Sheet
+
 **Role:** The trust checkpoint after every AI-parsed input (PRD §3, "תמיד מאשרים, אף פעם לא מנחשים").
 
 Bottom sheet, 28px top radius, slides up over a dimmed (not blurred, blur reads badly in sunlight and costs render performance) scrim. Maximum **two** editable fields, each in `body-lg` with a large tap-to-edit target. A single full-width pill button in Field-700 (white label text on Field-500 measures 3.3:1, below floor; Field-700 is the text-safe fill), `subheading` weight, reading "אישור" (Confirm), minimum 56px height. A plain text link below it for "עריכה" (Edit), never two filled buttons competing for the same thumb.
 
 ### Split Allocation Row (פיצול הוצאה)
+
 **Role:** Dividing one expense across multiple plots by percentage or amount.
 
 Each plot gets a row: plot name, a large stepper (−/+) or percentage value in tabular numerals, and a thin Field-300 progress bar showing its share of 100%. Running total shown at the row-group's top, turning Loss-600 if allocations don't sum to 100%, a validation state, not a decorative one.
 
-### Data Freshness Chip *(replaces the old Sync Status Chip)*
+### Data Freshness Chip _(replaces the old Sync Status Chip)_
+
 **Role:** Tell the truth about how current the number on screen is, without alarming anyone.
 
 The PRD no longer promises offline-first, the cloud is the single source of truth, reads are served from a cache, and writes go through a queue. That changes what this chip means: it is no longer "is my local database in sync," it is **"how old is what you're looking at, and is anything still waiting to be sent."**
 
 Pill, `caption` size, sitting directly under the P&L hero. Four states:
 
-| State | Copy | Treatment |
-|---|---|---|
-| Fresh (< 2 min) | *(chip hidden entirely)* | Don't decorate the normal case |
-| Stale | `מעודכן לפני 20 דקות` | Mist-200 bg / Slate-600 text / `clock` |
-| Queued writes | `2 רישומים ממתינים לשליחה` | Wheat-100 bg / **Wheat-800** text / `upload-cloud` |
-| Offline | `אין חיבור · נשמר במכשיר` | Wheat-100 bg / **Wheat-800** text / `cloud-off` |
+| State           | Copy                       | Treatment                                          |
+| --------------- | -------------------------- | -------------------------------------------------- |
+| Fresh (< 2 min) | _(chip hidden entirely)_   | Don't decorate the normal case                     |
+| Stale           | `מעודכן לפני 20 דקות`      | Mist-200 bg / Slate-600 text / `clock`             |
+| Queued writes   | `2 רישומים ממתינים לשליחה` | Wheat-100 bg / **Wheat-800** text / `upload-cloud` |
+| Offline         | `אין חיבור · נשמר במכשיר`  | Wheat-100 bg / **Wheat-800** text / `cloud-off`    |
 
 Never a red or error treatment for any of these, a queued write is a designed-for state, not a failure. The chip is also the one place allowed to say something slightly negative on the home screen, so it stays small and it stays under the number, never beside it.
 
 **The failure this chip exists to prevent** isn't "no signal", it's a save that spins for 25 seconds on one bar and then loses the farmer's expense. Every write renders optimistically the instant it's tapped, and this chip is the only acknowledgement that it hasn't landed yet.
 
 ### Bottom Tab Bar (RTL)
+
 **Role:** Primary navigation. Four flat tabs plus one raised center action: בית, חלקות, **Capture**, כסף, עוד.
 
 White background, 1px top Border-200 hairline (no shadow, consistent with the flat, hairline-first elevation language). Icons + `caption` labels. Tab order is mirrored for RTL reading direction, "בית" sits at the visual right, "עוד" at the visual left, with Capture centered between חלקות and כסף. Active tab: Field-700 icon + label; inactive: Slate-600. The Capture tab never shows an "active" state the way the other four do, tapping it opens a sheet rather than navigating to a screen, so it always renders in its resting Field-500-filled state.
 
+> **Note for implementers (added during Stage 2 build):** the mockups in `design.html` still render the _superseded_ layout described in the next paragraph, with tabs בית / הנה"ח / דוחות / הגדרות and no raised center action. `design.html` was deliberately left unchanged. **This section, not the mockup, is the source of truth for the tab bar.** The shipped mobile shell follows what is written here.
+
 This replaces the earlier five-flat-tab layout (Home, Tasks, Bookkeeping, Reports, Settings). Tasks never had a screen of their own to begin with, they live inside the home board, inside each plot's Tasks tab, and inside the Round, so a dedicated tab was redundant. Bookkeeping and Reports merge into the single כסף tab, since both were always "look at money," just filtered differently.
 
 ### Category / Crop Tag
+
 **Role:** Free-text crop labels (PRD's crop-agnostic model, PRD §2) rendered as chips.
 
 9999px radius, Mist-200 background, Ink-900 text, `caption` size, 6px/12px padding. No fixed color-per-category system, since crops are user-defined free text (PRD §2), a closed color-coding scheme would eventually collide or run out.
 
-### Upgrade Gate Sheet *(the primary monetization surface)*
+### Upgrade Gate Sheet _(the primary monetization surface)_
+
 **Role:** Appears at the exact moment the farmer hits a free-tier limit, adding a third plot, spending the 10th voice recording, tapping export. The PRD replaced a hard post-onboarding paywall with this.
 
 Bottom sheet, 28px top radius, same shell as the confirmation sheet, reusing a shape the farmer already trusts rather than introducing a "sales screen" silhouette.
 
-**The headline names what he was just trying to do**, never the plan: "החלקה השלישית שלך במסלול חקלאי", not "שדרג עכשיו!". The sheet exists because he *wanted* something; the copy should reflect that he was mid-action, not that we interrupted him.
+**The headline names what he was just trying to do**, never the plan: "החלקה השלישית שלך במסלול חקלאי", not "שדרג עכשיו!". The sheet exists because he _wanted_ something; the copy should reflect that he was mid-action, not that we interrupted him.
 
 One `body-lg` line of value, the **monthly price as the headline number** in `heading` (44px/900), with the annual total beneath it in `caption`/Slate-600 as a plain informational line ("828 ₪ בשנה"), not a discounted alternative offered alongside it. One Field-700 pill CTA at 56px+, and a **plain text link "לא עכשיו":** which actually dismisses. A gate the farmer can't close is the hard paywall we just removed.
 
 No Field-100 tint here, the sheet already reads as a distinct moment against the dimmed scrim, and tinting it green pushes it toward "advertisement."
 
 ### Plans Screen
+
 **Role:** The full three-tier comparison, reached from עוד or from "לראות את כל המסלולים" in the gate sheet. **Never the first thing a new user sees.**
 
 Full screen, Field-100 background, this is the one screen in the product allowed a tinted background, since it's a single destination moment rather than persistent chrome.
@@ -377,33 +401,35 @@ The task family follows one rule that overrides normal component instincts:
 > Every full-screen navigation, every required field, every confirmation dialog in this flow is a place the farmer stops. The expense flow can afford a confirmation step because money is at stake. The task flow cannot.
 
 ### Task Row
+
 **Role:** The atom of the whole feature. Appears in the task board, in plot detail, and in the Round screen.
 
 Single row, 72px minimum height (above the 56px floor, this row carries three lines of information and two swipe gestures). Mist-100 fill, no border, 16px vertical rhythm between rows.
 
 **Structure, reading right-to-left:**
 
-| Zone | Content |
-|---|---|
+| Zone            | Content                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
 | Leading (right) | 28px `circle` outline checkbox, Slate-600 stroke, Field-700 on press. **Not** a native checkbox: the tap target extends the full row height |
-| Body | Task title in `body-lg`/600 Ink-900. Second line in `body-sm`/Slate-600: plot name · due date · estimated cost, separated by `·` |
-| Trailing (left) | Assignee avatar (sharing only), else empty. Never a chevron, the whole row is tappable |
+| Body            | Task title in `body-lg`/600 Ink-900. Second line in `body-sm`/Slate-600: plot name · due date · estimated cost, separated by `·`            |
+| Trailing (left) | Assignee avatar (sharing only), else empty. Never a chevron, the whole row is tappable                                                      |
 
 **The metadata line only renders what exists.** A task with no date and no cost shows just the plot name. A general farm task with none of the three shows nothing, one line, and that's a legitimate, common task. Do not render empty-state placeholders like "ללא תאריך"; absence is information the farmer already has.
 
 **Due-date rendering in the metadata line:**
 
-| Condition | Copy | Color |
-|---|---|---|
-| Today | `היום` | Ink-900, weight 600 |
-| Tomorrow | `מחר` | Ink-900 |
-| Within 7 days | `עוד 3 ימים` | Slate-600 |
-| Further out | `25/08` | Slate-600 |
-| Overdue | `באיחור 4 ימים` | **Wheat-800, weight 600** |
+| Condition     | Copy            | Color                     |
+| ------------- | --------------- | ------------------------- |
+| Today         | `היום`          | Ink-900, weight 600       |
+| Tomorrow      | `מחר`           | Ink-900                   |
+| Within 7 days | `עוד 3 ימים`    | Slate-600                 |
+| Further out   | `25/08`         | Slate-600                 |
+| Overdue       | `באיחור 4 ימים` | **Wheat-800, weight 600** |
 
 Relative language until it stops being useful, "מחר" is instantly actionable, "עוד 19 ימים" is not, so past a week it becomes a date.
 
 ### Task Row, Swipe Actions
+
 **Role:** The two actions that carry the feature. Both must be reachable without opening anything.
 
 - **Swipe right → `בוצע`:** Field-500 fill revealed behind the row, white `check` glyph. On release the row collapses over 200ms.
@@ -414,6 +440,7 @@ Both fire immediately, both surface an undo toast for 5 seconds. Threshold is 40
 > **Snooze is a first-class action, not a secondary one.** It gets equal visual weight to completion because it is the mechanism that keeps the list survivable. A task list this audience can only complete or delete becomes a wall of guilt within a month, and a guilt wall stops being opened. Design it as generously as the success path.
 
 ### Task Sheet (create / edit)
+
 **Role:** The only place a task is authored by hand. **Bottom sheet, never a screen.**
 
 28px top radius, dimmed scrim, same shell family as the confirmation sheet. Opens with the title field focused and the keyboard already up, the farmer's first interaction is typing, not tapping into a field.
@@ -430,13 +457,15 @@ Vertical order, and this order is the spec:
 **Nothing below the fold.** If the sheet needs to scroll to reach Save on a small phone, cut a field.
 
 ### Due-Date Chip Group
+
 **Role:** The entire urgency model, expressed as three chips.
 
 Standard chip shape (9999px), 56px height, `caption`/600 labels. Unselected: Mist-200 fill, Ink-900 text. Selected: Field-100 fill, Field-700 text, 2px Field-700 border.
 
-**There is deliberately no priority control anywhere in this system.** The PRD's reasoning, restated here because it will get re-litigated during implementation: a second axis of importance forces a second decision on every single task, and for this audience urgency is *already* a deadline, spraying matters because there's a weather window, not because someone flagged it P1. If an escape hatch ever proves necessary it should be one binary star, not a four-level scale, and it should be added only after real usage demands it.
+**There is deliberately no priority control anywhere in this system.** The PRD's reasoning, restated here because it will get re-litigated during implementation: a second axis of importance forces a second decision on every single task, and for this audience urgency is _already_ a deadline, spraying matters because there's a weather window, not because someone flagged it P1. If an escape hatch ever proves necessary it should be one binary star, not a four-level scale, and it should be added only after real usage demands it.
 
 ### Overdue Banner
+
 **Role:** The "it pops up a task I didn't do" behavior from the field interview, done without creating a guilt pile.
 
 An overdue task renders as a normal Task Row with three modifications: Wheat-100 fill instead of Mist-100, a 4px Wheat-500 rule down the leading (right) edge, and the due line in Wheat-800/600. Overdue tasks sort to the top of the board under a `באיחור` section header.
@@ -448,6 +477,7 @@ Never Loss-600, never an alert icon, never a badge count in the tab bar for over
 **Aging:** a task snoozed three times or untouched for 30 days surfaces once as `עדיין רלוונטי?` with `כן` / `לארכיון`. Ignored twice → archived silently. Archived tasks are reachable from the board's overflow, never surfaced.
 
 ### Task Board (dashboard section)
+
 **Role:** All open tasks across the farm, on the home screen below the plot cards.
 
 Grouped by **time** by default: `באיחור` → `היום` → `השבוע` → `מתישהו`. A segmented control at the top switches to grouping by plot. Time wins by default because the board's job in the evening is answering "what am I doing tomorrow," not "what's the state of plot C."
@@ -457,11 +487,13 @@ Section headers in `caption`/600/Slate-600, all-caps is **not** used (Hebrew has
 Collapsed to the first 5 rows with `עוד 12 משימות` as a text link. The home screen belongs to the P&L number; the board is a resident, not the owner.
 
 ### Round Screen (מסך סבב)
+
 **Role:** The field-capture mode, the single interaction most likely to make this product a daily habit. Full screen, entered from a persistent entry point on the home screen (**not** buried in an overflow menu).
 
 One plot per full-screen card, horizontally paged. RTL paging: **swiping right-to-left advances to the next plot**, matching the reading direction, this is the single most commonly botched RTL detail and it must be verified on device, not assumed from the CSS.
 
 Per card:
+
 - Plot name in `heading` (44px/900) and area in `body-sm`/Slate-600.
 - Existing open tasks as compact Task Rows, read-only context, so he doesn't re-add what's already there.
 - **An 88px Field-500 mic button**, same component and same size as the home screen's. One recognizable primary action across the product.
@@ -472,12 +504,13 @@ Voice capture here fills the Task Sheet's fields instead of the expense form's, 
 **Round summary** on completion: a single centered card, `נוספו 7 משימות · צפי 6,300 ₪`, with a `סיום` pill. This is the one screen in the product where a brief celebratory beat is appropriate: the farmer just did the work the app exists to capture, and it's the moment his effort turns into a visible number.
 
 ### Completion Prompts
+
 **Role:** Two independent offers that can appear when a task is marked done, save it to the journal, and record its cost as an expense. **Offering, never doing**, and the two are never coupled to each other.
 
 Renders as a small sheet in place of the usual 5-second undo toast, not a full-screen dialog, the farmer just performed a satisfying action and a heavy interruption would punish it. A `check-circle` in Field-100 and the task title sit at the top ("בוצע: ריסוס עשבייה"), followed by up to two yes/no chip pairs, each independently defaulted and independently dismissible:
 
-> לשמור ביומן?  `כן` · `לא`
-> לרשום 1,200 ₪ כהוצאה?  `כן` · `לא`
+> לשמור ביומן? `כן` · `לא`
+> לרשום 1,200 ₪ כהוצאה? `כן` · `לא`
 
 **The journal question fires whenever the task's title matches a Journal entry type** (or always, if the farmer hasn't disabled it), and defaults to `כן`, since keeping the journal populated is low-friction and high-value. **The expense question fires only when the completed task carried an estimated cost**, and defaults to whichever choice the farmer picked last for that same task title, most costed tasks really did cost money, but the farmer may have done the work himself this time, so the choice always has to be re-confirmable, never silently repeated.
 
@@ -486,6 +519,7 @@ Answering `כן` on the expense question opens the expense confirmation sheet wi
 Auto-dismisses after 8 seconds (longer than a plain undo toast, this one asks two questions). Both toggles live in Settings and can be turned off independently. **Never auto-create either record under any setting:** the farmer may well have done the work himself and logged it separately already, and silently writing to his money or his journal on his behalf destroys trust in the two records the product exists to be right about.
 
 ### Recurring Expense Nudge Card
+
 **Role:** Surfacing fixed costs (rates, water, insurance, salary) a few days into use, since asking during onboarding is what kills onboarding.
 
 Full-width card on the home dashboard, Wheat-100 fill, 20px radius, appearing on day 2-3 of active use and **only once**. Title in `subheading`: "המספר שלך לא מדויק", direct, because the farmer's trust in the P&L figure is exactly what's at stake. Two lines of `body-sm` naming real examples (ארנונה, מים, ביטוח, משכורת). Actions: `בוא נוסיף` (Field-700 pill) and `לא עכשיו` (text link). Dismissed = gone permanently; the entry point lives in Settings from then on.
@@ -501,14 +535,17 @@ A recurring expense row anywhere in the ledger carries a `repeat` icon in Slate-
 The journal answers one question, what did I do and when, and it is deliberately independent of everything else in the system. A farmer can write to it with no task behind the entry, and deleting the entire Task feature tomorrow would not touch a single Journal row. That independence is the point, restated here because it is easy to accidentally couple the two while implementing.
 
 ### Log Row
+
 **Role:** The atom of the journal, appears in the full Journal list, in a plot's Journal tab, and in the dedicated Spray Log screen.
 
 Same shell family as the Task Row (Mist-100 fill, no border), but read-only in the sense that it carries no swipe actions, a Journal entry is a record of something that already happened, there is nothing to complete or snooze. Leading element is the date in `caption`/700/Slate-600 at a fixed width, so a scanning eye can track dates down the column. Body: entry type in `body-lg`/600 Ink-900 ("ריסוס", "דישון", "קטיף"), with a small type tag beside it only for spray and harvest entries (`ריסוס` in a Wheat-100/Wheat-800 chip, `קטיף` in a Field-100/Field-700 chip, the two entry types that carry structured sub-fields worth flagging at a glance). Second line in `body-sm`/Slate-600: plot name and a one-line detail, the pest and material for a spray row, the source ("נרשם בקול", "ממשימה שהסתיימה") for anything else.
 
 ### Log Entry Sheet (create / edit)
+
 **Role:** The only place a Journal entry is authored, whether it arrived here through the Capture Sheet's direct יומן option or was opened from a completed task's prompt. **Bottom sheet, never a screen**, the same five-second discipline the Task Sheet holds to.
 
 Vertical order:
+
 1. **Type:** a horizontally scrolling chip row, חריש, זריעה, דישון, ריסוס, השקיה, גיזום, דילול, קטיף, תיקון, אחר. Selecting `ריסוס` reveals four additional fields inline, below the chip row, not on a second screen: מזיק או סיבה and חומר as required text inputs (with autocomplete drawn from the farm's own history, so the same material name isn't retyped every time), and מינון and ימי המתנה as optional numeric inputs. Selecting `קטיף` reveals two additional fields, כמות and יחידה. Every other type reveals nothing further.
 2. **Plot:** the same chip row component as the Task Sheet, plus `כללי` for farm-level entries.
 3. **Date:** defaults to today, a single date field, no due-date framing here since a Journal entry records something that already happened.
@@ -519,11 +556,13 @@ Vertical order:
 When `ריסוס` and `phi_days` are both present, the sheet shows a computed, non-editable line beneath the two PHI fields, "בטוח לקטיף מ-…", the same derived-value pattern as the Plot Detail Screen's safe-harvest chip, so the farmer sees the consequence of what he just entered before he even saves it.
 
 ### Journal List
+
 **Role:** The full-farm view, reached from the כסף tab is wrong, this lives under its own destination, from עוד and from a "יומן" entry point surfaced wherever a plot or the home screen would otherwise dead-end into "what happened here."
 
 A segmented control at the top switches between `הכל` and a season filter. Below it, Log Rows grouped by date, newest first, no section headers beyond the date itself, unlike the Task Board's urgency grouping, a journal has no urgency axis to group by. A `יומן ריסוס` pill near the top links out to the dedicated Spray Log screen rather than just filtering in place, see below for why that distinction matters.
 
 ### Spray Log Screen
+
 **Role:** A dedicated, top-level screen for exactly one Journal entry type, because what a farmer must produce for a regulator or an export company is the single most consequential list in the app and it must be findable without digging through a filter first.
 
 Full screen, reached from three places: a persistent row inside the Journal, a button on the Plot Detail Screen's Profitability tab, and an entry under עוד. Header reads "יומן ריסוס" with a `body-sm`/Slate-600 count ("6 ריסוסים"). A plot filter chip row sits below the header (`כל החלקות` plus one chip per plot). The list is Log Rows filtered to spray entries only, each showing pest, material and PHI days on its detail line, and, where applicable, the derived "בטוח לקטיף" line in Field-700.
@@ -531,6 +570,7 @@ Full screen, reached from three places: a persistent row inside the Journal, a b
 A single full-width Field-700 pill at the bottom reads "ייצוא לרגולטור", producing a PDF scoped to spray records only, material, dose, dates and PHI, in a layout built for an inspector or a buyer to read cold, not for the farmer's own use. This is a separate export from the Journal's own "ייצוא יומן מלא", the two answer different questions for different audiences and neither substitutes for the other.
 
 ### Two Paths In, No Dependency
+
 **Role:** A design note, not a component, because it will get re-litigated during implementation otherwise.
 
 A Journal entry is created exactly two ways, and the system must not privilege one over the other. **Automatically**, when a costed task is marked done and the farmer answers `כן` to the journal half of the Completion Prompts, the task's title, plot and date populate the Log Entry Sheet, which the farmer then confirms or edits like any other entry. **Directly**, through the Capture Sheet's יומן option, with no task anywhere in the chain. Both paths terminate in the identical Log Entry Sheet and produce the identical Log Row. If the Task feature were removed entirely, the second path alone would still be a complete, useful product.
@@ -542,14 +582,17 @@ A Journal entry is created exactly two ways, and the system must not privilege o
 Sharing is a paid tier, so most farmers will never see any of this. **Every component here must be invisible at a member count of one:** no empty avatar slots, no "assigned to: me", no team affordances in a solo farm.
 
 ### Member Avatar
+
 32px circle, Field-100 fill, initials in `caption`/700/Field-700. No photo uploads in V1, a photo picker is friction for a feature that only needs to distinguish two or three people.
 
 Appears in the Task Row's trailing zone **only when a task is assigned to someone other than the current user.** "Assigned to me" is the default state and rendering it is noise.
 
 ### Role Badge
+
 `caption` chip beside a member's name in Settings → members. `בעלים`, Field-100/Field-700 · `שותף`, Mist-200/Ink-900 · `עובד`, Mist-200/Slate-600.
 
 ### Worker Mode
+
 The `עובד` role sees tasks, plots and the journal, but **no money, anywhere**. This is not a hidden-field pass over the normal UI, it changes the shell:
 
 - The P&L hero card does not render. The home screen opens on the task board.
@@ -562,6 +605,7 @@ The `עובד` role sees tasks, plots and the journal, but **no money, anywhere*
 Building this as CSS-level hiding over the full interface is the wrong approach and will leak, a rendered-but-hidden shekel figure is one screenshot away from a problem between an employer and an employee. **Enforce it at the query layer, and let the UI render what it receives.**
 
 ### "My Plots" Toggle
+
 A segmented control at the top of the home screen, `הכל` / `שלי`, visible only when the farm has more than one member **and** at least one plot has a responsible member set. It filters plot cards and the task board together.
 
 This is a view filter, not a permission. The father can always see his son's plots; he's choosing not to right now. Never style it as a lock, and never persist it as a mode the farmer can get stranded in, it resets to `הכל` on cold start.
@@ -596,7 +640,8 @@ This state is a **success**, not a void, and it is the one place in the product 
 
 **Role:** STT/LLM extraction fails or returns confidence too low to show a confirmation sheet (PRD §3, verification, never a black box; PRD §16 flags transcription accuracy as the top risk).
 
-Replaces the confirmation sheet content, same bottom-sheet shell (28px top radius, same slide-up motion), the farmer doesn't need to learn a new screen shape for a failure, just different content in the one they already expect. `mic-off` icon at 48px in Adama-600, inside a Adama-100 circle (this is the one icon that gets a background tint, the error needs to be found in under a second, and a flat icon on white reads as *slower* than the confirmation sheet's other content, not as urgent). Headline in `subheading`: "לא הצלחנו להבין את ההקלטה" (we couldn't understand the recording), states the failure plainly, no apology copy, no jargon. Two actions, matching the confirmation sheet's own do's/don'ts (one filled, one text link, never two filled buttons):
+Replaces the confirmation sheet content, same bottom-sheet shell (28px top radius, same slide-up motion), the farmer doesn't need to learn a new screen shape for a failure, just different content in the one they already expect. `mic-off` icon at 48px in Adama-600, inside a Adama-100 circle (this is the one icon that gets a background tint, the error needs to be found in under a second, and a flat icon on white reads as _slower_ than the confirmation sheet's other content, not as urgent). Headline in `subheading`: "לא הצלחנו להבין את ההקלטה" (we couldn't understand the recording), states the failure plainly, no apology copy, no jargon. Two actions, matching the confirmation sheet's own do's/don'ts (one filled, one text link, never two filled buttons):
+
 - Primary Field-700 pill: "נסה שוב" (try again), re-opens the mic listening state.
 - Text link: "הזנה ידנית" (manual entry), routes to the manual expense form, which is the PRD's own explicitly specified fallback path for voice (PRD §6.1), not something this spec is inventing. An error state that fails to surface an already-specified fallback path is incomplete, not just unpolished.
 
@@ -615,6 +660,7 @@ Adama-600 is reused here deliberately rather than introducing a new "error color
 ## Do's and Don'ts
 
 ### Do
+
 - Keep letter-spacing at `0` everywhere, friendly and readable beats "designed," especially at arm's length in daylight.
 - Pair every profit/loss color with an explicit `+`/`−` sign and a directional glyph. Color reinforces; it never carries meaning alone.
 - Use hairline borders (`--color-border-200`) as the primary way to separate surfaces. Shadows are a secondary, sparing accent (mic button, sheets), not the default card treatment.
@@ -632,7 +678,8 @@ Adama-600 is reused here deliberately rather than introducing a new "error color
 - Let a task exist with no plot, no date and no cost. Each of those is a real, common task, and requiring any of them teaches the farmer the app doesn't understand his work.
 - Verify RTL paging on the Round screen on a physical device. Swipe direction is the single most commonly botched RTL detail, and it cannot be confirmed by reading CSS.
 
-### Don't *(tasks, sharing and plans)*
+### Don't _(tasks, sharing and plans)_
+
 - Don't add a priority or importance control. Urgency is derived from the due date, a second axis forces a second decision on every task, and this audience already expresses importance as a deadline.
 - Don't ever auto-convert a completed task into an expense. Ask, always, and only when the task carried a cost. The farmer may have done the work himself, and silently charging his plot for free labor corrupts the one number this product exists to get right.
 - Don't open a full screen for task creation or editing. Bottom sheet only, a full navigation in a five-second flow is the flow's failure.
@@ -642,13 +689,15 @@ Adama-600 is reused here deliberately rather than introducing a new "error color
 - Don't ship an upgrade gate without a working "לא עכשיו". A gate that can't be dismissed is the hard paywall the PRD deliberately removed.
 - Don't lay the Plans Screen out as three side-by-side columns. Stacked cards, a price matrix is unreadable at this type scale on a phone.
 
-### Don't *(journal)*
+### Don't _(journal)_
+
 - Don't require a task to exist before a Journal entry can be created. The Capture Sheet's direct journal option and the completion-triggered one use the identical Log Entry Sheet; neither depends on the other existing.
 - Don't collapse the two completion questions, save to the journal, record as an expense, into one. They answer different questions, and either can be "no" independently of the other.
 - Don't bury the Spray Log behind a filter inside the general Journal alone. What a farmer must show a regulator or an export company gets its own entry point, from the Journal, from the plot screen, and from עוד.
 - Don't color a spray record's overdue-feeling urgency (e.g. "should have sprayed by now") the same way an overdue task is colored. A Journal entry records something that already happened; there is no "late" state for it, only for the task that might precede it.
 
 ### Don't
+
 - Don't use Field-500 (Growth Green) as a body-text color, it fails contrast at normal text sizes. Field-700 is the only text-safe green.
 - Don't use OedooPro Thin/ExtraLight/Light (100-300) below 32px, or for any body/UI text. Reserve them for large decorative headline moments only, thin strokes lose contrast fastest in direct sunlight.
 - Don't introduce translucency, frosted-glass, or blur effects anywhere. They lose legibility fastest in direct sunlight, which is this product's primary use environment.
@@ -662,15 +711,15 @@ Adama-600 is reused here deliberately rather than introducing a new "error color
 
 ## Surfaces
 
-| Level | Name | Value | Purpose |
-|-------|------|-------|---------|
-| 0 | Paper | `#FFFFFF` | Page canvas, the default background everywhere |
-| 1 | Mist 100 | `#F3F7F4` | Plot cards, list rows, tonal separation without a border |
-| 2 | Mist 200 | `#E7EFE9` | Dividers, tag backgrounds, disabled fills |
-| 3 | Field 100 | `#E1F4E9` | Positive-state emphasis surfaces (Plans screen, success chips, selected due-date chip) |
-| 4 | Wheat 100 | `#FBEED2` | Attention-without-error surfaces, overdue task rows, queued-write chip, recurring-expense nudge |
-| 5 | Loss 100 | `#FBE7DF` | Negative-state emphasis surfaces (overspend warnings). **Money only** |
-| 6 | Field 500 | `#2FA06A` | Primary action surface, mic button, filled CTAs |
+| Level | Name      | Value     | Purpose                                                                                         |
+| ----- | --------- | --------- | ----------------------------------------------------------------------------------------------- |
+| 0     | Paper     | `#FFFFFF` | Page canvas, the default background everywhere                                                  |
+| 1     | Mist 100  | `#F3F7F4` | Plot cards, list rows, tonal separation without a border                                        |
+| 2     | Mist 200  | `#E7EFE9` | Dividers, tag backgrounds, disabled fills                                                       |
+| 3     | Field 100 | `#E1F4E9` | Positive-state emphasis surfaces (Plans screen, success chips, selected due-date chip)          |
+| 4     | Wheat 100 | `#FBEED2` | Attention-without-error surfaces, overdue task rows, queued-write chip, recurring-expense nudge |
+| 5     | Loss 100  | `#FBE7DF` | Negative-state emphasis surfaces (overspend warnings). **Money only**                           |
+| 6     | Field 500 | `#2FA06A` | Primary action surface, mic button, filled CTAs                                                 |
 
 ## Elevation
 
@@ -699,22 +748,54 @@ Single-column, mobile-only, RTL. Every screen has one dominant element (the hero
    Fallback chain matters here: OedooPro has no ₪ glyph in any weight, so the
    shekel sign in every price/figure renders from the system font instead -
    confirmed by inspecting the font's glyph tables, not assumed. */
-@font-face { font-family: 'OedooPro'; font-weight: 100; font-display: swap;
-  src: url('/fonts/oedoopro-thin-webfont.woff2') format('woff2'); }
-@font-face { font-family: 'OedooPro'; font-weight: 200; font-display: swap;
-  src: url('/fonts/oedoopro-extralight-webfont.woff2') format('woff2'); }
-@font-face { font-family: 'OedooPro'; font-weight: 300; font-display: swap;
-  src: url('/fonts/oedoopro-light-webfont.woff2') format('woff2'); }
-@font-face { font-family: 'OedooPro'; font-weight: 400; font-display: swap;
-  src: url('/fonts/oedoopro-book-webfont.woff2') format('woff2'); }
-@font-face { font-family: 'OedooPro'; font-weight: 500; font-display: swap;
-  src: url('/fonts/oedoopro-regular-webfont.woff2') format('woff2'); }
-@font-face { font-family: 'OedooPro'; font-weight: 600; font-display: swap;
-  src: url('/fonts/oedoopro-medium-webfont.woff2') format('woff2'); }
-@font-face { font-family: 'OedooPro'; font-weight: 700; font-display: swap;
-  src: url('/fonts/oedoopro-bold-webfont.woff2') format('woff2'); }
-@font-face { font-family: 'OedooPro'; font-weight: 900; font-display: swap;
-  src: url('/fonts/oedoopro-black-webfont.woff2') format('woff2'); }
+@font-face {
+  font-family: 'OedooPro';
+  font-weight: 100;
+  font-display: swap;
+  src: url('/fonts/oedoopro-thin-webfont.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'OedooPro';
+  font-weight: 200;
+  font-display: swap;
+  src: url('/fonts/oedoopro-extralight-webfont.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'OedooPro';
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/oedoopro-light-webfont.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'OedooPro';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/oedoopro-book-webfont.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'OedooPro';
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/oedoopro-regular-webfont.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'OedooPro';
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/oedoopro-medium-webfont.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'OedooPro';
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/oedoopro-bold-webfont.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'OedooPro';
+  font-weight: 900;
+  font-display: swap;
+  src: url('/fonts/oedoopro-black-webfont.woff2') format('woff2');
+}
 ```
 
 ### CSS Custom Properties
@@ -722,39 +803,49 @@ Single-column, mobile-only, RTL. Every screen has one dominant element (the hero
 ```css
 :root {
   /* Colors */
-  --color-field-700: #1D6B45;
-  --color-field-500: #2FA06A;
-  --color-field-300: #8FD6AE;
-  --color-field-100: #E1F4E9;
-  --color-profit-600: #26804C;
-  --color-loss-600: #C1502E;
-  --color-loss-100: #FBE7DF;
-  --color-wheat-800: #8A5A12;
-  --color-wheat-500: #E3A233;
-  --color-wheat-100: #FBEED2;
-  --color-sky-500: #3E8FD0;
-  --color-ink-900: #16231C;
-  --color-slate-600: #56655D;
-  --color-mist-200: #E7EFE9;
-  --color-mist-100: #F3F7F4;
-  --color-border-200: #D6E0D9;
-  --color-paper: #FFFFFF;
+  --color-field-700: #1d6b45;
+  --color-field-500: #2fa06a;
+  --color-field-300: #8fd6ae;
+  --color-field-100: #e1f4e9;
+  --color-profit-600: #26804c;
+  --color-loss-600: #c1502e;
+  --color-loss-100: #fbe7df;
+  --color-wheat-800: #8a5a12;
+  --color-wheat-500: #e3a233;
+  --color-wheat-100: #fbeed2;
+  --color-sky-500: #3e8fd0;
+  --color-ink-900: #16231c;
+  --color-slate-600: #56655d;
+  --color-mist-200: #e7efe9;
+  --color-mist-100: #f3f7f4;
+  --color-border-200: #d6e0d9;
+  --color-paper: #ffffff;
 
   /* Typography, OedooPro is a local, licensed asset, not a hosted webfont.
      Load it via @font-face pointing at fonts/oedoopro-{weight}-webfont.woff2
      before using --font-oedoopro; see the @font-face block below. */
-  --font-oedoopro: 'OedooPro', ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-oedoopro: 'OedooPro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
-  --text-micro: 13px;      --leading-micro: 1.4;
-  --text-caption: 15px;    --leading-caption: 1.4;
-  --text-body-sm: 17px;    --leading-body-sm: 1.5;
-  --text-body: 19px;       --leading-body: 1.55;
-  --text-body-lg: 22px;    --leading-body-lg: 1.5;
-  --text-subheading: 26px; --leading-subheading: 1.3;
-  --text-heading-sm: 34px; --leading-heading-sm: 1.2;
-  --text-heading: 44px;    --leading-heading: 1.15;
-  --text-heading-lg: 60px; --leading-heading-lg: 1.05;
-  --text-display: 84px;    --leading-display: 0.98;
+  --text-micro: 13px;
+  --leading-micro: 1.4;
+  --text-caption: 15px;
+  --leading-caption: 1.4;
+  --text-body-sm: 17px;
+  --leading-body-sm: 1.5;
+  --text-body: 19px;
+  --leading-body: 1.55;
+  --text-body-lg: 22px;
+  --leading-body-lg: 1.5;
+  --text-subheading: 26px;
+  --leading-subheading: 1.3;
+  --text-heading-sm: 34px;
+  --leading-heading-sm: 1.2;
+  --text-heading: 44px;
+  --leading-heading: 1.15;
+  --text-heading-lg: 60px;
+  --leading-heading-lg: 1.05;
+  --text-display: 84px;
+  --leading-display: 0.98;
 
   /* Named after OedooPro's actual weight files, not generic CSS convention -
      "medium" here is the file called Medium (600), not the CSS-spec default of 500. */
@@ -768,10 +859,17 @@ Single-column, mobile-only, RTL. Every screen has one dominant element (the hero
   --font-weight-black: 900;
 
   /* Spacing */
-  --spacing-4: 4px;   --spacing-8: 8px;   --spacing-12: 12px;
-  --spacing-16: 16px; --spacing-20: 20px; --spacing-24: 24px;
-  --spacing-32: 32px; --spacing-40: 40px; --spacing-48: 48px;
-  --spacing-64: 64px; --spacing-80: 80px;
+  --spacing-4: 4px;
+  --spacing-8: 8px;
+  --spacing-12: 12px;
+  --spacing-16: 16px;
+  --spacing-20: 20px;
+  --spacing-24: 24px;
+  --spacing-32: 32px;
+  --spacing-40: 40px;
+  --spacing-48: 48px;
+  --spacing-64: 64px;
+  --spacing-80: 80px;
 
   /* Radius */
   --radius-chip: 9999px;
@@ -794,26 +892,26 @@ Single-column, mobile-only, RTL. Every screen has one dominant element (the hero
 
 ```css
 @theme {
-  --color-field-700: #1D6B45;
-  --color-field-500: #2FA06A;
-  --color-field-300: #8FD6AE;
-  --color-field-100: #E1F4E9;
-  --color-profit-600: #26804C;
-  --color-loss-600: #C1502E;
-  --color-loss-100: #FBE7DF;
-  --color-wheat-800: #8A5A12;
-  --color-wheat-500: #E3A233;
-  --color-wheat-100: #FBEED2;
-  --color-sky-500: #3E8FD0;
-  --color-ink-900: #16231C;
-  --color-slate-600: #56655D;
-  --color-mist-200: #E7EFE9;
-  --color-mist-100: #F3F7F4;
-  --color-border-200: #D6E0D9;
-  --color-paper: #FFFFFF;
+  --color-field-700: #1d6b45;
+  --color-field-500: #2fa06a;
+  --color-field-300: #8fd6ae;
+  --color-field-100: #e1f4e9;
+  --color-profit-600: #26804c;
+  --color-loss-600: #c1502e;
+  --color-loss-100: #fbe7df;
+  --color-wheat-800: #8a5a12;
+  --color-wheat-500: #e3a233;
+  --color-wheat-100: #fbeed2;
+  --color-sky-500: #3e8fd0;
+  --color-ink-900: #16231c;
+  --color-slate-600: #56655d;
+  --color-mist-200: #e7efe9;
+  --color-mist-100: #f3f7f4;
+  --color-border-200: #d6e0d9;
+  --color-paper: #ffffff;
 
   /* Local, licensed font, load via the @font-face block above, not a Google Fonts import. */
-  --font-oedoopro: 'OedooPro', ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-oedoopro: 'OedooPro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 
   --text-micro: 13px;
   --text-caption: 15px;
@@ -849,29 +947,29 @@ Single-column, mobile-only, RTL. Every screen has one dominant element (the hero
 
 Every screen this system currently specifies, so a gap is visible rather than discovered mid-build.
 
-| Screen | Primary components | Status |
-|---|---|---|
-| Onboarding (4 steps) | | ⚠️ **Not specified.** Needs a pass before build |
-| Home dashboard | P&L Hero, Data Freshness Chip, Plot Card, Task Board, Mic FAB, Recurring Nudge | ✅ |
-| Plot detail | Plot header, Task Row list, expense history, Empty States | ✅ |
-| Task board (full) | Task Row, swipe actions, Overdue Banner, section headers | ✅ |
-| Task sheet | Task Sheet, Due-Date Chip Group | ✅ |
-| Round | Round Screen, Mic Capture Button, inline confirmation strip, Round summary | ✅ |
-| Expense capture | Confirmation Sheet, all three input paths, error + loading states | ✅ |
-| Ledger / bookkeeping | Expense rows, Split Allocation Row, recurring chips | ✅ |
-| Fixed expenses | Recurring form, allocation strategy | ⚠️ **Form layout not specified** |
-| Reports / export | | ⚠️ **Not specified.** Low risk, but currently a blank |
-| Plans | Plans Screen | ✅ |
-| Upgrade gate | Upgrade Gate Sheet | ✅ |
-| Settings | Role Badge, member list, invite flow, notification hour | ⚠️ **Member/invite screens not specified** |
-| Plot detail | Plot Detail Screen, four tabs (Profitability, Tasks, Journal, Expenses), Forecast Update | ✅ |
-| Capture Sheet | Capture Tab & Sheet, three-way picker | ✅ |
-| Journal (full) | Journal list, Log Entry Sheet, type selector | ✅ |
-| Spray Log | Dedicated Spray Log screen, plot filter, safe-harvest chip, regulator export | ✅ |
-| Money tab | Expense rows, Split Allocation Row, receipts, reports and export, merged from the old Ledger + Reports destinations | ✅ |
-| Receipt viewer | Receipt Thumbnail, full-screen document viewer, file upload affordance | ⚠️ **Not specified** |
-| Web client | Desktop table layouts, action column, filters, keyboard shortcuts | ⚠️ **Not specified.** Ships after mobile |
+| Screen               | Primary components                                                                                                  | Status                                                |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Onboarding (4 steps) |                                                                                                                     | ⚠️ **Not specified.** Needs a pass before build       |
+| Home dashboard       | P&L Hero, Data Freshness Chip, Plot Card, Task Board, Mic FAB, Recurring Nudge                                      | ✅                                                    |
+| Plot detail          | Plot header, Task Row list, expense history, Empty States                                                           | ✅                                                    |
+| Task board (full)    | Task Row, swipe actions, Overdue Banner, section headers                                                            | ✅                                                    |
+| Task sheet           | Task Sheet, Due-Date Chip Group                                                                                     | ✅                                                    |
+| Round                | Round Screen, Mic Capture Button, inline confirmation strip, Round summary                                          | ✅                                                    |
+| Expense capture      | Confirmation Sheet, all three input paths, error + loading states                                                   | ✅                                                    |
+| Ledger / bookkeeping | Expense rows, Split Allocation Row, recurring chips                                                                 | ✅                                                    |
+| Fixed expenses       | Recurring form, allocation strategy                                                                                 | ⚠️ **Form layout not specified**                      |
+| Reports / export     |                                                                                                                     | ⚠️ **Not specified.** Low risk, but currently a blank |
+| Plans                | Plans Screen                                                                                                        | ✅                                                    |
+| Upgrade gate         | Upgrade Gate Sheet                                                                                                  | ✅                                                    |
+| Settings             | Role Badge, member list, invite flow, notification hour                                                             | ⚠️ **Member/invite screens not specified**            |
+| Plot detail          | Plot Detail Screen, four tabs (Profitability, Tasks, Journal, Expenses), Forecast Update                            | ✅                                                    |
+| Capture Sheet        | Capture Tab & Sheet, three-way picker                                                                               | ✅                                                    |
+| Journal (full)       | Journal list, Log Entry Sheet, type selector                                                                        | ✅                                                    |
+| Spray Log            | Dedicated Spray Log screen, plot filter, safe-harvest chip, regulator export                                        | ✅                                                    |
+| Money tab            | Expense rows, Split Allocation Row, receipts, reports and export, merged from the old Ledger + Reports destinations | ✅                                                    |
+| Receipt viewer       | Receipt Thumbnail, full-screen document viewer, file upload affordance                                              | ⚠️ **Not specified**                                  |
+| Web client           | Desktop table layouts, action column, filters, keyboard shortcuts                                                   | ⚠️ **Not specified.** Ships after mobile              |
 
 ---
 
-*This document defines V1 visual language, tracking PRD v3.0. A handful of screens are flagged above as unspecified, extend this document as they are built, rather than re-deriving conventions per feature.*
+_This document defines V1 visual language, tracking PRD v3.0. A handful of screens are flagged above as unspecified, extend this document as they are built, rather than re-deriving conventions per feature._
