@@ -92,9 +92,9 @@
   gap: var(--spacing-12);
   /* design.md, Touch Targets: 56 מינימום, נשמר גם בווב ולא מוקטן
      ל-40 כמקובל בדסקטופ, כי זה אותו קהל ואותה דרישת נגישות. */
-  min-height: 56px;
+  min-height: var(--touch-min);
   padding-inline: var(--spacing-12);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-card);
   color: var(--color-slate-600);
   font-size: var(--text-body-sm);
   font-weight: 500;
@@ -137,7 +137,7 @@
 }
 
 .sidebar__signout {
-  min-height: 56px;
+  min-height: var(--touch-min);
   padding-inline: var(--spacing-16);
   border: 1px solid var(--color-border-200);
   border-radius: var(--radius-pill);

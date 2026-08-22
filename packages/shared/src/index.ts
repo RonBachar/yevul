@@ -4,6 +4,7 @@ export { safeHarvestDate } from './safeHarvestDate';
 export { t } from './i18n';
 export { useAuthSession, type AuthState } from './auth';
 export { colors } from './colors';
+export { spacing, radius, fontSize, fontWeight, touchTarget, shadowFloat } from './tokens';
 export {
   CURRENCIES,
   AREA_UNITS,

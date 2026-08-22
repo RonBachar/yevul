@@ -6,7 +6,7 @@ import * as Linking from 'expo-linking';
 import type { Provider } from '@supabase/supabase-js';
 import { t } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
-import { colors, fonts, fontSize, radius, spacing } from '../theme/tokens';
+import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 
 // משלים סשן אימות תלוי אם הדפדפן נפתח כבר (no-op בדרך כלל)
 WebBrowser.maybeCompleteAuthSession();
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     padding: spacing.s32,
     borderWidth: 1,
     borderColor: colors.border200,
-    borderRadius: radius.lg,
+    borderRadius: radius.card,
     backgroundColor: colors.paper,
   },
   brand: {
@@ -137,8 +137,10 @@ const styles = StyleSheet.create({
     gap: spacing.s12,
   },
   btn: {
-    minHeight: 56,
-    borderRadius: radius.md,
+    // design.md, Border Radius: כפתורים הם גלולה. קודם היה כאן 12,
+    // ערך שלא קיים במפרט בכלל, ונמצא בביקורת הארכיטקטורה של שלב 2.
+    minHeight: touchTarget.min,
+    borderRadius: radius.pill,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.s24,

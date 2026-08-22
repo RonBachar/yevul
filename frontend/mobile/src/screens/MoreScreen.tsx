@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.s16,
     paddingHorizontal: spacing.s16,
-    borderRadius: radius.md,
+    borderRadius: radius.card,
     borderWidth: 1,
     borderColor: colors.border200,
   },

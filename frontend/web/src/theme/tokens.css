@@ -35,37 +35,19 @@
 }
 
 :root {
-  /* צבעי המותג מוזרקים כמשתני CSS בזמן ריצה ב-applyColorTokens.ts,
-     ממקור אמת יחיד ב-packages/shared, כדי שלא יהיה עותק ידני נפרד
-     שיכול להתפצל מהנייד. אין כאן ערכי ברירת מחדל בכוונה, ראה main.tsx
-     שקורא ל-applyColorTokens() לפני הרינדור הראשון. */
+  /* **אין כאן ערכי טוקנים.** צבעים, מרווחים, רדיוסים, גדלי טיפוגרפיה
+     ומידות מגע מוזרקים כולם כמשתני CSS בזמן ריצה ב-applyDesignTokens.ts,
+     ממקור אמת יחיד ב-packages/shared, כדי שלא יהיה עותק ידני שיכול
+     להתפצל מהנייד. main.tsx קורא לזה לפני הרינדור הראשון.
 
-  /* טיפוגרפיה. הפולבק נושא משקל אמיתי: ל-OedooPro אין גליף ₪, והסימן
-     נלקח מפונט המערכת per-character. ראה design.md. */
+     עד ביקורת הארכיטקטורה של שלב 2 רק הצבעים הוזרקו כך, והשאר היה
+     כתוב כאן ידנית וגם ב-tokens.ts של הנייד, ושני העותקים כבר נפרדו.
+
+     מה שכן נשאר כאן הוא מה שקיים רק בווב, משפחת הפונט וטעינתה. */
+
+  /* הפולבק נושא משקל אמיתי: ל-OedooPro אין גליף ₪, והסימן נלקח מפונט
+     המערכת per-character. ראה design.md. */
   --font-oedoopro: 'OedooPro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-
-  --text-micro: 13px;
-  --text-caption: 15px;
-  --text-body-sm: 17px;
-  --text-body: 19px;
-  --text-body-lg: 22px;
-  --text-subheading: 26px;
-  --text-heading-sm: 34px;
-  --text-heading: 44px;
-  --text-heading-lg: 60px;
-  --text-display: 84px;
-
-  /* מרווחים וצורות */
-  --spacing-4: 4px;
-  --spacing-8: 8px;
-  --spacing-12: 12px;
-  --spacing-16: 16px;
-  --spacing-24: 24px;
-  --spacing-32: 32px;
-  --spacing-48: 48px;
-  --radius-md: 12px;
-  --radius-lg: 16px;
-  --radius-pill: 999px;
 }
 
 * {

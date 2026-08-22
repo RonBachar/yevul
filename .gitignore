@@ -49,3 +49,10 @@ Thumbs.db
 # Supabase local
 backend/supabase/.branches/
 backend/supabase/.temp/
+backend/supabase/snippets/
+
+# רשת ביטחון. כל פקודת supabase חייבת לרוץ מתוך backend, ראה docs/env.md.
+# כשמריצים אותה בטעות משורש הפרויקט, ה-CLI יוצר כאן תיקיית עבודה משלו,
+# מתעלם מ-backend/supabase/config.toml, ומרים ברירות מחדל בלי להתריע.
+# השורה הזאת מונעת מהשארית הזאת להיכנס ל-git בשקט.
+/supabase/

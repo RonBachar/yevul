@@ -1,10 +1,10 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import { applyColorTokens } from './theme/applyColorTokens';
+import { applyDesignTokens } from './theme/applyDesignTokens';
 import './theme/tokens.css';
 
-applyColorTokens();
+applyDesignTokens();
 
 const container = document.getElementById('root');
 if (!container) throw new Error('root element not found');

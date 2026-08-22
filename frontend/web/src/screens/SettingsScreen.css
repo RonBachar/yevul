@@ -25,10 +25,10 @@
 .form__input {
   /* design.md, Touch Targets, 56 מינימום, וגם בווב. Border Radius,
      שדות קלט 16. */
-  min-height: 56px;
+  min-height: var(--touch-min);
   padding: 0 var(--spacing-16);
   border: 1px solid var(--color-border-200);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-input);
   background: var(--color-paper);
   color: var(--color-ink-900);
   font-family: inherit;
@@ -49,7 +49,7 @@
 /* design.md, כפתור ראשי, גלולה במילוי Field-700. הטקסט לבן על 500
    נופל מתחת לסף הניגודיות, ולכן המילוי הוא 700 ולא 500. */
 .form__submit {
-  min-height: 56px;
+  min-height: var(--touch-min);
   padding: 0 var(--spacing-32);
   border: none;
   border-radius: var(--radius-pill);

@@ -9,15 +9,14 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
   },
-  "dependencies": {
-    "react": "*"
-  },
   "peerDependencies": {
-    "@supabase/supabase-js": "*"
+    "@supabase/supabase-js": "*",
+    "react": "*"
   },
   "devDependencies": {
     "@supabase/supabase-js": "^2.112.3",
     "@types/react": "^19.1.10",
+    "react": "^19.1.0",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   }

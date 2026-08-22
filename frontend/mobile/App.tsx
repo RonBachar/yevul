@@ -62,10 +62,15 @@ function RootNavigator() {
 }
 
 export default function App() {
+  // הפונטים נטענים ממקור משותף אחד, packages/assets, בדיוק כמו שהווב
+  // טוען אותם ב-tokens.css. עד ביקורת הארכיטקטורה של שלב 2 היה כאן
+  // עותק מקומי תחת frontend/mobile/assets/fonts, זהה בייט אל בייט,
+  // כך שהחלפת קובץ פונט במקום אחד הייתה משאירה את השני ישן בשקט.
+  // metro.config.js כבר עוקב אחרי כל המונוריפו דרך watchFolders.
   const [fontsLoaded] = useFonts({
-    'OedooPro-Regular': require('./assets/fonts/OedooPro-Regular.ttf'),
-    'OedooPro-Medium': require('./assets/fonts/OedooPro-Medium.ttf'),
-    'OedooPro-Bold': require('./assets/fonts/OedooPro-Bold.ttf'),
+    'OedooPro-Regular': require('@yevul/assets/fonts/OedooPro-Regular.ttf'),
+    'OedooPro-Medium': require('@yevul/assets/fonts/OedooPro-Medium.ttf'),
+    'OedooPro-Bold': require('@yevul/assets/fonts/OedooPro-Bold.ttf'),
   });
 
   useEffect(() => {
