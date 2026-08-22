@@ -9,7 +9,9 @@ const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
 const anonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!url || !anonKey) {
-  throw new Error('חסרים EXPO_PUBLIC_SUPABASE_URL או EXPO_PUBLIC_SUPABASE_ANON_KEY, ראה docs/env.md');
+  throw new Error(
+    'חסרים EXPO_PUBLIC_SUPABASE_URL או EXPO_PUBLIC_SUPABASE_ANON_KEY, ראה docs/env.md',
+  );
 }
 
 export const supabase = createClient(url, anonKey, {

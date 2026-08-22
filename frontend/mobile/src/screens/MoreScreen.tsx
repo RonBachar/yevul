@@ -1,4 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { ChevronLeft, Settings } from 'lucide-react-native';
 import { t } from '@yevul/shared';
 import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../lib/supabase';
@@ -10,6 +12,7 @@ import { ScreenPlaceholder } from './ScreenPlaceholder';
 // שקדם לניווט. מסך ההגדרות עצמו הוא המשימה הבאה בשלב 2.
 export function MoreScreen() {
   const { session } = useAuth();
+  const navigation = useNavigation();
   const email = session?.user.email ?? session?.user.id ?? '';
 
   async function signOut() {
@@ -18,6 +21,17 @@ export function MoreScreen() {
 
   return (
     <ScreenPlaceholder title={t('screen.more')}>
+      <Pressable
+        style={styles.row}
+        onPress={() => navigation.navigate('Settings' as never)}
+        accessibilityRole="button"
+      >
+        <Settings size={24} strokeWidth={2} color={colors.field700} />
+        <Text style={styles.rowLabel}>{t('screen.settings')}</Text>
+        {/* חץ הכניסה פונה שמאלה תחת RTL, זה הכיוון "פנימה" */}
+        <ChevronLeft size={24} strokeWidth={2} color={colors.slate600} />
+      </Pressable>
+
       <View style={styles.account}>
         <Text style={styles.meta}>
           {t('shell.signedInAs')} {email}
@@ -31,6 +45,24 @@ export function MoreScreen() {
 }
 
 const styles = StyleSheet.create({
+  row: {
+    minHeight: touchTarget.min,
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s16,
+    paddingHorizontal: spacing.s16,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border200,
+  },
+  rowLabel: {
+    flex: 1,
+    fontFamily: fonts.bold,
+    fontSize: fontSize.bodySm,
+    color: colors.ink900,
+    writingDirection: 'rtl',
+  },
   account: {
     alignItems: 'center',
     gap: spacing.s16,

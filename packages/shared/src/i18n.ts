@@ -55,6 +55,30 @@ const strings: Record<string, string> = {
   'screen.journal': 'יומן',
   'screen.settings': 'הגדרות',
   'screen.comingSoon': 'המסך הזה ייבנה בשלב הבא לפי הרודמאפ.',
+
+  // מסך הגדרות
+  'settings.farmName': 'שם המשק',
+  'settings.farmNamePlaceholder': 'למשל, המשק של דוד',
+  'settings.currency': 'מטבע',
+  'settings.areaUnit': 'יחידת שטח',
+  'settings.locale': 'שפה',
+  'settings.save': 'שמירה',
+  'settings.saving': 'שומר',
+  'settings.saved': 'ההגדרות נשמרו',
+  'settings.loadError': 'לא הצלחנו לטעון את ההגדרות, נסו שוב',
+  'settings.saveError': 'לא הצלחנו לשמור, נסו שוב',
+  // נדחה על ידי השרת, לא על ידי המסך. RLS מתיר עריכה ל-owner ול-manager
+  // בלבד, והלקוח רק מדווח על התוצאה ולא מחליט אותה מראש.
+  'settings.forbidden': 'אין לכם הרשאה לשנות את הגדרות המשק',
+  'settings.nameRequired': 'שם המשק לא יכול להיות ריק',
+
+  'settings.currency.ILS': 'שקל חדש (₪)',
+  'settings.currency.USD': 'דולר אמריקאי ($)',
+  'settings.currency.EUR': 'אירו (€)',
+  'settings.areaUnit.dunam': 'דונם',
+  'settings.areaUnit.hectare': 'הקטאר',
+  'settings.areaUnit.acre': 'אקר',
+  'settings.locale.he': 'עברית',
 };
 
 // מחזיר את המחרוזת לפי המפתח, ואם אין, מחזיר את המפתח עצמו כדי

@@ -37,9 +37,7 @@ function toUtcDateOnly(input: string | Date): Date | null {
     if (Number.isNaN(input.getTime())) {
       return null;
     }
-    return new Date(
-      Date.UTC(input.getUTCFullYear(), input.getUTCMonth(), input.getUTCDate()),
-    );
+    return new Date(Date.UTC(input.getUTCFullYear(), input.getUTCMonth(), input.getUTCDate()));
   }
 
   const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(input);

@@ -5,7 +5,7 @@ import { t } from '@yevul/shared';
 import { HomeScreen } from '../screens/HomeScreen';
 import { PlotsScreen } from '../screens/PlotsScreen';
 import { MoneyScreen } from '../screens/MoneyScreen';
-import { MoreScreen } from '../screens/MoreScreen';
+import { MoreStack } from './MoreStack';
 import { CaptureSheet } from './CaptureSheet';
 import { TabBar } from './TabBar';
 
@@ -57,7 +57,7 @@ export function RootTabs() {
         />
         <Tab.Screen
           name="More"
-          component={MoreScreen}
+          component={MoreStack}
           options={{
             title: t('nav.more'),
             tabBarIcon: ({ color, size }) => <Ellipsis size={size} strokeWidth={2} color={color} />,

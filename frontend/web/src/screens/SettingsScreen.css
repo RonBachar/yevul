@@ -1,0 +1,88 @@
+/*
+  טופס ההגדרות. עמודה אחת ברוחב קריא, לא רשת של שדות לרוחב המסך.
+  ארבעה שדות בסך הכל, וטופס בעמודה אחת נסרק מהר יותר מטבלת שדות.
+*/
+
+.form {
+  display: flex;
+  max-width: 520px;
+  flex-direction: column;
+  gap: var(--spacing-24);
+}
+
+.form__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+}
+
+.form__label {
+  font-size: var(--text-body-sm);
+  font-weight: 700;
+  color: var(--color-ink-900);
+}
+
+.form__input {
+  /* design.md, Touch Targets, 56 מינימום, וגם בווב. Border Radius,
+     שדות קלט 16. */
+  min-height: 56px;
+  padding: 0 var(--spacing-16);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-lg);
+  background: var(--color-paper);
+  color: var(--color-ink-900);
+  font-family: inherit;
+  font-size: var(--text-body);
+}
+
+.form__input:focus-visible {
+  outline: 3px solid var(--color-field-700);
+  outline-offset: 2px;
+}
+
+.form__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-16);
+}
+
+/* design.md, כפתור ראשי, גלולה במילוי Field-700. הטקסט לבן על 500
+   נופל מתחת לסף הניגודיות, ולכן המילוי הוא 700 ולא 500. */
+.form__submit {
+  min-height: 56px;
+  padding: 0 var(--spacing-32);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-field-700);
+  color: var(--color-paper);
+  font-family: inherit;
+  font-size: var(--text-body);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.form__submit:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.form__submit:focus-visible {
+  outline: 3px solid var(--color-ink-900);
+  outline-offset: 2px;
+}
+
+.form__message {
+  margin: 0;
+  font-size: var(--text-body-sm);
+  font-weight: 500;
+}
+
+.form__message--good {
+  color: var(--color-profit-600);
+}
+
+/* Loss-600 שמור לכסף לפי design.md, אבל שגיאת שמירה היא באמת שגיאה
+   ולא מצב שתוכנן, ולכן זה המקום הנכון לצבע האדום. */
+.form__message--bad {
+  color: var(--color-loss-600);
+}

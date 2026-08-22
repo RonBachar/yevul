@@ -3,13 +3,8 @@ import { t } from '@yevul/shared';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { LoginScreen } from './screens/LoginScreen';
 import { AppShell } from './shell/AppShell';
-import {
-  HomeScreen,
-  JournalScreen,
-  MoneyScreen,
-  PlotsScreen,
-  SettingsScreen,
-} from './screens/WebScreens';
+import { HomeScreen, JournalScreen, MoneyScreen, PlotsScreen } from './screens/WebScreens';
+import { SettingsScreen } from './screens/SettingsScreen';
 
 // ניתוב אמיתי עם כתובות, ולא החלפת מסכים לפי state. בווב הכתובת היא
 // חלק מהמוצר, סימנייה, כפתור אחורה של הדפדפן, ושיתוף קישור לחלקה

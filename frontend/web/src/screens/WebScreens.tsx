@@ -21,6 +21,4 @@ export function JournalScreen() {
   return <ScreenPlaceholder title={t('screen.journal')} />;
 }
 
-export function SettingsScreen() {
-  return <ScreenPlaceholder title={t('screen.settings')} />;
-}
+// SettingsScreen כבר איננו placeholder, הוא יצא לקובץ משלו.
