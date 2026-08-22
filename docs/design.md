@@ -709,6 +709,24 @@ Adama-600 is reused here deliberately rather than introducing a new "error color
 
 ---
 
+## Web Client Shell
+
+_Added during the Stage 2 build. The screen inventory below still lists the web client as unspecified for its **screen-level** layouts (tables, filters, action columns) — that remains true. What is specified here is only the **shell**: navigation, chrome, and the layout frame those screens will sit in. Derived from PRD §12 (what the browser is actually for) and Appendix A.6 ("same tokens and typography, but a desktop layout, not a phone screen stretched sideways")._
+
+**Right-hand persistent sidebar, 264px, not a bottom tab bar and not a top nav.** The mobile bottom bar exists because a thumb reaches the bottom of a phone; neither constraint applies at a desk. A sidebar keeps every destination visible without a hover or a click, and it grows as destinations are added, which a five-slot bottom bar cannot. It costs horizontal space, which matters because A.6 promises wide tables — that is paid for by capping the content column rather than the viewport, so a wide table scrolls inside its own container instead of stretching the page. Side is not set manually: the document is `dir="rtl"`, so the sidebar lands on the right and the same CSS would mirror correctly in an LTR locale.
+
+**Five destinations, and no Capture button.** בית, חלקות, כסף, יומן, הגדרות. The set comes from PRD §12: bookkeeping and reports and receipts (כסף), plot/crop setup and forecast updates (חלקות), member management and farm settings (הגדרות), and the journal with its regulator export (יומן). The raised center Capture action is deliberately absent, because §14 puts voice capture, the Round, and quick field photos on mobile only. The web is where the farmer sits down and corrects, not where he records in the field.
+
+**Real URLs, not state-swapped views.** Each destination is a route. On the web the address bar is part of the product: bookmarks, the browser back button, and eventually a shareable link to one plot. This is the concrete reason the web client is a separate client rather than a shared component tree with mobile.
+
+**Active state follows the mobile rule.** Colour and weight only — Field-700 text on a Field-100 fill, weight 700 against 500. No icon swap, no filled variant, exactly as the Bottom Tab Bar section specifies.
+
+**56px minimum stays.** Desktop conventions would allow ~40px rows here. They are not used. The audience and the accessibility rationale are the same on both clients, and a farmer at a desk is the same 55-70 farmer.
+
+**Below 700px the sidebar becomes a header:** brand and account on one line, destinations on a single horizontal row beneath that scrolls sideways rather than wrapping. This is a narrow desktop window, not a mobile breakpoint — mobile is a separate application, and this layout should never be mistaken for it.
+
+---
+
 ## Surfaces
 
 | Level | Name      | Value     | Purpose                                                                                         |
@@ -968,7 +986,8 @@ Every screen this system currently specifies, so a gap is visible rather than di
 | Spray Log            | Dedicated Spray Log screen, plot filter, safe-harvest chip, regulator export                                        | ✅                                                    |
 | Money tab            | Expense rows, Split Allocation Row, receipts, reports and export, merged from the old Ledger + Reports destinations | ✅                                                    |
 | Receipt viewer       | Receipt Thumbnail, full-screen document viewer, file upload affordance                                              | ⚠️ **Not specified**                                  |
-| Web client           | Desktop table layouts, action column, filters, keyboard shortcuts                                                   | ⚠️ **Not specified.** Ships after mobile              |
+| Web client, shell    | Sidebar nav, routing, desktop layout frame                                                                          | ✅ See _Web Client Shell_ above (added Stage 2)       |
+| Web client, screens  | Desktop table layouts, action column, filters, keyboard shortcuts                                                   | ⚠️ **Not specified.** Specify per screen in Stage 3-4 |
 
 ---
 

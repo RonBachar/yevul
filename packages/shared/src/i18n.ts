@@ -36,10 +36,24 @@ const strings: Record<string, string> = {
   'capture.micHint': 'לחיצה ארוכה על הכפתור פותחת ישר את המיקרופון',
   'capture.close': 'סגירה',
 
+  // ניווט הווב. קבוצה נפרדת מ-nav.* בכוונה, כי היעדים לא זהים לנייד.
+  // לפי prd.md סעיף 12, קול, סבב וצילום מהיר הם נייד בלבד, ולכן אין
+  // בווב כפתור רישום מרכזי.
+  'web.nav.home': 'בית',
+  'web.nav.plots': 'חלקות',
+  'web.nav.money': 'כסף',
+  'web.nav.journal': 'יומן',
+  'web.nav.settings': 'הגדרות',
+  'web.nav.sectionMain': 'ניהול',
+  'web.nav.sectionAccount': 'חשבון',
+  'web.skipToContent': 'דילוג לתוכן',
+
   'screen.home': 'בית',
   'screen.plots': 'חלקות',
   'screen.money': 'כסף',
   'screen.more': 'עוד',
+  'screen.journal': 'יומן',
+  'screen.settings': 'הגדרות',
   'screen.comingSoon': 'המסך הזה ייבנה בשלב הבא לפי הרודמאפ.',
 };
 
