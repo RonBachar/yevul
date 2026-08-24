@@ -1,4 +1,4 @@
-import { colors, fontSize, radius, spacing, touchTarget } from '@yevul/shared';
+import { colors, fontSize, fontWeight, radius, spacing, touchTarget } from '@yevul/shared';
 
 // מזריק את כל טוקני העיצוב מ-packages/shared כמשתני CSS על השורש, לפני
 // הרינדור הראשון, כדי ש-tokens.css לא יחזיק עותק ידני שיכול להתפצל
@@ -55,5 +55,10 @@ export function applyDesignTokens(): void {
 
   for (const [key, value] of Object.entries(touchTarget)) {
     root.style.setProperty(`--touch-${key}`, `${value}px`);
+  }
+
+  // בלי יחידה, font-weight הוא מספר טהור.
+  for (const [key, value] of Object.entries(fontWeight)) {
+    root.style.setProperty(`--font-weight-${key}`, String(value));
   }
 }

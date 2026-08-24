@@ -1,5 +1,4 @@
-import { useEffect } from 'react';
-import { ActivityIndicator, I18nManager, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, I18nManager, StyleSheet, Text, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -8,7 +7,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { AuthProvider, useAuth } from './src/auth/AuthProvider';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { RootTabs } from './src/navigation/RootTabs';
-import { colors } from './src/theme/tokens';
+import { t } from '@yevul/shared';
+import { colors, fontSize, spacing } from './src/theme/tokens';
 
 // כיווניות RTL נכפית לפני הרינדור, כמו בשלד שלב 0.
 if (!I18nManager.isRTL) {
@@ -67,17 +67,22 @@ export default function App() {
   // עותק מקומי תחת frontend/mobile/assets/fonts, זהה בייט אל בייט,
   // כך שהחלפת קובץ פונט במקום אחד הייתה משאירה את השני ישן בשקט.
   // metro.config.js כבר עוקב אחרי כל המונוריפו דרך watchFolders.
-  const [fontsLoaded] = useFonts({
+  const [fontsLoaded, fontError] = useFonts({
     'OedooPro-Regular': require('@yevul/assets/fonts/OedooPro-Regular.ttf'),
     'OedooPro-Medium': require('@yevul/assets/fonts/OedooPro-Medium.ttf'),
     'OedooPro-Bold': require('@yevul/assets/fonts/OedooPro-Bold.ttf'),
   });
 
-  useEffect(() => {
-    if (fontsLoaded) {
-      console.log('OedooPro fonts loaded, RTL is', I18nManager.isRTL);
-    }
-  }, [fontsLoaded]);
+  // כשל בטעינת פונט מוצג ולא נבלע. קודם השגיאה נזרקה לפח והמסך פשוט
+  // החזיר null לנצח, כלומר מסך לבן בלי הודעה ובלי דרך להתאושש. הסיכון
+  // גדל מאז שהפונטים נטענים מנתיב שחוצה workspace.
+  if (fontError) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.fatal}>{t('app.fontError')}</Text>
+      </View>
+    );
+  }
 
   if (!fontsLoaded) {
     return null;
@@ -99,5 +104,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.paper,
+  },
+  fatal: {
+    // בכוונה בלי fontFamily. זו ההודעה שמוצגת כשהפונט שלנו לא נטען,
+    // ולכן היא חייבת להסתמך על פונט המערכת ולא על OedooPro.
+    fontSize: fontSize.body,
+    color: colors.loss600,
+    textAlign: 'center',
+    paddingHorizontal: spacing.s24,
+    writingDirection: 'rtl',
   },
 });

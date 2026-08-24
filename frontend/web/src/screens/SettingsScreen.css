@@ -18,7 +18,7 @@
 
 .form__label {
   font-size: var(--text-body-sm);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   color: var(--color-ink-900);
 }
 
@@ -57,7 +57,7 @@
   color: var(--color-paper);
   font-family: inherit;
   font-size: var(--text-body);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   cursor: pointer;
 }
 
@@ -74,7 +74,7 @@
 .form__message {
   margin: 0;
   font-size: var(--text-body-sm);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .form__message--good {

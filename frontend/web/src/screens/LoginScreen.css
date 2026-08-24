@@ -36,7 +36,7 @@
 .login__title {
   margin: 0;
   font-size: var(--text-heading);
-  font-weight: 900;
+  font-weight: var(--font-weight-black);
   color: var(--color-field-700);
   line-height: 1.15;
 }
@@ -65,7 +65,7 @@
   border: 1px solid transparent;
   font-family: var(--font-oedoopro);
   font-size: var(--text-body);
-  font-weight: 700;
+  font-weight: var(--font-weight-bold);
   cursor: pointer;
   transition:
     filter 0.15s ease,

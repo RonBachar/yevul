@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { House, LayoutGrid, NotebookPen, Settings, Wallet } from 'lucide-react';
 import { t } from '@yevul/shared';
@@ -20,10 +21,15 @@ const destinations = [
 
 export function Sidebar() {
   const { session } = useAuth();
+  const [signOutFailed, setSignOutFailed] = useState(false);
   const email = session?.user.email ?? session?.user.id ?? '';
 
+  // כשל בהתנתקות מוצג ולא נבלע. קודם ה-await היה בלי catch, כך
+  // שרשת גרועה הפילה את ההבטחה בשקט והמשתמש נשאר מחובר בלי לדעת.
   async function signOut() {
-    await supabase.auth.signOut();
+    setSignOutFailed(false);
+    const { error } = await supabase.auth.signOut();
+    if (error) setSignOutFailed(true);
   }
 
   return (
@@ -54,6 +60,11 @@ export function Sidebar() {
         <button type="button" className="sidebar__signout" onClick={signOut}>
           {t('shell.signOut')}
         </button>
+        {signOutFailed && (
+          <span className="sidebar__error" role="alert">
+            {t('shell.signOutError')}
+          </span>
+        )}
       </div>
     </nav>
   );

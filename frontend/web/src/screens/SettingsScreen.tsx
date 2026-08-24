@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import {
   AREA_UNITS,
   CURRENCIES,
@@ -26,29 +26,33 @@ type Status = 'idle' | 'saving' | 'saved' | 'forbidden' | 'error' | 'nameRequire
 
 export function SettingsScreen() {
   const { loading, loadFailed, form, save } = useFarmSettings(supabase);
+  // draft מחזיק רק את מה שהמשתמש שינה בפועל. כל עוד לא נגע בכלום הוא
+  // null, והמסך מציג את מה שנטען מהשרת. **בכוונה בלי useEffect שמסנכרן
+  // draft מ-form.** סנכרון כזה גרם לשני באגים שנמצאו בקוד ריוויו:
+  // הוא דרס עריכה שנעשתה בזמן שהשמירה באוויר, ובנוסף draft היה null
+  // ברינדור הראשון שבו הנתונים כבר הגיעו, מה שהדליק את מסך השגיאה
+  // למשך פריים אחד בכל טעינה מוצלחת.
   const [draft, setDraft] = useState<FarmSettingsForm | null>(null);
   const [status, setStatus] = useState<Status>('idle');
-
-  useEffect(() => {
-    if (form) setDraft(form);
-  }, [form]);
+  const current = draft ?? form;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
-    if (!draft) return;
+    if (!current) return;
 
-    if (draft.farmName.trim() === '') {
+    if (current.farmName.trim() === '') {
       setStatus('nameRequired');
       return;
     }
 
     setStatus('saving');
-    const result = await save({ ...draft, farmName: draft.farmName.trim() });
+    const result = await save({ ...current, farmName: current.farmName.trim() });
     setStatus(result.ok ? 'saved' : result.reason === 'forbidden' ? 'forbidden' : 'error');
   }
 
   function update<K extends keyof FarmSettingsForm>(key: K, value: FarmSettingsForm[K]) {
-    setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
+    if (!current) return;
+    setDraft({ ...current, [key]: value });
     setStatus('idle');
   }
 
@@ -61,7 +65,7 @@ export function SettingsScreen() {
     );
   }
 
-  if (loadFailed || !draft) {
+  if (loadFailed || !current) {
     return (
       <div className="screen">
         <h1 className="screen__title">{t('screen.settings')}</h1>
@@ -69,6 +73,10 @@ export function SettingsScreen() {
       </div>
     );
   }
+
+  // השדות ננעלים בזמן שמירה. בלי זה אפשר להקליד בזמן שהבקשה באוויר,
+  // ואז ההודעה "נשמר" מתייחסת לערכים ישנים יותר ממה שמוצג על המסך.
+  const busy = status === 'saving';
 
   return (
     <div className="screen">
@@ -83,9 +91,10 @@ export function SettingsScreen() {
             id="farm-name"
             className="form__input"
             type="text"
-            value={draft.farmName}
+            value={current.farmName}
             placeholder={t('settings.farmNamePlaceholder')}
             onChange={(e) => update('farmName', e.target.value)}
+            disabled={busy}
           />
         </div>
 
@@ -96,8 +105,9 @@ export function SettingsScreen() {
           <select
             id="currency"
             className="form__input"
-            value={draft.currency}
+            value={current.currency}
             onChange={(e) => update('currency', e.target.value as Currency)}
+            disabled={busy}
           >
             {CURRENCIES.map((value) => (
               <option key={value} value={value}>
@@ -114,8 +124,9 @@ export function SettingsScreen() {
           <select
             id="area-unit"
             className="form__input"
-            value={draft.areaUnit}
+            value={current.areaUnit}
             onChange={(e) => update('areaUnit', e.target.value as AreaUnit)}
+            disabled={busy}
           >
             {AREA_UNITS.map((value) => (
               <option key={value} value={value}>
@@ -132,8 +143,9 @@ export function SettingsScreen() {
           <select
             id="locale"
             className="form__input"
-            value={draft.locale}
+            value={current.locale}
             onChange={(e) => update('locale', e.target.value as Locale)}
+            disabled={busy}
           >
             {LOCALES.map((value) => (
               <option key={value} value={value}>
@@ -144,7 +156,7 @@ export function SettingsScreen() {
         </div>
 
         <div className="form__actions">
-          <button type="submit" className="form__submit" disabled={status === 'saving'}>
+          <button type="submit" className="form__submit" disabled={busy}>
             {status === 'saving' ? t('settings.saving') : t('settings.save')}
           </button>
 

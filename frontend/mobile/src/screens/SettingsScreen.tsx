@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -27,36 +27,45 @@ type Status = 'idle' | 'saving' | 'saved' | 'forbidden' | 'error' | 'nameRequire
 
 export function SettingsScreen() {
   const { loading, loadFailed, form, save } = useFarmSettings(supabase);
+  // draft מחזיק רק את מה שהמשתמש שינה בפועל, ואין useEffect שמסנכרן
+  // אותו מ-form. אותו תיקון בדיוק כמו בווב, ומאותן שתי סיבות שנמצאו
+  // בקוד ריוויו: סנכרון כזה דרס עריכה שנעשתה בזמן שהשמירה באוויר,
+  // וגם הותיר את המסך בלי נתונים ברינדור הראשון שבהם כבר היו.
   const [draft, setDraft] = useState<FarmSettingsForm | null>(null);
   const [status, setStatus] = useState<Status>('idle');
-
-  useEffect(() => {
-    if (form) setDraft(form);
-  }, [form]);
+  const current = draft ?? form;
+  // השדות ננעלים בזמן שמירה, אחרת ההודעה "נשמר" מתייחסת לערכים ישנים
+  // יותר ממה שמוצג על המסך.
+  const busy = status === 'saving';
 
   function update<K extends keyof FarmSettingsForm>(key: K, value: FarmSettingsForm[K]) {
-    setDraft((prev) => (prev ? { ...prev, [key]: value } : prev));
+    if (!current) return;
+    setDraft({ ...current, [key]: value });
     setStatus('idle');
   }
 
   async function onSave() {
-    if (!draft) return;
-    if (draft.farmName.trim() === '') {
+    if (!current) return;
+    if (current.farmName.trim() === '') {
       setStatus('nameRequired');
       return;
     }
     setStatus('saving');
-    const result = await save({ ...draft, farmName: draft.farmName.trim() });
+    const result = await save({ ...current, farmName: current.farmName.trim() });
     setStatus(result.ok ? 'saved' : result.reason === 'forbidden' ? 'forbidden' : 'error');
   }
 
-  if (loading || loadFailed || !draft) {
+  if (loading || loadFailed || !current) {
     return (
+      // אותו ריפוד כמו במסך המלא. קודם הכותרת נצמדה לקצה המסך במצבים
+      // האלה, כי הריפוד ישב רק על contentContainerStyle של ה-ScrollView.
       <SafeAreaView style={styles.screen} edges={['top']}>
-        <Text style={styles.title}>{t('screen.settings')}</Text>
-        <Text style={loadFailed ? styles.bad : styles.note}>
-          {loadFailed ? t('settings.loadError') : t('common.loading')}
-        </Text>
+        <View style={styles.body}>
+          <Text style={styles.title}>{t('screen.settings')}</Text>
+          <Text style={loadFailed ? styles.bad : styles.note}>
+            {loadFailed ? t('settings.loadError') : t('common.loading')}
+          </Text>
+        </View>
       </SafeAreaView>
     );
   }
@@ -70,8 +79,9 @@ export function SettingsScreen() {
           <Text style={styles.label}>{t('settings.farmName')}</Text>
           <TextInput
             style={styles.input}
-            value={draft.farmName}
+            value={current.farmName}
             onChangeText={(value) => update('farmName', value)}
+            editable={!busy}
             placeholder={t('settings.farmNamePlaceholder')}
             placeholderTextColor={colors.slate600}
             textAlign="right"
@@ -81,31 +91,34 @@ export function SettingsScreen() {
         <ChipField
           label={t('settings.currency')}
           options={CURRENCIES}
-          selected={draft.currency}
+          selected={current.currency}
           labelKey={currencyLabelKey}
           onSelect={(value) => update('currency', value)}
+          disabled={busy}
         />
 
         <ChipField
           label={t('settings.areaUnit')}
           options={AREA_UNITS}
-          selected={draft.areaUnit}
+          selected={current.areaUnit}
           labelKey={areaUnitLabelKey}
           onSelect={(value) => update('areaUnit', value)}
+          disabled={busy}
         />
 
         <ChipField
           label={t('settings.locale')}
           options={LOCALES}
-          selected={draft.locale}
+          selected={current.locale}
           labelKey={localeLabelKey}
           onSelect={(value) => update('locale', value)}
+          disabled={busy}
         />
 
         <Pressable
-          style={[styles.save, status === 'saving' && styles.saveDisabled]}
+          style={[styles.save, busy && styles.saveDisabled]}
           onPress={onSave}
-          disabled={status === 'saving'}
+          disabled={busy}
           accessibilityRole="button"
         >
           <Text style={styles.saveText}>
@@ -130,12 +143,14 @@ function ChipField<T extends string>({
   selected,
   labelKey,
   onSelect,
+  disabled,
 }: {
   label: string;
   options: readonly T[];
   selected: T;
   labelKey: (value: T) => string;
   onSelect: (value: T) => void;
+  disabled: boolean;
 }) {
   return (
     <View style={styles.field}>
@@ -146,10 +161,11 @@ function ChipField<T extends string>({
           return (
             <Pressable
               key={value}
-              style={[styles.chip, active && styles.chipActive]}
+              style={[styles.chip, active && styles.chipActive, disabled && styles.chipDisabled]}
               onPress={() => onSelect(value)}
+              disabled={disabled}
               accessibilityRole="radio"
-              accessibilityState={{ selected: active }}
+              accessibilityState={{ selected: active, disabled }}
             >
               <Text style={[styles.chipText, active && styles.chipTextActive]}>
                 {t(labelKey(value))}
@@ -182,7 +198,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: fontSize.bodySm,
     color: colors.slate600,
-    paddingHorizontal: spacing.s24,
     writingDirection: 'rtl',
   },
   field: {
@@ -218,6 +233,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border200,
     backgroundColor: colors.paper,
+  },
+  chipDisabled: {
+    opacity: 0.6,
   },
   chipActive: {
     borderColor: colors.field700,
@@ -257,7 +275,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontSize: fontSize.bodySm,
     color: colors.loss600,
-    paddingHorizontal: spacing.s24,
     writingDirection: 'rtl',
   },
 });

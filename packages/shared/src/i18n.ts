@@ -14,9 +14,11 @@ const strings: Record<string, string> = {
   'auth.continueWithApple': 'המשיכו עם Apple',
   'auth.legal': 'בהמשך אתם מאשרים את תנאי השימוש ומדיניות הפרטיות',
   'auth.error': 'ההתחברות נכשלה, נסו שוב',
+  'app.fontError': 'טעינת הגופנים נכשלה. סגרו את האפליקציה ופתחו אותה מחדש.',
   'common.loading': 'טוען',
   'shell.signedInAs': 'מחוברים בתור',
   'shell.signOut': 'התנתקות',
+  'shell.signOutError': 'ההתנתקות נכשלה, נסו שוב',
   'shell.placeholder': 'המשק שלכם מוכן. המסכים ייבנו בשלבים הבאים.',
 
   // ניווט ראשי, ארבעה טאבים וכפתור רישום מרכזי, design.md, Bottom Tab Bar

@@ -20,9 +20,9 @@ export const fonts = {
 
 // RN מפרק צל לשדות נפרדים ולא למחרוזת אחת כמו CSS.
 export const shadowFloat = {
-  shadowColor: '#16231c',
+  shadowColor: sharedShadow.colorHex,
   shadowOffset: { width: 0, height: sharedShadow.offsetY },
   shadowRadius: sharedShadow.blur,
-  shadowOpacity: 0.18,
+  shadowOpacity: sharedShadow.opacity,
   elevation: 12,
 } as const;

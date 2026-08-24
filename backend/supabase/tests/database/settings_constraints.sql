@@ -10,7 +10,7 @@ create extension if not exists pgtap;
 
 begin;
 
-select plan(10);
+select plan(14);
 
 -- ====================================================================
 -- הכנה, משק בודד עם שורת הגדרות בברירות המחדל
@@ -92,6 +92,39 @@ select throws_ok(
   '23514',
   null,
   'שם משק של רווחים בלבד נדחה, לא רק מחרוזת ריקה'
+);
+
+-- ====================================================================
+-- קבוצה 4, יחידת שטח ברמת החלקה. אותו אוצר מילים כמו בהגדרות המשק,
+-- נוסף אחרי שקוד ריוויו גילה ש-plots.area_unit נשאר פתוח לגמרי.
+-- ====================================================================
+
+insert into public.plots (id, farm_id, name, area, area_unit)
+values ('eeeeeeee-0000-0000-0000-000000000002', 'eeeeeeee-0000-0000-0000-000000000001', 'חלקה לבדיקה', 10, 'dunam');
+
+select lives_ok(
+  $$update public.plots set area_unit = 'acre' where id = 'eeeeeeee-0000-0000-0000-000000000002'$$,
+  'יחידת שטח מהרשימה מתקבלת גם ברמת החלקה'
+);
+
+-- NULL פירושו "השתמש ביחידה של המשק", ולכן חייב להישאר חוקי
+select lives_ok(
+  $$update public.plots set area_unit = null where id = 'eeeeeeee-0000-0000-0000-000000000002'$$,
+  'NULL מותר בחלקה, פירושו ירושה מיחידת המשק'
+);
+
+select throws_ok(
+  $$update public.plots set area_unit = 'football-fields' where id = 'eeeeeeee-0000-0000-0000-000000000002'$$,
+  '23514',
+  null,
+  'יחידת שטח שלא קיימת נדחית גם ברמת החלקה'
+);
+
+select throws_ok(
+  $$update public.plots set name = '   ' where id = 'eeeeeeee-0000-0000-0000-000000000002'$$,
+  '23514',
+  null,
+  'שם חלקה של רווחים בלבד נדחה'
 );
 
 select * from finish();

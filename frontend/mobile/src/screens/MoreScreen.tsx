@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { ChevronLeft, Settings } from 'lucide-react-native';
@@ -13,10 +14,14 @@ import { ScreenPlaceholder } from './ScreenPlaceholder';
 export function MoreScreen() {
   const { session } = useAuth();
   const navigation = useNavigation();
+  const [signOutFailed, setSignOutFailed] = useState(false);
   const email = session?.user.email ?? session?.user.id ?? '';
 
+  // כשל בהתנתקות מוצג ולא נבלע, אותו תיקון כמו בווב.
   async function signOut() {
-    await supabase.auth.signOut();
+    setSignOutFailed(false);
+    const { error } = await supabase.auth.signOut();
+    if (error) setSignOutFailed(true);
   }
 
   return (
@@ -39,6 +44,7 @@ export function MoreScreen() {
         <Pressable style={styles.signout} onPress={signOut} accessibilityRole="button">
           <Text style={styles.signoutText}>{t('shell.signOut')}</Text>
         </Pressable>
+        {signOutFailed && <Text style={styles.signoutError}>{t('shell.signOutError')}</Text>}
       </View>
     </ScreenPlaceholder>
   );
@@ -81,6 +87,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.border200,
+  },
+  signoutError: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.caption,
+    color: colors.loss600,
+    textAlign: 'center',
+    writingDirection: 'rtl',
   },
   signoutText: {
     fontFamily: fonts.bold,
