@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { PostgrestError, SupabaseClient } from '@supabase/supabase-js';
+import { currentFarmQuery } from './currentFarm';
 import type { AreaUnit, Currency, Locale } from './settings';
 
 // טעינה ושמירה של הגדרות המשק, משותף לנייד ולווב, באותו דפוס שבו
@@ -59,20 +60,13 @@ export function useFarmSettings(supabase: SupabaseClient): FarmSettingsState {
     let active = true;
 
     async function load() {
-      // בקשה אחת ולא שתיים. settings.farm_id הוא מפתח ראשי שמצביע על
-      // farms(id), ולכן PostgREST יודע לשבץ אותו פנימה. קודם זו הייתה
-      // שאילתה שנייה שהמתינה לתוצאת הראשונה, כלומר סבב רשת שלם נוסף
-      // לפני שהמסך מצייר, על רשת סלולרית איטית זה נמדד בשברי שנייה.
-      //
-      // RLS כבר מצמצם למשקים שהמשתמש חבר פעיל בהם, ולכן אין כאן סינון
-      // לפי user_id. בשלב הזה למשתמש יש משק אחד, שנוצר בטריגר ההרשמה.
-      // מעבר בין כמה משקים שייך לשלב 6, שיתוף המשק.
-      const { data, error } = await supabase
-        .from('farms')
-        .select('id, name, settings(currency, area_unit, locale)')
-        .is('deleted_at', null)
-        .order('created_at', { ascending: true })
-        .limit(1);
+      // כלל בחירת המשק חי ב-currentFarm.ts, לא כאן. השאילתה מבקשת את
+      // settings משובץ פנימה, כך שזו בקשה אחת ולא שתיים: settings.farm_id
+      // הוא מפתח ראשי שמצביע על farms(id), ו-PostgREST יודע לשבץ.
+      const { data, error } = await currentFarmQuery(
+        supabase,
+        'id, name, settings(currency, area_unit, locale)',
+      );
 
       if (!active) return;
 
