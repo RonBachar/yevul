@@ -46,13 +46,16 @@ export function SettingsScreen() {
 
   async function onSave() {
     if (!current) return;
-    if (current.farmName.trim() === '') {
-      setStatus('nameRequired');
-      return;
-    }
+    // החיתוך ובדיקת השם הריק חיים ב-save המשותף, לא כאן, כדי שלא יהיו
+    // שני עותקים של אותו כלל בשני הלקוחות. המסך רק מדווח.
     setStatus('saving');
-    const result = await save({ ...current, farmName: current.farmName.trim() });
-    setStatus(result.ok ? 'saved' : result.reason === 'forbidden' ? 'forbidden' : 'error');
+    const result = await save(current);
+    // אחרי שמירה מוצלחת נוטשים את הטיוטה, כך ש-current נופל חזרה ל-form
+    // שהוא הערך הסמכותי מהשרת. בלי זה, מאז שהחיתוך עבר ל-save המשותף,
+    // השדה היה ממשיך להציג את הרווחים שהמשתמש הקליד בזמן שבמסד כבר
+    // יושב השם החתוך.
+    if (result.ok) setDraft(null);
+    setStatus(result.ok ? 'saved' : result.reason);
   }
 
   if (loading || loadFailed || !current) {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { House, LayoutGrid, NotebookPen, Settings, Wallet } from 'lucide-react';
+// ה-barrel תקין כאן, Rollup מבצע tree shaking בבנייה של Vite.
 import { t } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthProvider';

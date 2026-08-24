@@ -1,4 +1,12 @@
-import { colors, fontSize, fontWeight, radius, spacing, touchTarget } from '@yevul/shared';
+import {
+  colors,
+  fontSize,
+  fontWeight,
+  radius,
+  shadowFloat,
+  spacing,
+  touchTarget,
+} from '@yevul/shared';
 
 // מזריק את כל טוקני העיצוב מ-packages/shared כמשתני CSS על השורש, לפני
 // הרינדור הראשון, כדי ש-tokens.css לא יחזיק עותק ידני שיכול להתפצל
@@ -61,4 +69,17 @@ export function applyDesignTokens(): void {
   for (const [key, value] of Object.entries(fontWeight)) {
     root.style.setProperty(`--font-weight-${key}`, String(value));
   }
+
+  // design.md, Elevation. הצל נשמר בשדות נפרדים ב-shared כי RN דורש
+  // אותם כך, וכאן הם מורכבים למחרוזת CSS אחת. בלי זה האלמנט המרחף
+  // הראשון בווב היה כותב box-shadow ידני ופותח מחדש בדיוק את הפיצול
+  // שהטוקן נועד לסגור.
+  const { offsetY, blur, colorHex, opacity } = shadowFloat;
+  const r = parseInt(colorHex.slice(1, 3), 16);
+  const g = parseInt(colorHex.slice(3, 5), 16);
+  const b = parseInt(colorHex.slice(5, 7), 16);
+  root.style.setProperty(
+    '--shadow-float',
+    `0 ${offsetY}px ${blur}px rgba(${r}, ${g}, ${b}, ${opacity})`,
+  );
 }

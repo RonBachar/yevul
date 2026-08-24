@@ -19,7 +19,6 @@ const strings: Record<string, string> = {
   'shell.signedInAs': 'מחוברים בתור',
   'shell.signOut': 'התנתקות',
   'shell.signOutError': 'ההתנתקות נכשלה, נסו שוב',
-  'shell.placeholder': 'המשק שלכם מוכן. המסכים ייבנו בשלבים הבאים.',
 
   // ניווט ראשי, ארבעה טאבים וכפתור רישום מרכזי, design.md, Bottom Tab Bar
   'nav.home': 'בית',
@@ -47,7 +46,6 @@ const strings: Record<string, string> = {
   'web.nav.journal': 'יומן',
   'web.nav.settings': 'הגדרות',
   'web.nav.sectionMain': 'ניהול',
-  'web.nav.sectionAccount': 'חשבון',
   'web.skipToContent': 'דילוג לתוכן',
 
   'screen.home': 'בית',

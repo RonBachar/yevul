@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { PostgrestError, SupabaseClient } from '@supabase/supabase-js';
 import type { AreaUnit, Currency, Locale } from './settings';
 
 // טעינה ושמירה של הגדרות המשק, משותף לנייד ולווב, באותו דפוס שבו
@@ -21,7 +21,11 @@ export type FarmSettingsForm = {
   locale: Locale;
 };
 
-export type SaveResult = { ok: true } | { ok: false; reason: 'forbidden' | 'error' };
+// nameRequired הוא כלל נורמליזציה ולא הרשאה, ולכן הוא חי כאן ולא בשני
+// המסכים. מי שיכתוב ל-farms.name בעתיד מקבל את החיתוך ואת הבדיקה בלי
+// לזכור אותם, וזה בדיוק מה שקרה קודם, שני עותקים של אותו כלל.
+export type SaveResult =
+  { ok: true } | { ok: false; reason: 'forbidden' | 'nameRequired' | 'error' };
 
 export type FarmSettingsState = {
   loading: boolean;
@@ -30,8 +34,20 @@ export type FarmSettingsState = {
   save: (next: FarmSettingsForm) => Promise<SaveResult>;
 };
 
-type FarmRow = { id: string; name: string };
 type SettingsRow = { currency: Currency; area_unit: AreaUnit; locale: Locale };
+type FarmWithSettings = { id: string; name: string; settings: SettingsRow | null };
+
+// כלל אחד במקום אחד: PostgREST לא מחזיר שגיאה כשמדיניות RLS חוסמת
+// עדכון, הוא מחזיר הצלחה עם אפס שורות. כל כתיבה עוברת דרך כאן, כדי
+// שאי אפשר יהיה לשכוח את הבדיקה בקריאה הבאה.
+function writeOutcome(result: {
+  error: PostgrestError | null;
+  data: unknown[] | null;
+}): SaveResult {
+  if (result.error) return { ok: false, reason: 'error' };
+  if (!result.data || result.data.length === 0) return { ok: false, reason: 'forbidden' };
+  return { ok: true };
+}
 
 export function useFarmSettings(supabase: SupabaseClient): FarmSettingsState {
   const [loading, setLoading] = useState(true);
@@ -43,46 +59,37 @@ export function useFarmSettings(supabase: SupabaseClient): FarmSettingsState {
     let active = true;
 
     async function load() {
-      // RLS כבר מצמצם ל-משקים שהמשתמש חבר פעיל בהם, ולכן אין כאן סינון
+      // בקשה אחת ולא שתיים. settings.farm_id הוא מפתח ראשי שמצביע על
+      // farms(id), ולכן PostgREST יודע לשבץ אותו פנימה. קודם זו הייתה
+      // שאילתה שנייה שהמתינה לתוצאת הראשונה, כלומר סבב רשת שלם נוסף
+      // לפני שהמסך מצייר, על רשת סלולרית איטית זה נמדד בשברי שנייה.
+      //
+      // RLS כבר מצמצם למשקים שהמשתמש חבר פעיל בהם, ולכן אין כאן סינון
       // לפי user_id. בשלב הזה למשתמש יש משק אחד, שנוצר בטריגר ההרשמה.
       // מעבר בין כמה משקים שייך לשלב 6, שיתוף המשק.
-      const { data: farms, error: farmError } = await supabase
+      const { data, error } = await supabase
         .from('farms')
-        .select('id, name')
+        .select('id, name, settings(currency, area_unit, locale)')
         .is('deleted_at', null)
         .order('created_at', { ascending: true })
         .limit(1);
 
-      const farm = (farms as FarmRow[] | null)?.[0];
-      if (farmError || !farm) {
-        if (active) {
-          setLoadFailed(true);
-          setLoading(false);
-        }
-        return;
-      }
-
-      const { data: settings, error: settingsError } = await supabase
-        .from('settings')
-        .select('currency, area_unit, locale')
-        .eq('farm_id', farm.id)
-        .maybeSingle();
-
       if (!active) return;
 
-      if (settingsError || !settings) {
+      const farm = (data as FarmWithSettings[] | null)?.[0];
+      const settings = farm?.settings;
+      if (error || !farm || !settings) {
         setLoadFailed(true);
         setLoading(false);
         return;
       }
 
-      const row = settings as SettingsRow;
       setFarmId(farm.id);
       setForm({
         farmName: farm.name,
-        currency: row.currency,
-        areaUnit: row.area_unit,
-        locale: row.locale,
+        currency: settings.currency,
+        areaUnit: settings.area_unit,
+        locale: settings.locale,
       });
       setLoading(false);
     }
@@ -97,35 +104,28 @@ export function useFarmSettings(supabase: SupabaseClient): FarmSettingsState {
     async (next: FarmSettingsForm): Promise<SaveResult> => {
       if (!farmId) return { ok: false, reason: 'error' };
 
-      // select() אחרי update מחזיר את השורות שבאמת עודכנו. מערך ריק
-      // פירושו ש-RLS חסם, כי PostgREST לא מחזיר שגיאה על אפס התאמות.
-      const farmUpdate = await supabase
-        .from('farms')
-        .update({ name: next.farmName })
-        .eq('id', farmId)
-        .select('id');
+      const farmName = next.farmName.trim();
+      if (farmName === '') return { ok: false, reason: 'nameRequired' };
 
-      if (farmUpdate.error) return { ok: false, reason: 'error' };
-      if (!farmUpdate.data || farmUpdate.data.length === 0) {
-        return { ok: false, reason: 'forbidden' };
-      }
+      // שני העדכונים לא תלויים זה בזה, שניהם מפתח על farmId שכבר ידוע,
+      // ולכן הם יוצאים במקביל ולא בטור. אותו מצב כשלון חלקי כמו קודם,
+      // ראה docs/open-items.md, רק בסבב רשת אחד במקום שניים.
+      const [farmWrite, settingsWrite] = await Promise.all([
+        supabase.from('farms').update({ name: farmName }).eq('id', farmId).select('id'),
+        supabase
+          .from('settings')
+          .update({ currency: next.currency, area_unit: next.areaUnit, locale: next.locale })
+          .eq('farm_id', farmId)
+          .select('farm_id'),
+      ]);
 
-      const settingsUpdate = await supabase
-        .from('settings')
-        .update({
-          currency: next.currency,
-          area_unit: next.areaUnit,
-          locale: next.locale,
-        })
-        .eq('farm_id', farmId)
-        .select('farm_id');
+      const farmOutcome = writeOutcome(farmWrite);
+      if (!farmOutcome.ok) return farmOutcome;
 
-      if (settingsUpdate.error) return { ok: false, reason: 'error' };
-      if (!settingsUpdate.data || settingsUpdate.data.length === 0) {
-        return { ok: false, reason: 'forbidden' };
-      }
+      const settingsOutcome = writeOutcome(settingsWrite);
+      if (!settingsOutcome.ok) return settingsOutcome;
 
-      setForm(next);
+      setForm({ ...next, farmName });
       return { ok: true };
     },
     [supabase, farmId],

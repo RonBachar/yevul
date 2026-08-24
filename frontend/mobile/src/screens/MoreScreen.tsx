@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { ChevronLeft, Settings } from 'lucide-react-native';
+import ChevronLeft from 'lucide-react-native/icons/chevron-left';
+import Settings from 'lucide-react-native/icons/settings';
 import { t } from '@yevul/shared';
 import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../lib/supabase';

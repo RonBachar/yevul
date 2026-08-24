@@ -1,6 +1,8 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ListChecks, NotebookPen, Wallet } from 'lucide-react-native';
+import Wallet from 'lucide-react-native/icons/wallet';
+import ListChecks from 'lucide-react-native/icons/list-checks';
+import NotebookPen from 'lucide-react-native/icons/notebook-pen';
 import { t } from '@yevul/shared';
 import {
   colors,
@@ -20,6 +22,10 @@ import {
 // מומש עם Modal של React Native ולא עם ספריית bottom sheet, כדי לא
 // להוסיף תלות ב-reanimated. זה בדיוק הקונפליקט שהפיל את expo-router
 // במונוריפו הזה, ואין סיבה להחזיר אותו בשביל גיליון של שלוש שורות.
+
+// Ink-900 באטימות 42 אחוז. נגזר מהטוקן ולא נכתב כהקס, אחרת שינוי
+// בפלטה היה מדלג בשקט על המשטח הזה.
+const scrimColor = `${colors.ink900}6b`;
 
 // המחרוזות נקראות בתוך הרכיב ולא ברמת המודול, כדי שהחלפת שפה בשלב 8
 // תשפיע מיד ולא תיתקע על ערכים שנקראו פעם אחת בזמן ה-import.
@@ -77,11 +83,12 @@ export function CaptureSheet({ visible, onClose }: { visible: boolean; onClose: 
 }
 
 const styles = StyleSheet.create({
-  // design.html משתמש ב-rgba(22,35,28,.42) לסקרים, מעומעם ולא מטושטש,
-  // כי טשטוש נקרא רע באור שמש ועולה בביצועי רינדור.
+  // סקרים מעומעם ולא מטושטש, כי טשטוש נקרא רע באור שמש ועולה בביצועי
+  // רינדור. הצבע נגזר מ-Ink-900 ולא נכתב כהקס, אחרת שינוי בפלטה היה
+  // מדלג בשקט על המשטח הזה.
   scrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(22, 35, 28, 0.42)',
+    backgroundColor: scrimColor,
   },
   sheetWrap: {
     flex: 1,

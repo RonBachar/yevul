@@ -74,7 +74,7 @@
 .form__message {
   margin: 0;
   font-size: var(--text-body-sm);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-regular);
 }
 
 .form__message--good {

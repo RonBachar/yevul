@@ -1,7 +1,7 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MoreScreen } from '../screens/MoreScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
-import { colors, fonts, fontSize } from '../theme/tokens';
+import { colors } from '../theme/tokens';
 
 // טאב "עוד" הוא היחיד שמוביל פנימה למסכים נוספים, ולכן הוא סטאק ולא
 // מסך יחיד. לפי prd.md סעיף 4 הוא מחזיק הגדרות, חלקות וגידולים, אנשים
@@ -13,8 +13,9 @@ export function MoreStack() {
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
+        // בלי headerTitleStyle, המסך היחיד שמדליק כותרת מעביר title ריק
+        // ולכן טיפוגרפיית הכותרת לעולם לא מתרנדרת.
         headerTintColor: colors.field700,
-        headerTitleStyle: { fontFamily: fonts.bold, fontSize: fontSize.bodyLg },
         headerStyle: { backgroundColor: colors.paper },
       }}
     >

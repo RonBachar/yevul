@@ -8,10 +8,7 @@ import {
   localeLabelKey,
   t,
   useFarmSettings,
-  type AreaUnit,
-  type Currency,
   type FarmSettingsForm,
-  type Locale,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import './SettingsScreen.css';
@@ -23,6 +20,15 @@ import './SettingsScreen.css';
 // ואם השרת מסרב, useFarmSettings מחזיר forbidden והמסך רק מדווח.
 // ולידציה מקומית מוגבלת לחוויית משתמש, שדה ריק לפני שליחה, ותו לא.
 type Status = 'idle' | 'saving' | 'saved' | 'forbidden' | 'error' | 'nameRequired';
+
+// טבלה אחת במקום ארבעה בלוקי JSX כמעט זהים. הוספת מצב היא שורה,
+// ואי אפשר לשכוח בה את role הנכון.
+const STATUS_MESSAGE: Partial<Record<Status, { key: string; tone: 'good' | 'bad' }>> = {
+  saved: { key: 'settings.saved', tone: 'good' },
+  forbidden: { key: 'settings.forbidden', tone: 'bad' },
+  error: { key: 'settings.saveError', tone: 'bad' },
+  nameRequired: { key: 'settings.nameRequired', tone: 'bad' },
+};
 
 export function SettingsScreen() {
   const { loading, loadFailed, form, save } = useFarmSettings(supabase);
@@ -40,14 +46,16 @@ export function SettingsScreen() {
     event.preventDefault();
     if (!current) return;
 
-    if (current.farmName.trim() === '') {
-      setStatus('nameRequired');
-      return;
-    }
-
+    // בלי חיתוך ובלי בדיקת שם ריק כאן. שניהם חיים ב-save המשותף, כדי
+    // שלא יהיו שני עותקים של אותו כלל בשני הלקוחות. המסך רק מדווח.
     setStatus('saving');
-    const result = await save({ ...current, farmName: current.farmName.trim() });
-    setStatus(result.ok ? 'saved' : result.reason === 'forbidden' ? 'forbidden' : 'error');
+    const result = await save(current);
+    // אחרי שמירה מוצלחת נוטשים את הטיוטה, כך ש-current נופל חזרה ל-form
+    // שהוא הערך הסמכותי מהשרת. בלי זה, מאז שהחיתוך עבר ל-save המשותף,
+    // השדה היה ממשיך להציג את הרווחים שהמשתמש הקליד בזמן שבמסד כבר
+    // יושב השם החתוך.
+    if (result.ok) setDraft(null);
+    setStatus(result.ok ? 'saved' : result.reason);
   }
 
   function update<K extends keyof FarmSettingsForm>(key: K, value: FarmSettingsForm[K]) {
@@ -77,6 +85,7 @@ export function SettingsScreen() {
   // השדות ננעלים בזמן שמירה. בלי זה אפשר להקליד בזמן שהבקשה באוויר,
   // ואז ההודעה "נשמר" מתייחסת לערכים ישנים יותר ממה שמוצג על המסך.
   const busy = status === 'saving';
+  const message = STATUS_MESSAGE[status];
 
   return (
     <div className="screen">
@@ -98,90 +107,92 @@ export function SettingsScreen() {
           />
         </div>
 
-        <div className="form__row">
-          <label className="form__label" htmlFor="currency">
-            {t('settings.currency')}
-          </label>
-          <select
-            id="currency"
-            className="form__input"
-            value={current.currency}
-            onChange={(e) => update('currency', e.target.value as Currency)}
-            disabled={busy}
-          >
-            {CURRENCIES.map((value) => (
-              <option key={value} value={value}>
-                {t(currencyLabelKey(value))}
-              </option>
-            ))}
-          </select>
-        </div>
+        <SelectField
+          id="currency"
+          label={t('settings.currency')}
+          options={CURRENCIES}
+          value={current.currency}
+          labelKey={currencyLabelKey}
+          onSelect={(value) => update('currency', value)}
+          disabled={busy}
+        />
 
-        <div className="form__row">
-          <label className="form__label" htmlFor="area-unit">
-            {t('settings.areaUnit')}
-          </label>
-          <select
-            id="area-unit"
-            className="form__input"
-            value={current.areaUnit}
-            onChange={(e) => update('areaUnit', e.target.value as AreaUnit)}
-            disabled={busy}
-          >
-            {AREA_UNITS.map((value) => (
-              <option key={value} value={value}>
-                {t(areaUnitLabelKey(value))}
-              </option>
-            ))}
-          </select>
-        </div>
+        <SelectField
+          id="area-unit"
+          label={t('settings.areaUnit')}
+          options={AREA_UNITS}
+          value={current.areaUnit}
+          labelKey={areaUnitLabelKey}
+          onSelect={(value) => update('areaUnit', value)}
+          disabled={busy}
+        />
 
-        <div className="form__row">
-          <label className="form__label" htmlFor="locale">
-            {t('settings.locale')}
-          </label>
-          <select
-            id="locale"
-            className="form__input"
-            value={current.locale}
-            onChange={(e) => update('locale', e.target.value as Locale)}
-            disabled={busy}
-          >
-            {LOCALES.map((value) => (
-              <option key={value} value={value}>
-                {t(localeLabelKey(value))}
-              </option>
-            ))}
-          </select>
-        </div>
+        <SelectField
+          id="locale"
+          label={t('settings.locale')}
+          options={LOCALES}
+          value={current.locale}
+          labelKey={localeLabelKey}
+          onSelect={(value) => update('locale', value)}
+          disabled={busy}
+        />
 
         <div className="form__actions">
           <button type="submit" className="form__submit" disabled={busy}>
             {status === 'saving' ? t('settings.saving') : t('settings.save')}
           </button>
 
-          {status === 'saved' && (
-            <p className="form__message form__message--good" role="status">
-              {t('settings.saved')}
-            </p>
-          )}
-          {status === 'forbidden' && (
-            <p className="form__message form__message--bad" role="alert">
-              {t('settings.forbidden')}
-            </p>
-          )}
-          {status === 'error' && (
-            <p className="form__message form__message--bad" role="alert">
-              {t('settings.saveError')}
-            </p>
-          )}
-          {status === 'nameRequired' && (
-            <p className="form__message form__message--bad" role="alert">
-              {t('settings.nameRequired')}
+          {message && (
+            <p
+              className={`form__message form__message--${message.tone}`}
+              role={message.tone === 'good' ? 'status' : 'alert'}
+            >
+              {t(message.key)}
             </p>
           )}
         </div>
       </form>
+    </div>
+  );
+}
+
+// תפריט בחירה יחיד לכל שדה עם קבוצת ערכים סגורה, מקביל ל-ChipField
+// שבלקוח הנייד. קודם היו כאן שלושה בלוקים כמעט זהים.
+function SelectField<T extends string>({
+  id,
+  label,
+  options,
+  value,
+  labelKey,
+  onSelect,
+  disabled,
+}: {
+  id: string;
+  label: string;
+  options: readonly T[];
+  value: T;
+  labelKey: (value: T) => string;
+  onSelect: (value: T) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="form__row">
+      <label className="form__label" htmlFor={id}>
+        {label}
+      </label>
+      <select
+        id={id}
+        className="form__input"
+        value={value}
+        onChange={(e) => onSelect(e.target.value as T)}
+        disabled={disabled}
+      >
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {t(labelKey(option))}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

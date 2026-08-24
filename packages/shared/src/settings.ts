@@ -19,13 +19,6 @@ export type AreaUnit = (typeof AREA_UNITS)[number];
 export const LOCALES = ['he'] as const;
 export type Locale = (typeof LOCALES)[number];
 
-export type FarmSettings = {
-  farm_id: string;
-  currency: Currency;
-  area_unit: AreaUnit;
-  locale: Locale;
-};
-
 // מפתח התרגום לכל ערך, כדי ששני הלקוחות יציגו את אותה תווית לאותו ערך
 // ולא יחזיקו כל אחד מילון משלו.
 export function currencyLabelKey(value: Currency): string {

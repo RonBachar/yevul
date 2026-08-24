@@ -1,6 +1,12 @@
-import { useState } from 'react';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ellipsis, House, LayoutGrid, Wallet } from 'lucide-react-native';
+import { useCallback, useMemo, useState } from 'react';
+import { createBottomTabNavigator, type BottomTabBarProps } from '@react-navigation/bottom-tabs';
+// ייבוא לפי נתיב משנה ולא דרך ה-barrel. Metro לא עושה tree shaking,
+// ולכן ייבוא מ-'lucide-react-native' גורר את קובץ הייצוא הראשי שמפנה
+// לכל אלפי האייקונים בחבילה.
+import House from 'lucide-react-native/icons/house';
+import LayoutGrid from 'lucide-react-native/icons/layout-grid';
+import Wallet from 'lucide-react-native/icons/wallet';
+import Ellipsis from 'lucide-react-native/icons/ellipsis';
 import { t } from '@yevul/shared';
 import { HomeScreen } from '../screens/HomeScreen';
 import { PlotsScreen } from '../screens/PlotsScreen';
@@ -23,12 +29,22 @@ const Tab = createBottomTabNavigator();
 export function RootTabs() {
   const [captureOpen, setCaptureOpen] = useState(false);
 
+  // פתיחת הגיליון משנה state שיושב מעל הנאוויגייטור, ולכן בלי הייצוב
+  // הזה כל לחיצה על כפתור הרישום הייתה בונה מחדש את פונקציית שורת
+  // הטאבים ואת ארבעת אובייקטי ה-options, מה שמכריח את React Navigation
+  // לבנות מחדש את התיאורים ולצייר מחדש חמישה עצי SVG. זו אינטראקציה
+  // חמה על המכשירים החלשים ביותר שאנחנו מכוונים אליהם.
+  const openCapture = useCallback(() => setCaptureOpen(true), []);
+  const closeCapture = useCallback(() => setCaptureOpen(false), []);
+  const renderTabBar = useCallback(
+    (props: BottomTabBarProps) => <TabBar {...props} onCapturePress={openCapture} />,
+    [openCapture],
+  );
+  const screenOptions = useMemo(() => ({ headerShown: false }) as const, []);
+
   return (
     <>
-      <Tab.Navigator
-        screenOptions={{ headerShown: false }}
-        tabBar={(props) => <TabBar {...props} onCapturePress={() => setCaptureOpen(true)} />}
-      >
+      <Tab.Navigator screenOptions={screenOptions} tabBar={renderTabBar}>
         <Tab.Screen
           name="Home"
           component={HomeScreen}
@@ -64,7 +80,7 @@ export function RootTabs() {
           }}
         />
       </Tab.Navigator>
-      <CaptureSheet visible={captureOpen} onClose={() => setCaptureOpen(false)} />
+      <CaptureSheet visible={captureOpen} onClose={closeCapture} />
     </>
   );
 }

@@ -1,3 +1,5 @@
+import { colors } from './colors';
+
 // טוקני העיצוב הלא צבעוניים, מקור אמת יחיד, נגזרים מ-docs/design.md.
 //
 // הצבעים כבר ישבו כאן ב-colors.ts מאותה סיבה בדיוק. מרווחים, רדיוסים
@@ -50,6 +52,7 @@ export const fontSize = {
 // משפחה רשומה בנפרד, והווב משתמש במספר ישירות.
 export const fontWeight = {
   book: 400,
+  regular: 500,
   medium: 600,
   bold: 700,
   black: 900,
@@ -71,6 +74,6 @@ export const touchTarget = {
 export const shadowFloat = {
   offsetY: 10,
   blur: 28,
-  colorHex: '#16231c',
+  colorHex: colors.ink900,
   opacity: 0.18,
 } as const;

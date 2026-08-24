@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { Plus } from 'lucide-react-native';
+import Plus from 'lucide-react-native/icons/plus';
 import { t } from '@yevul/shared';
 import { colors, fonts, fontSize, shadowFloat, spacing, touchTarget } from '../theme/tokens';
 
