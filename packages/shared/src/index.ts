@@ -73,6 +73,8 @@ export {
   completeTask,
   snoozeTask,
   archiveTask,
+  taskCostMemory,
+  normalizeTaskTitle,
   taskDueDisplay,
   groupTasksByUrgency,
   shouldAutoArchive,

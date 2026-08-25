@@ -4,6 +4,7 @@ import {
   createTask,
   currencySymbol,
   t,
+  taskCostMemory,
   updateTask,
   usePlots,
   type Currency,
@@ -51,6 +52,16 @@ export function TaskSheet({
   const [dueMode, setDueMode] = useState<DueMode>('someday');
   const [customDate, setCustomDate] = useState('');
   const [costText, setCostText] = useState('');
+  // "touched" נדבק ברגע שהמשתמש נוגע בשדה העלות בעצמו, ומאותו רגע
+  // חיפוש הזיכרון מפסיק לגעת בשדה, גם אם הכותרת ממשיכה להשתנות. משימה
+  // בעריכה עם עלות שמורה מתחילה touched, כדי שעריכת הכותרת לא תדרוס
+  // ערך אמיתי בניחוש מהזיכרון.
+  const [costTouched, setCostTouched] = useState(false);
+  // "prefilled" שולט רק בצבע, design.md: "Pre-filled values render in
+  // Slate-600 until touched, then Ink-900, the farmer can see at a
+  // glance that this is a remembered number and not something he
+  // entered today."
+  const [costPrefilled, setCostPrefilled] = useState(false);
   const [status, setStatus] = useState<'idle' | 'saving' | 'titleRequired' | 'forbidden' | 'error'>(
     'idle',
   );
@@ -69,15 +80,48 @@ export function TaskSheet({
         setCustomDate('');
       }
       setCostText(task.estimatedCost != null ? String(task.estimatedCost) : '');
+      setCostTouched(task.estimatedCost != null);
     } else {
       setTitle('');
       setPlotId(defaultPlotId);
       setDueMode('someday');
       setCustomDate('');
       setCostText('');
+      setCostTouched(false);
     }
+    setCostPrefilled(false);
     setStatus('idle');
   }, [open, task, defaultPlotId]);
+
+  // TaskCostMemory, prd.md: "בפעם הבאה שהוא פותח משימה עם אותה כותרת
+  // השדה כבר מלא במה שרשם קודם". דחייה של 400ms כדי לא לשלוח שאילתה
+  // על כל תו, ונעצר לגמרי אחרי שהמשתמש נגע בשדה העלות בעצמו.
+  useEffect(() => {
+    if (!open || !farmId || costTouched) return;
+    if (!title.trim()) {
+      setCostText('');
+      setCostPrefilled(false);
+      return;
+    }
+    let active = true;
+    const timer = setTimeout(() => {
+      void taskCostMemory(supabase, farmId, title).then((cost) => {
+        if (!active) return;
+        setCostText(cost != null ? String(cost) : '');
+        setCostPrefilled(cost != null);
+      });
+    }, 400);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [open, farmId, title, costTouched, supabase]);
+
+  function onCostChange(value: string) {
+    setCostText(value);
+    setCostTouched(true);
+    setCostPrefilled(false);
+  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -92,7 +136,7 @@ export function TaskSheet({
       estimatedCost: cost != null && Number.isFinite(cost) ? cost : null,
     };
     const result = task
-      ? await updateTask(supabase, task.id, input)
+      ? await updateTask(supabase, task.id, farmId, input)
       : await createTask(supabase, farmId, input);
     if (result.ok) {
       onSaved();
@@ -176,12 +220,12 @@ export function TaskSheet({
           </label>
           <input
             id="task-cost"
-            className="form__input"
+            className={costPrefilled ? 'form__input form__input--prefilled' : 'form__input'}
             type="number"
             step="any"
             placeholder={t('common.optional')}
             value={costText}
-            onChange={(e) => setCostText(e.target.value)}
+            onChange={(e) => onCostChange(e.target.value)}
             disabled={busy}
           />
         </div>

@@ -10,7 +10,7 @@ create extension if not exists pgtap;
 
 begin;
 
-select plan(42);
+select plan(47);
 
 -- ====================================================================
 -- הכנה, חמישה משתמשי בדיקה, שני משקים נפרדים
@@ -381,6 +381,47 @@ select throws_ok(
   '42501',
   null,
   'worker_a still cannot write a non-null estimated_cost via UPDATE, same as INSERT'
+);
+
+-- ====================================================================
+-- קבוצה 12, task_cost_memory. לא עבר את ה-REVOKE הגורף שתפס את
+-- crop_cycles ו-tasks (core_schema.sql מעניק SELECT מלא מלכתחילה), כי
+-- הטבלה כולה כסף וחסומה ל-worker ברמת השורה, לא ממוסכת בעמודות. אין
+-- כאן פער מקביל, הבדיקה כאן היא הכיסוי הראשון לטבלה הזו בכלל.
+-- ====================================================================
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
+
+select lives_ok(
+  $$ insert into public.task_cost_memory (farm_id, title_normalized, last_cost)
+     values ((select value from fixture where key = 'farm_a'), 'ריסוס עשבייה', 300) $$,
+  'owner_a can remember a task cost'
+);
+
+select lives_ok(
+  $$ insert into public.task_cost_memory (farm_id, title_normalized, last_cost)
+     values ((select value from fixture where key = 'farm_a'), 'ריסוס עשבייה', 350)
+     on conflict (farm_id, title_normalized) do update set last_cost = excluded.last_cost $$,
+  'upsert on the same normalized title updates in place, does not throw on the unique constraint'
+);
+select is(
+  (select last_cost from public.task_cost_memory where farm_id = (select value from fixture where key = 'farm_a') and title_normalized = 'ריסוס עשבייה'),
+  350::numeric,
+  'the upsert kept exactly one row and the newer cost, not two rows'
+);
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000003', 'role', 'authenticated')::text, true);
+select is(
+  (select count(*)::int from public.task_cost_memory where farm_id = (select value from fixture where key = 'farm_a')),
+  0,
+  'worker_a sees zero remembered costs, blocked at the row level like expenses'
+);
+select throws_ok(
+  $$ insert into public.task_cost_memory (farm_id, title_normalized, last_cost)
+     values ((select value from fixture where key = 'farm_a'), 'ריסוס עובד', 100) $$,
+  '42501',
+  null,
+  'worker_a cannot write a remembered cost either'
 );
 
 select * from finish();

@@ -239,10 +239,70 @@ export function useTasks(supabase: SupabaseClient, plotId?: string): TasksListSt
 }
 
 // ============================================================
+// TaskCostMemory. prd.md סעיף 7: "העלות היא שדה אחד שהאפליקציה זוכרת...
+// בפעם הבאה שהוא פותח משימה עם אותה כותרת השדה כבר מלא במה שרשם קודם".
+// בלי נוסחאות, רק הערך האחרון לפי כותרת מנורמלת.
+//
+// task_cost_memory לא עבר את ה-REVOKE הגורף שתפס את crop_cycles ו-tasks
+// (core_schema.sql מעניק SELECT מלא על הטבלה מלכתחילה), כי היא כולה
+// כסף וחסומה לעובד ברמת השורה, לא ממוסכת בעמודות בתוך view. אין כאן
+// אותו פער.
+// ============================================================
+
+// נרמול לפי prd.md: "אותה כותרת" בעיני חקלאי כולל רווחים כפולים
+// ורישיות שונות, לא רק התאמה מדויקת של המחרוזת. בעברית אין רישיות,
+// אבל כותרת יכולה לכלול מילה או ראשי תיבות בלועזית.
+export function normalizeTaskTitle(title: string): string {
+  return title.trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+// null גם כשאין זיכרון וגם כשאין הרשאה (worker), אין צורך להבחין
+// ביניהם כאן, שני המקרים אומרים לשדה "אל תמלא כלום".
+export async function taskCostMemory(
+  supabase: SupabaseClient,
+  farmId: string,
+  title: string,
+): Promise<number | null> {
+  const titleNormalized = normalizeTaskTitle(title);
+  if (!titleNormalized) return null;
+
+  const { data } = await supabase
+    .from('task_cost_memory')
+    .select('last_cost')
+    .eq('farm_id', farmId)
+    .eq('title_normalized', titleNormalized)
+    .maybeSingle();
+  return (data as { last_cost: number } | null)?.last_cost ?? null;
+}
+
+// Best-effort, לא חוסם ולא מדווח כשלון. זיכרון עלות הוא נוחות, לא חלק
+// מהאמת של המשימה, ואם הכתיבה הזו נכשלת (למשל worker, שלא אמור להגיע
+// לכאן כי הוא לא יכול לכתוב estimated_cost לא-ריק מלכתחילה) המשימה
+// עצמה כבר נשמרה בהצלחה ואין מה להציג כשגיאה למשתמש.
+async function rememberTaskCost(
+  supabase: SupabaseClient,
+  farmId: string,
+  title: string,
+  cost: number,
+): Promise<void> {
+  const titleNormalized = normalizeTaskTitle(title);
+  if (!titleNormalized) return;
+
+  await supabase.from('task_cost_memory').upsert(
+    {
+      farm_id: farmId,
+      title_normalized: titleNormalized,
+      last_cost: cost,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'farm_id,title_normalized' },
+  );
+}
+
+// ============================================================
 // יצירה ועריכה. שני שדות התאריך והעלות אופציונליים לגמרי, prd.md
 // סעיף 7: "משימה היא כותרת, ואופציונלית גם חלקה, תאריך יעד ועלות
-// משוערת". עלות משוערת היא שדה מספרי רגיל כאן, בלי מילוי מראש מ-
-// TaskCostMemory, זו משימת רודמאפ נפרדת (הבאה אחרי זו).
+// משוערת".
 // ============================================================
 
 export type TaskInput = {
@@ -273,12 +333,17 @@ export async function createTask(
       estimated_cost: input.estimatedCost,
     })
     .select('id');
-  return writeOutcome(write);
+  const outcome = writeOutcome(write);
+  if (outcome.ok && input.estimatedCost != null) {
+    void rememberTaskCost(supabase, farmId, title, input.estimatedCost);
+  }
+  return outcome;
 }
 
 export async function updateTask(
   supabase: SupabaseClient,
   taskId: string,
+  farmId: string,
   input: TaskInput,
 ): Promise<TaskWriteResult> {
   const title = input.title.trim();
@@ -294,7 +359,11 @@ export async function updateTask(
     })
     .eq('id', taskId)
     .select('id');
-  return writeOutcome(write);
+  const outcome = writeOutcome(write);
+  if (outcome.ok && input.estimatedCost != null) {
+    void rememberTaskCost(supabase, farmId, title, input.estimatedCost);
+  }
+  return outcome;
 }
 
 // ============================================================

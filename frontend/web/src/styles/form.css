@@ -48,6 +48,14 @@
   outline-offset: 2px;
 }
 
+/* design.md, TaskCostMemory pre-fill: "Pre-filled values render in
+   Slate-600 until touched, then Ink-900, the farmer can see at a
+   glance that this is a remembered number and not something he
+   entered today." */
+.form__input--prefilled {
+  color: var(--color-slate-600);
+}
+
 .form__actions {
   display: flex;
   align-items: center;
