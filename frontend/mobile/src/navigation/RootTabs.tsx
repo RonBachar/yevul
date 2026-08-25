@@ -9,9 +9,9 @@ import Wallet from 'lucide-react-native/icons/wallet';
 import Ellipsis from 'lucide-react-native/icons/ellipsis';
 import { t } from '@yevul/shared';
 import { HomeScreen } from '../screens/HomeScreen';
-import { PlotsScreen } from '../screens/PlotsScreen';
 import { MoneyScreen } from '../screens/MoneyScreen';
 import { MoreStack } from './MoreStack';
+import { PlotsStack } from './PlotsStack';
 import { CaptureSheet } from './CaptureSheet';
 import { TabBar } from './TabBar';
 
@@ -55,7 +55,7 @@ export function RootTabs() {
         />
         <Tab.Screen
           name="Plots"
-          component={PlotsScreen}
+          component={PlotsStack}
           options={{
             title: t('nav.plots'),
             tabBarIcon: ({ color, size }) => (

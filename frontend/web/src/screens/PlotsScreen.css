@@ -1,0 +1,21 @@
+.plots-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-16);
+  margin-bottom: var(--spacing-24);
+}
+
+/* .screen__title כבר נושא margin-bottom משלו, מיותר כאן כשהוא בתוך
+   שורת הכותרת עם הכפתור. */
+.plots-header .screen__title {
+  margin-bottom: 0;
+}
+
+/* form__submit נבנה כ-<button>, וכאן הוא <Link>, לכן צריך להשוות
+   display ל-inline-flex עם יישור אנכי כדי שהטקסט לא ייצמד לקצה. */
+.plots-header .form__submit {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}

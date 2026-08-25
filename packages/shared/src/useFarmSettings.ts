@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { PostgrestError, SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { currentFarmQuery } from './currentFarm';
+import { writeOutcome } from './postgrest';
 import type { AreaUnit, Currency, Locale } from './settings';
 
 // טעינה ושמירה של הגדרות המשק, משותף לנייד ולווב, באותו דפוס שבו
@@ -37,18 +38,6 @@ export type FarmSettingsState = {
 
 type SettingsRow = { currency: Currency; area_unit: AreaUnit; locale: Locale };
 type FarmWithSettings = { id: string; name: string; settings: SettingsRow | null };
-
-// כלל אחד במקום אחד: PostgREST לא מחזיר שגיאה כשמדיניות RLS חוסמת
-// עדכון, הוא מחזיר הצלחה עם אפס שורות. כל כתיבה עוברת דרך כאן, כדי
-// שאי אפשר יהיה לשכוח את הבדיקה בקריאה הבאה.
-function writeOutcome(result: {
-  error: PostgrestError | null;
-  data: unknown[] | null;
-}): SaveResult {
-  if (result.error) return { ok: false, reason: 'error' };
-  if (!result.data || result.data.length === 0) return { ok: false, reason: 'forbidden' };
-  return { ok: true };
-}
 
 export function useFarmSettings(supabase: SupabaseClient): FarmSettingsState {
   const [loading, setLoading] = useState(true);

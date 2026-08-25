@@ -1,0 +1,30 @@
+/* design.md, אותו shell משפחתי כמו גיליון האישור בנייד: scrim מוחשך
+   (לא blur, פוגע בקריאות בשמש וביצועים), 28px רדיוס. כאן ממורכז בגלל
+   פריסת שולחן העבודה, לא נצמד לתחתית. */
+.modal__scrim {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-24);
+  background: rgba(22, 35, 28, 0.42);
+  z-index: 100;
+  overflow-y: auto;
+}
+
+.modal__dialog {
+  width: 100%;
+  max-width: 480px;
+  /* vh כערך גיבוי, ואז dvh שדורס אותו בדפדפנים שתומכים. ב-vh בלבד
+     הגובה נמדד מול חלון מלא גם כשמקלדת רכה פתוחה בדפדפן נייד, ולכן
+     החלון גולש מתחת למקלדת והשדה התחתון לא נגיש. dvh מתכווץ יחד עם
+     ה-viewport החזותי, וזו המקבילה בווב ל-KeyboardAvoidingView בנייד. */
+  max-height: calc(100vh - var(--spacing-48));
+  max-height: calc(100dvh - var(--spacing-48));
+  overflow-y: auto;
+  padding: var(--spacing-24);
+  border-radius: var(--radius-sheet);
+  background: var(--color-paper);
+  box-shadow: var(--shadow-float);
+}

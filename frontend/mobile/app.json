@@ -17,7 +17,8 @@
       "bundleIdentifier": "com.yevul.app"
     },
     "android": {
-      "package": "com.yevul.app"
+      "package": "com.yevul.app",
+      "softwareKeyboardLayoutMode": "pan"
     },
     "plugins": [
       "expo-web-browser"

@@ -1,0 +1,104 @@
+.task-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-12);
+  min-height: 72px;
+  padding: 0 var(--spacing-16);
+  border-radius: var(--radius-card);
+  background: var(--color-mist-100);
+}
+
+.task-row--overdue {
+  background: var(--color-wheat-100);
+  border-right: 4px solid var(--color-wheat-500);
+}
+
+.task-row__checkbox {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid var(--color-slate-600);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+
+.task-row__checkbox:hover {
+  border-color: var(--color-field-700);
+}
+
+.task-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-4);
+  padding: var(--spacing-12) 0;
+  border: none;
+  background: transparent;
+  text-align: right;
+  cursor: pointer;
+}
+
+.task-row__title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-ink-900);
+}
+
+.task-row__meta {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-body-sm);
+  color: var(--color-slate-600);
+}
+
+.task-row__meta--overdue {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-wheat-800);
+}
+
+.task-row__snooze {
+  flex-shrink: 0;
+  min-height: 40px;
+  min-width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-mist-200);
+  color: var(--color-field-700);
+  cursor: pointer;
+}
+
+.task-row__snooze:hover {
+  background: var(--color-field-100);
+}
+
+.task-row--undo {
+  justify-content: space-between;
+}
+
+.task-row__undo-text {
+  font-size: var(--text-body-sm);
+  color: var(--color-slate-600);
+}
+
+.task-row__undo-action {
+  border: none;
+  background: transparent;
+  padding: 0;
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-field-700);
+  cursor: pointer;
+}

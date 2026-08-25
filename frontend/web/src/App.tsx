@@ -3,7 +3,11 @@ import { t } from '@yevul/shared';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { LoginScreen } from './screens/LoginScreen';
 import { AppShell } from './shell/AppShell';
-import { HomeScreen, JournalScreen, MoneyScreen, PlotsScreen } from './screens/WebScreens';
+import { JournalScreen, MoneyScreen } from './screens/WebScreens';
+import { HomeScreen } from './screens/HomeScreen';
+import { PlotsScreen } from './screens/PlotsScreen';
+import { PlotDetailScreen } from './screens/PlotDetailScreen';
+import { PlotFormScreen } from './screens/PlotFormScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 
 // ניתוב אמיתי עם כתובות, ולא החלפת מסכים לפי state. בווב הכתובת היא
@@ -25,6 +29,9 @@ function Gate() {
       <Route element={<AppShell />}>
         <Route index element={<HomeScreen />} />
         <Route path="plots" element={<PlotsScreen />} />
+        <Route path="plots/new" element={<PlotFormScreen />} />
+        <Route path="plots/:plotId" element={<PlotDetailScreen />} />
+        <Route path="plots/:plotId/edit" element={<PlotFormScreen />} />
         <Route path="money" element={<MoneyScreen />} />
         <Route path="journal" element={<JournalScreen />} />
         <Route path="settings" element={<SettingsScreen />} />

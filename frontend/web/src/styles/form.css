@@ -1,6 +1,7 @@
 /*
-  טופס ההגדרות. עמודה אחת ברוחב קריא, לא רשת של שדות לרוחב המסך.
-  ארבעה שדות בסך הכל, וטופס בעמודה אחת נסרק מהר יותר מטבלת שדות.
+  סגנונות טופס משותפים, שדה, תווית, קלט וכפתור שמירה. נולדו במסך
+  ההגדרות ועברו לכאן כש-PlotFormScreen נזקק לאותם בדיוק, כדי שלא יהיו
+  שני עותקים שיכולים להתפצל.
 */
 
 .form {
@@ -20,6 +21,13 @@
   font-size: var(--text-body-sm);
   font-weight: var(--font-weight-bold);
   color: var(--color-ink-900);
+}
+
+/* היחידה שהשדה נמדד בה ("ק״ג לדונם", "₪ לק״ג"), נגזרת מהנתונים
+   ומוצגת לצד התווית במשקל נמוך יותר. היא הקשר, לא שם השדה. */
+.form__label-unit {
+  font-weight: var(--font-weight-regular);
+  color: var(--color-slate-600);
 }
 
 .form__input {
@@ -69,6 +77,22 @@
 .form__submit:focus-visible {
   outline: 3px solid var(--color-ink-900);
   outline-offset: 2px;
+}
+
+/* כפתור משני, ביטול/חזרה לצד form__submit. נולד ב-PlotDetailScreen.css
+   בתור plot-detail__cancel ועבר לכאן כש-TaskSheet נזקק לאותו בדיוק,
+   כדי שלא יהיו שני עותקים שיכולים להתפצל. */
+.form__cancel {
+  min-height: var(--touch-min);
+  padding: 0 var(--spacing-24);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-pill);
+  background: var(--color-paper);
+  color: var(--color-ink-900);
+  font-family: inherit;
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
 }
 
 .form__message {

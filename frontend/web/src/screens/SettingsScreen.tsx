@@ -11,7 +11,7 @@ import {
   type FarmSettingsForm,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
-import './SettingsScreen.css';
+import '../styles/form.css';
 
 // מסך ההגדרות של המשק. המסך הראשון שקורא וכותב נתונים אמיתיים, ולכן
 // גם הראשון שנוגע ב-RLS בפועל מהקליינט.

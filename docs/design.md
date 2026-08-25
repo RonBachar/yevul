@@ -297,12 +297,28 @@ Full-width card, 28px radius, white background with a 1px Border-200 hairline (n
 
 Header: plot name in `heading-sm` (34px/700), a `body-sm`/Slate-600 line beneath it giving area, crop and season ("40 דונם · זיתים · עונה 2026"), and a `chevron-right`-style RTL back affordance (see the icon map's RTL note, back points right in this system).
 
-Below the header, four tabs in the same segmented-control shape used elsewhere (Mist-200 track, white active pill, Field-700 active text): רווחיות, משימות, יומן, הוצאות. Each tab scopes an existing component to this one plot rather than inventing new ones:
+#### Profit Forecast Summary (סיכום צפי רווח)
 
-- **רווחיות** shows the plot's own P&L figure at `heading-lg`, a two-line breakdown (הכנסה צפויה, הוצאות בפועל) in the same `kv`-row style as the ledger, the **Forecast Update** button (see below), and, only when the plot has an open spray record with `phi_days` set, a Field-100 "בטוח לקטיף מ-…" chip, the plot-scoped instance of a safe-harvest indicator.
+**Role:** The plot's bottom line, visible from every tab. Sits between the header and the tab track, **outside** the tabs, so reading it never costs a tap.
+
+`caption`/Slate-600 label reading **צפי רווח**, then the figure at `heading` (44px/900) carrying an explicit `+`/`−` sign and a `trending-up`/`trending-down` glyph, then a `body-sm`/Slate-600 breakdown line: `צפי הכנסה … · הוצאות …`.
+
+**The wording is load-bearing: צפי רווח, never רווח.** This number is a hybrid, a forecast income minus actual recorded expenses. It is unrealised, and one side of it is an estimate the farmer typed himself. A mistyped yield or price produces a number that looks exactly like real profit, and the label is the only thing standing between that and a farmer trusting it. Positive takes Profit-600, negative Loss-600, and **zero stays Ink-900**, same rule as the dashboard hero.
+
+**Until expense tracking exists**, the breakdown shows `הוצאות ₪0` with a Wheat-800 `caption` beneath reading "עדיין לא נרשמו הוצאות, המספר יתעדכן". Wheat and not Loss-600, for the reason the Recurring Expense Nudge Card already states: the message is "we're not showing you everything yet", not "you're losing money". Untracked expenses and genuinely zero expenses are different states and must not render identically.
+
+**Worker Mode renders nothing here**, and not by a UI condition. The forecast columns are masked to `null` in `crop_cycles_view` for the worker role, so there is no income to compute and the whole block is absent. This is the query-layer enforcement this document demands elsewhere: a rendered-but-hidden shekel figure is one screenshot away from a problem between an employer and an employee.
+
+#### Tabs
+
+Below the summary, four tabs in the same segmented-control shape used elsewhere (Mist-200 track, white active pill, Field-700 active text): צפי הכנסה, הוצאות, משימות, יומן. Each tab scopes an existing component to this one plot rather than inventing new ones:
+
+- **צפי הכנסה** shows the crop identity row (name · season, with an edit link), a hairline, then the expected-income figure at `heading-lg` in **Ink-900**, the yield and price breakdown in `kv`-row style, and the **Forecast Update** button (see below). Gross income is not a P&L figure, so it does not take Profit-600; the coloured number on this screen is the summary above, and exactly one number owning the green is what keeps the green meaningful. When the plot has an open spray record with `phi_days` set, a Field-100 "בטוח לקטיף מ-…" chip renders here too, the plot-scoped instance of a safe-harvest indicator.
+- **הוצאות** is the ledger filtered to this plot, same Expense rows as the Money tab.
 - **משימות** is a Task Board (see _Components: Tasks_) filtered to this plot, identical row and swipe behavior, just a narrower query.
 - **יומן** is a Journal list (see _Components: Journal_) filtered to this plot.
-- **הוצאות** is the ledger filtered to this plot, same Expense rows as the Money tab.
+
+> **Why the old unified רווחיות tab was split.** It held the P&L figure *and* an expenses breakdown, while a separate הוצאות tab held the expense ledger, so two tabs spoke about expenses and the bottom line was buried one tap deep. Lifting the summary out of the tabs resolves both at once: what remains of רווחיות is exactly the income side, and each side of the money gets one home. Field note from the farmer this product is built with.
 
 No tab introduces a new visual language. A farmer who has learned any one of these four already knows how to read the other three, that consistency is the point of scoping instead of building four separate screens.
 
@@ -598,7 +614,7 @@ The `עובד` role sees tasks, plots and the journal, but **no money, anywhere*
 - The P&L hero card does not render. The home screen opens on the task board.
 - Bottom tab bar drops to three tabs: בית, חלקות, עוד. No כסף tab.
 - The Capture tab still opens, but its sheet offers only משימה and יומן, the הוצאה row is omitted entirely rather than shown disabled. A worker who does the spraying should be able to log it himself.
-- Plot Detail drops to two tabs, משימות and יומן. רווחיות and הוצאות don't render.
+- Plot Detail drops to two tabs, משימות and יומן. צפי הכנסה and הוצאות don't render, and neither does the Profit Forecast Summary above them.
 - Task Rows omit the estimated-cost segment of the metadata line.
 - The expense half of the Completion Prompts never fires; the journal half still can.
 

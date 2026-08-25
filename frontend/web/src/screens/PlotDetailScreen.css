@@ -1,0 +1,242 @@
+.plot-detail__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--spacing-16);
+  margin-bottom: var(--spacing-24);
+}
+
+.plot-detail__title {
+  margin-bottom: var(--spacing-4);
+}
+
+/* סיכום צפי הרווח, קבוע מעל טראק הטאבים ולכן נראה מכל טאב.
+   heading (44) ולא heading-lg (60): זה כרום מתמיד ולא הגיבור של מסך
+   ייעודי, ו-60px היו דוחפים את תוכן הטאבים נמוך מדי. */
+.plot-profit {
+  margin-bottom: var(--spacing-24);
+}
+
+.plot-profit__label {
+  margin: 0 0 2px;
+  font-size: var(--text-caption);
+  color: var(--color-slate-600);
+}
+
+.plot-profit__value {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--text-heading);
+  font-weight: var(--font-weight-black);
+  white-space: nowrap;
+}
+
+.plot-profit__value--profit {
+  color: var(--color-profit-600);
+}
+
+.plot-profit__value--loss {
+  color: var(--color-loss-600);
+}
+
+/* אפס אינו רווח ואינו הפסד, design.md. */
+.plot-profit__value--zero {
+  color: var(--color-ink-900);
+}
+
+.plot-profit__glyph {
+  font-size: var(--text-subheading);
+  line-height: 1;
+}
+
+.plot-profit__breakdown {
+  margin: 0;
+  font-size: var(--text-body-sm);
+  color: var(--color-slate-600);
+}
+
+/* Wheat ולא Loss-600. design.md: חוסר מידע הוא תיקון, לא הודעת הפסד. */
+.plot-profit__caveat {
+  margin: var(--spacing-4) 0 0;
+  font-size: var(--text-caption);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-wheat-800);
+}
+
+/* design.md, segmented control: track Mist-200, פיל פעיל לבן, טקסט
+   פעיל Field-700. אותו רכיב חזותי כמו הטאבים בתוך פרטי החלקה בנייד. */
+.tab-track {
+  display: inline-flex;
+  gap: var(--spacing-4);
+  padding: var(--spacing-4);
+  margin-bottom: var(--spacing-24);
+  border-radius: var(--radius-pill);
+  background: var(--color-mist-200);
+}
+
+.tab-track__item {
+  min-height: calc(var(--touch-min) - 12px);
+  padding: 0 var(--spacing-20);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-slate-600);
+  font-family: inherit;
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-regular);
+  cursor: pointer;
+}
+
+.tab-track__item--active {
+  background: var(--color-paper);
+  color: var(--color-field-700);
+  font-weight: var(--font-weight-bold);
+}
+
+.plot-detail__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+  max-width: 520px;
+}
+
+.plot-detail__card {
+  padding: var(--spacing-20);
+  border-radius: var(--radius-card);
+  background: var(--color-mist-100);
+}
+
+/* שורת הזהות הקומפקטית בראש הכרטיס: שם הגידול · עונה · יחידת יבול,
+   וקישור עריכה מולה. מחליפה את כותרת ה-h2 והגלולה הנפרדת שהיו כאן
+   לפני האיחוד עם כרטיס ההכנסה הצפויה, ראה docs/design.md. */
+.plot-detail__identity-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-12);
+}
+
+.plot-detail__identity-text {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink-900);
+}
+
+.plot-detail__identity-text--muted {
+  font-weight: var(--font-weight-regular);
+  color: var(--color-slate-600);
+}
+
+.plot-detail__identity-meta {
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-slate-600);
+}
+
+.plot-detail__identity-edit {
+  flex-shrink: 0;
+  min-height: calc(var(--touch-min) - 16px);
+  padding: 0 var(--spacing-4);
+  border: none;
+  background: transparent;
+  color: var(--color-field-700);
+  font-family: inherit;
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+/* Border-200 hairline, "the primary elevation cue in this system"
+   (design.md, Tokens Colors) — מפריד בין שורת הזהות לאזור הכסף בלי
+   להוסיף כרטיס שני צף. */
+.plot-detail__divider {
+  height: 1px;
+  margin: var(--spacing-16) 0;
+  background: var(--color-border-200);
+}
+
+.plot-detail__income-label {
+  display: inline-block;
+  margin: 0 0 var(--spacing-8);
+  padding: 2px var(--spacing-12);
+  border-radius: var(--radius-pill);
+  background: var(--color-field-700);
+  color: var(--color-paper);
+  font-size: var(--text-caption);
+  font-weight: var(--font-weight-medium);
+}
+
+/* תצוגה מקדימה חיה בזמן עריכת הצפי. מופרדת בקו שיער כמו אזור הכסף
+   בכרטיס עצמו, כדי שתיקרא כתוצאה של השדות שמעליה ולא כשדה נוסף. */
+.plot-detail__preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--spacing-12);
+  border-top: 1px solid var(--color-border-200);
+}
+
+.plot-detail__preview-label {
+  font-size: var(--text-body-sm);
+  color: var(--color-slate-600);
+}
+
+.plot-detail__preview-value {
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-profit-600);
+}
+
+.plot-detail__forecast-update {
+  margin-top: var(--spacing-12);
+  min-height: calc(var(--touch-min) - 16px);
+  padding: 0 var(--spacing-16);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-mist-200);
+  color: var(--color-field-700);
+  font-family: inherit;
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.plot-detail__income {
+  margin: 0 0 var(--spacing-12);
+  font-size: var(--text-heading-lg);
+  font-weight: var(--font-weight-black);
+  /* Ink-900 ולא Profit-600. מאז שצפי הרווח קיים בכותרת, הירוק שמור לו
+     בלבד: הכנסה ברוטו אינה רווח, ושני מספרים ירוקים על אותו מסך היו
+     מרוקנים את הצבע ממשמעות. design.md: Profit-600 ל-P&L בלבד. */
+  color: var(--color-ink-900);
+  white-space: nowrap;
+}
+
+.kv-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+  margin: 0;
+}
+
+.kv-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kv-list__label {
+  margin: 0;
+  font-size: var(--text-body-sm);
+  color: var(--color-slate-600);
+}
+
+.kv-list__value {
+  margin: 0;
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink-900);
+}

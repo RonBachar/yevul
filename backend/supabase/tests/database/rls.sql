@@ -10,7 +10,7 @@ create extension if not exists pgtap;
 
 begin;
 
-select plan(28);
+select plan(42);
 
 -- ====================================================================
 -- הכנה, חמישה משתמשי בדיקה, שני משקים נפרדים
@@ -277,6 +277,110 @@ select is(
   (select count(*)::int from public.expenses where farm_id = (select value from fixture where key = 'farm_a')),
   0,
   'worker_a still sees zero expenses after the soft-delete, money stays role-gated regardless of deleted_at'
+);
+
+-- ====================================================================
+-- קבוצה 10, כתיבה על crop_cycles, כולל שני עמודות הרווחיות. Postgres
+-- דורש הרשאת SELECT כדי לאכוף מדיניות UPDATE (ה-USING clause הוא בעצם
+-- בדיקת נראות), לא רק UPDATE. ה-REVOKE הגורף שהיה כאן קודם חסם לכן גם
+-- PATCH לגיטימי מ-owner/manager, PostgREST החזיר 42501. נתפס תוך כדי
+-- בדיקה ידנית בדפדפן בשלב 3, לא כאן, ולכן התווסף כאן עכשיו.
+-- ====================================================================
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
+
+select lives_ok(
+  $$ update public.crop_cycles set name = 'עגבניות שרי', season = '2027' where id = (select value from fixture where key = 'crop_cycle_a') $$,
+  'owner_a can update crop_cycles name/season'
+);
+
+select lives_ok(
+  $$ update public.crop_cycles set expected_yield_per_area = 900, expected_price_per_unit = 3.5, forecast_updated_at = now() where id = (select value from fixture where key = 'crop_cycle_a') $$,
+  'owner_a can update the forecast columns themselves, the exact write that used to 403'
+);
+select is(
+  (select expected_yield_per_area from public.crop_cycles_view where id = (select value from fixture where key = 'crop_cycle_a')),
+  900::numeric,
+  'the forecast update actually persisted, not just a silent no-op'
+);
+
+-- direct column-level select on a masked column throws even for the
+-- owner, same principle as the star-select in group 4, at column
+-- granularity this time, to prove the column grant is precise and not
+-- an accidental full-table grant that would also unmask workers.
+select throws_ok(
+  $$ select expected_yield_per_area from public.crop_cycles limit 1 $$,
+  '42501',
+  null,
+  'direct column-level SELECT on a masked crop_cycles column is denied, even for the owner'
+);
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000003', 'role', 'authenticated')::text, true);
+select lives_ok(
+  $$ update public.crop_cycles set name = 'לא אמור לעבוד' where id = (select value from fixture where key = 'crop_cycle_a') $$,
+  'worker_a UPDATE does not error (RLS USING silently matches zero rows, not a thrown exception)'
+);
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
+select is(
+  (select name from public.crop_cycles_view where id = (select value from fixture where key = 'crop_cycle_a')),
+  'עגבניות שרי',
+  'worker_a''s update above touched zero rows, the name owner_a set is still there'
+);
+
+-- ====================================================================
+-- קבוצה 11, כתיבה (UPDATE) על tasks, אותו פער בדיוק כמו קבוצה 10 על
+-- crop_cycles. השלמה כאירוע, snooze וארכוב הם כולם UPDATE, וכולם היו
+-- נכשלים בשקט (אפס שורות מושפעות) לפני 20260824090000.
+-- ====================================================================
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
+
+select lives_ok(
+  $$ update public.tasks set completed_at = now(), completed_by = 'aaaaaaaa-0000-0000-0000-000000000001'
+     where farm_id = (select value from fixture where key = 'farm_a') and title = 'ריסוס' $$,
+  'owner_a can complete a task, the exact write that used to 403'
+);
+select is(
+  (select completed_at is not null from public.tasks_view where farm_id = (select value from fixture where key = 'farm_a') and title = 'ריסוס'),
+  true,
+  'the completion actually persisted, not just a silent no-op'
+);
+
+select lives_ok(
+  $$ update public.tasks set snoozed_until = current_date + 7, snooze_count = snooze_count + 1
+     where farm_id = (select value from fixture where key = 'farm_a') and title = 'ריסוס עובד בלי עלות' $$,
+  'owner_a can snooze a task'
+);
+select is(
+  (select snooze_count from public.tasks_view where farm_id = (select value from fixture where key = 'farm_a') and title = 'ריסוס עובד בלי עלות'),
+  1,
+  'the snooze count actually persisted'
+);
+
+select lives_ok(
+  $$ update public.tasks set archived_at = now()
+     where farm_id = (select value from fixture where key = 'farm_a') and title = 'ריסוס עובד בלי עלות' $$,
+  'owner_a can archive a task'
+);
+select is(
+  (select archived_at is not null from public.tasks_view where farm_id = (select value from fixture where key = 'farm_a') and title = 'ריסוס עובד בלי עלות'),
+  true,
+  'the archive actually persisted'
+);
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000003', 'role', 'authenticated')::text, true);
+select lives_ok(
+  $$ update public.tasks set completed_at = now(), completed_by = 'aaaaaaaa-0000-0000-0000-000000000003'
+     where farm_id = (select value from fixture where key = 'farm_a') and title = 'ריסוס עובד בלי עלות' $$,
+  'worker_a can complete a task too, tasks are not role-gated at the row level, only estimated_cost is'
+);
+
+select throws_ok(
+  $$ update public.tasks set estimated_cost = 999 where farm_id = (select value from fixture where key = 'farm_a') and title = 'ריסוס' $$,
+  '42501',
+  null,
+  'worker_a still cannot write a non-null estimated_cost via UPDATE, same as INSERT'
 );
 
 select * from finish();

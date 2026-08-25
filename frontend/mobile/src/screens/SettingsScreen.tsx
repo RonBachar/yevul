@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   AREA_UNITS,
@@ -13,7 +13,10 @@ import {
   type FarmSettingsForm,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
-import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
+import { colors, fonts, fontSize, spacing } from '../theme/tokens';
+import { formStyles } from '../theme/formStyles';
+import { ChipField } from '../components/ChipField';
+import { FormScreen } from '../components/FormScreen';
 
 // מסך ההגדרות בנייד. אותה לוגיקת טעינה ושמירה בדיוק כמו בווב, דרך
 // useFarmSettings ב-packages/shared, כדי שהטיפול בדחיית RLS לא ייכתב
@@ -65,7 +68,7 @@ export function SettingsScreen() {
       <SafeAreaView style={styles.screen} edges={['top']}>
         <View style={styles.body}>
           <Text style={styles.title}>{t('screen.settings')}</Text>
-          <Text style={loadFailed ? styles.bad : styles.note}>
+          <Text style={loadFailed ? formStyles.bad : styles.note}>
             {loadFailed ? t('settings.loadError') : t('common.loading')}
           </Text>
         </View>
@@ -74,110 +77,69 @@ export function SettingsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.screen} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Text style={styles.title}>{t('screen.settings')}</Text>
+    // בלי header, הכותרת נגללת יחד עם התוכן כמו קודם. המעטפת אחראית
+    // למקלדת ולגלילה בלבד ולא כופה פריסת כותרת.
+    <FormScreen>
+      <Text style={styles.title}>{t('screen.settings')}</Text>
 
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('settings.farmName')}</Text>
-          <TextInput
-            style={styles.input}
-            value={current.farmName}
-            onChangeText={(value) => update('farmName', value)}
-            editable={!busy}
-            placeholder={t('settings.farmNamePlaceholder')}
-            placeholderTextColor={colors.slate600}
-            textAlign="right"
-          />
-        </View>
-
-        <ChipField
-          label={t('settings.currency')}
-          options={CURRENCIES}
-          selected={current.currency}
-          labelKey={currencyLabelKey}
-          onSelect={(value) => update('currency', value)}
-          disabled={busy}
+      <View style={formStyles.field}>
+        <Text style={formStyles.label}>{t('settings.farmName')}</Text>
+        <TextInput
+          style={formStyles.input}
+          value={current.farmName}
+          onChangeText={(value) => update('farmName', value)}
+          editable={!busy}
+          placeholder={t('settings.farmNamePlaceholder')}
+          placeholderTextColor={colors.slate600}
+          textAlign="right"
         />
-
-        <ChipField
-          label={t('settings.areaUnit')}
-          options={AREA_UNITS}
-          selected={current.areaUnit}
-          labelKey={areaUnitLabelKey}
-          onSelect={(value) => update('areaUnit', value)}
-          disabled={busy}
-        />
-
-        <ChipField
-          label={t('settings.locale')}
-          options={LOCALES}
-          selected={current.locale}
-          labelKey={localeLabelKey}
-          onSelect={(value) => update('locale', value)}
-          disabled={busy}
-        />
-
-        <Pressable
-          style={[styles.save, busy && styles.saveDisabled]}
-          onPress={onSave}
-          disabled={busy}
-          accessibilityRole="button"
-        >
-          <Text style={styles.saveText}>
-            {status === 'saving' ? t('settings.saving') : t('settings.save')}
-          </Text>
-        </Pressable>
-
-        {status === 'saved' && <Text style={styles.good}>{t('settings.saved')}</Text>}
-        {status === 'forbidden' && <Text style={styles.bad}>{t('settings.forbidden')}</Text>}
-        {status === 'error' && <Text style={styles.bad}>{t('settings.saveError')}</Text>}
-        {status === 'nameRequired' && <Text style={styles.bad}>{t('settings.nameRequired')}</Text>}
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-// שורת צ'יפים לבחירה מתוך קבוצה קטנה וסגורה. הצ'יפ הנבחר מסומן גם
-// בצבע וגם במשקל, לא בצבע בלבד, אותו כלל כמו במצב הפעיל בניווט.
-function ChipField<T extends string>({
-  label,
-  options,
-  selected,
-  labelKey,
-  onSelect,
-  disabled,
-}: {
-  label: string;
-  options: readonly T[];
-  selected: T;
-  labelKey: (value: T) => string;
-  onSelect: (value: T) => void;
-  disabled: boolean;
-}) {
-  return (
-    <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.chips}>
-        {options.map((value) => {
-          const active = value === selected;
-          return (
-            <Pressable
-              key={value}
-              style={[styles.chip, active && styles.chipActive, disabled && styles.chipDisabled]}
-              onPress={() => onSelect(value)}
-              disabled={disabled}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: active, disabled }}
-            >
-              <Text style={[styles.chipText, active && styles.chipTextActive]}>
-                {t(labelKey(value))}
-              </Text>
-            </Pressable>
-          );
-        })}
       </View>
-    </View>
+
+      <ChipField
+        label={t('settings.currency')}
+        options={CURRENCIES}
+        selected={current.currency}
+        labelKey={currencyLabelKey}
+        onSelect={(value) => update('currency', value)}
+        disabled={busy}
+      />
+
+      <ChipField
+        label={t('settings.areaUnit')}
+        options={AREA_UNITS}
+        selected={current.areaUnit}
+        labelKey={areaUnitLabelKey}
+        onSelect={(value) => update('areaUnit', value)}
+        disabled={busy}
+      />
+
+      <ChipField
+        label={t('settings.locale')}
+        options={LOCALES}
+        selected={current.locale}
+        labelKey={localeLabelKey}
+        onSelect={(value) => update('locale', value)}
+        disabled={busy}
+      />
+
+      <Pressable
+        style={[formStyles.save, busy && formStyles.saveDisabled]}
+        onPress={onSave}
+        disabled={busy}
+        accessibilityRole="button"
+      >
+        <Text style={formStyles.saveText}>
+          {status === 'saving' ? t('settings.saving') : t('settings.save')}
+        </Text>
+      </Pressable>
+
+      {status === 'saved' && <Text style={formStyles.good}>{t('settings.saved')}</Text>}
+      {status === 'forbidden' && <Text style={formStyles.bad}>{t('settings.forbidden')}</Text>}
+      {status === 'error' && <Text style={formStyles.bad}>{t('settings.saveError')}</Text>}
+      {status === 'nameRequired' && (
+        <Text style={formStyles.bad}>{t('settings.nameRequired')}</Text>
+      )}
+    </FormScreen>
   );
 }
 
@@ -201,83 +163,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: fontSize.bodySm,
     color: colors.slate600,
-    writingDirection: 'rtl',
-  },
-  field: {
-    gap: spacing.s8,
-  },
-  label: {
-    fontFamily: fonts.bold,
-    fontSize: fontSize.bodySm,
-    color: colors.ink900,
-    writingDirection: 'rtl',
-  },
-  input: {
-    minHeight: touchTarget.min,
-    paddingHorizontal: spacing.s16,
-    borderWidth: 1,
-    borderColor: colors.border200,
-    borderRadius: radius.input,
-    backgroundColor: colors.paper,
-    fontFamily: fonts.regular,
-    fontSize: fontSize.body,
-    color: colors.ink900,
-  },
-  chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.s8,
-  },
-  chip: {
-    minHeight: touchTarget.min,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.s24,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border200,
-    backgroundColor: colors.paper,
-  },
-  chipDisabled: {
-    opacity: 0.6,
-  },
-  chipActive: {
-    borderColor: colors.field700,
-    backgroundColor: colors.field100,
-  },
-  chipText: {
-    fontFamily: fonts.medium,
-    fontSize: fontSize.bodySm,
-    color: colors.slate600,
-  },
-  chipTextActive: {
-    fontFamily: fonts.bold,
-    color: colors.field700,
-  },
-  save: {
-    minHeight: touchTarget.min,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.field700,
-  },
-  saveDisabled: {
-    opacity: 0.6,
-  },
-  saveText: {
-    fontFamily: fonts.bold,
-    fontSize: fontSize.body,
-    color: colors.paper,
-  },
-  good: {
-    fontFamily: fonts.medium,
-    fontSize: fontSize.bodySm,
-    color: colors.profit600,
-    writingDirection: 'rtl',
-  },
-  bad: {
-    fontFamily: fonts.medium,
-    fontSize: fontSize.bodySm,
-    color: colors.loss600,
     writingDirection: 'rtl',
   },
 });
