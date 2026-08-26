@@ -1,17 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import {
-  createTask,
-  currencySymbol,
-  t,
-  taskCostMemory,
-  updateTask,
-  usePlots,
-  type Currency,
-  type Task,
-} from '@yevul/shared';
-import { colors, fonts, fontSize } from '../theme/tokens';
+import { createTask, t, updateTask, usePlots, type Task } from '@yevul/shared';
+import { colors } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from './BottomSheet';
 
@@ -47,9 +38,10 @@ function computeDueDate(mode: DueMode, day: string, month: string, now: Date): s
   return candidate.toISOString().slice(0, 10);
 }
 
-// גיליון יצירה/עריכה של משימה, design.md "Task Sheet". שדה אחד או שני
-// תווים בלבד לפני שמירה: כותרת, חלקה, תאריך, עלות. בלי כפתורי מצלמה
-// ומיקרופון, אלה תלויים בתשתית הקול שנבנית בשלב 5.
+// גיליון יצירה/עריכה של משימה, design.md "Task Sheet". כותרת, חלקה,
+// תאריך, בלי עלות: עלות שאלה על "בוצע", לא על יצירה, ראה
+// Completion Prompts (טרם נבנה). בלי כפתורי מצלמה ומיקרופון, אלה
+// תלויים בתשתית הקול שנבנית בשלב 5.
 //
 // אין בורר תאריך native כאן בכוונה, שני שדות מספריים (יום/חודש) ובלי
 // תלות חדשה, אותה גישה כמו הימנעות מ-reanimated ב-BottomSheet.
@@ -60,7 +52,6 @@ export function TaskSheet({
   task,
   defaultPlotId,
   farmId,
-  currency,
   onSaved,
 }: {
   supabase: SupabaseClient;
@@ -69,7 +60,6 @@ export function TaskSheet({
   task: Task | null;
   defaultPlotId: string | null;
   farmId: string | null;
-  currency: Currency;
   onSaved: () => void;
 }) {
   const plotsState = usePlots(supabase);
@@ -79,17 +69,6 @@ export function TaskSheet({
   const [dueMode, setDueMode] = useState<DueMode>('someday');
   const [dueDay, setDueDay] = useState('');
   const [dueMonth, setDueMonth] = useState('');
-  const [costText, setCostText] = useState('');
-  // "touched" נדבק ברגע שהמשתמש נוגע בשדה העלות בעצמו, ומאותו רגע
-  // חיפוש הזיכרון מפסיק לגעת בשדה, גם אם הכותרת ממשיכה להשתנות. משימה
-  // בעריכה עם עלות שמורה מתחילה touched, כדי שעריכת הכותרת לא תדרוס
-  // ערך אמיתי בניחוש מהזיכרון.
-  const [costTouched, setCostTouched] = useState(false);
-  // "prefilled" שולט רק בצבע, design.md: "Pre-filled values render in
-  // Slate-600 until touched, then Ink-900, the farmer can see at a
-  // glance that this is a remembered number and not something he
-  // entered today."
-  const [costPrefilled, setCostPrefilled] = useState(false);
   const [status, setStatus] = useState<'idle' | 'saving' | 'titleRequired' | 'forbidden' | 'error'>(
     'idle',
   );
@@ -112,61 +91,26 @@ export function TaskSheet({
         setDueDay('');
         setDueMonth('');
       }
-      setCostText(task.estimatedCost != null ? String(task.estimatedCost) : '');
-      setCostTouched(task.estimatedCost != null);
     } else {
       setTitle('');
       setPlotId(defaultPlotId);
       setDueMode('someday');
       setDueDay('');
       setDueMonth('');
-      setCostText('');
-      setCostTouched(false);
     }
-    setCostPrefilled(false);
     setStatus('idle');
   }, [visible, task, defaultPlotId]);
-
-  // TaskCostMemory, prd.md: "בפעם הבאה שהוא פותח משימה עם אותה כותרת
-  // השדה כבר מלא במה שרשם קודם". דחייה של 400ms כדי לא לשלוח שאילתה
-  // על כל תו, ונעצר לגמרי אחרי שהמשתמש נגע בשדה העלות בעצמו.
-  useEffect(() => {
-    if (!visible || !farmId || costTouched) return;
-    if (!title.trim()) {
-      setCostText('');
-      setCostPrefilled(false);
-      return;
-    }
-    let active = true;
-    const timer = setTimeout(() => {
-      void taskCostMemory(supabase, farmId, title).then((cost) => {
-        if (!active) return;
-        setCostText(cost != null ? String(cost) : '');
-        setCostPrefilled(cost != null);
-      });
-    }, 400);
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [visible, farmId, title, costTouched, supabase]);
-
-  function onCostChange(value: string) {
-    setCostText(value);
-    setCostTouched(true);
-    setCostPrefilled(false);
-  }
 
   async function onSave() {
     if (!farmId) return;
     setStatus('saving');
-    const costTrimmed = costText.trim();
-    const cost = costTrimmed === '' ? null : Number(costTrimmed.replace(',', '.'));
     const input = {
       title,
       plotId,
       dueDate: computeDueDate(dueMode, dueDay, dueMonth, new Date()),
-      estimatedCost: cost != null && Number.isFinite(cost) ? cost : null,
+      // עלות משוערת ירדה מהגיליון: היא שאלה ששייכת ל"בוצע", לא ליצירה.
+      // ראה ההערה למעלה ליד TaskSheet.
+      estimatedCost: null,
     };
     const result = task
       ? await updateTask(supabase, task.id, farmId, input)
@@ -279,25 +223,6 @@ export function TaskSheet({
         )}
       </View>
 
-      <View style={[formStyles.field, sheetGap]}>
-        <Text style={formStyles.label}>
-          {t('tasks.form.cost')}
-          <Text style={labelUnit}> · {currencySymbol(currency)}</Text>
-        </Text>
-        <TextInput
-          style={[formStyles.input, costPrefilled && costPrefilledStyle]}
-          value={costText}
-          onChangeText={onCostChange}
-          editable={!busy}
-          keyboardType="decimal-pad"
-          textAlign="right"
-          // "לא חובה" ולא סמל המטבע. הסמל עבר לתווית, כי placeholder
-          // אמור לומר מה להקליד, והמידע החסר כאן הוא שהשדה רשות.
-          placeholder={t('common.optional')}
-          placeholderTextColor={colors.slate600}
-        />
-      </View>
-
       <Pressable
         style={[formStyles.save, sheetGap, busy && formStyles.saveDisabled]}
         onPress={onSave}
@@ -320,13 +245,5 @@ export function TaskSheet({
 }
 
 const sheetGap = { marginTop: 16 };
-const labelUnit = {
-  fontFamily: fonts.regular,
-  fontSize: fontSize.bodySm,
-  color: colors.slate600,
-};
 const dateRow = { flexDirection: 'row' as const, gap: 8, marginTop: 8 };
 const dateInput = { flex: 1, textAlign: 'center' as const };
-// design.md: ערך ממולא-מראש מוצג ב-Slate-600 עד שהמשתמש נוגע בו, כדי
-// שיהיה ברור במבט אחד שזה מספר שהאפליקציה זוכרת ולא מה שהוקלד היום.
-const costPrefilledStyle = { color: colors.slate600 };

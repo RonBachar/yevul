@@ -107,10 +107,11 @@ export function taskDueDisplay(dueDate: string | null, now: Date = new Date()): 
 
 // ============================================================
 // קיבוץ הלוח לפי דחיפות. design.md, Task Board: באיחור → היום → השבוע
-// → מתישהו, קבוצות ריקות לא מוצגות.
+// → בהמשך → מתישהו, קבוצות ריקות לא מוצגות. "בהמשך" נוסף בתיקון באג:
+// בלעדיו כל תאריך מעבר לשבוע נפל תחת "השבוע" ומטעה.
 // ============================================================
 
-export type UrgencyGroupKey = 'overdue' | 'today' | 'week' | 'someday';
+export type UrgencyGroupKey = 'overdue' | 'today' | 'week' | 'later' | 'someday';
 export type UrgencyGroup = { key: UrgencyGroupKey; labelKey: string; tasks: Task[] };
 
 export function groupTasksByUrgency(tasks: Task[], now: Date = new Date()): UrgencyGroup[] {
@@ -118,6 +119,7 @@ export function groupTasksByUrgency(tasks: Task[], now: Date = new Date()): Urge
     overdue: [],
     today: [],
     week: [],
+    later: [],
     someday: [],
   };
 
@@ -129,8 +131,13 @@ export function groupTasksByUrgency(tasks: Task[], now: Date = new Date()): Urge
       buckets.overdue.push(task);
     } else if (due.tone === 'today' || due.tone === 'tomorrow') {
       buckets.today.push(task);
-    } else {
+    } else if (due.tone === 'soon') {
       buckets.week.push(task);
+    } else {
+      // due.tone === 'later', יותר משבוע קדימה. בלי הקבוצה הזו כל תאריך
+      // עתידי, גם עוד חצי שנה, נופל תחת "השבוע" ומטעה לגמרי. taskDueDisplay
+      // כבר מציג עבורו תאריך מפורש בשורה עצמה, לא "עוד X ימים".
+      buckets.later.push(task);
     }
   }
 
@@ -138,6 +145,7 @@ export function groupTasksByUrgency(tasks: Task[], now: Date = new Date()): Urge
     { key: 'overdue', labelKey: 'tasks.group.overdue' },
     { key: 'today', labelKey: 'tasks.group.today' },
     { key: 'week', labelKey: 'tasks.group.week' },
+    { key: 'later', labelKey: 'tasks.group.later' },
     { key: 'someday', labelKey: 'tasks.group.someday' },
   ];
 
@@ -415,6 +423,20 @@ export async function archiveTask(supabase: SupabaseClient, taskId: string): Pro
   const write = await supabase
     .from('tasks')
     .update({ archived_at: new Date().toISOString() })
+    .eq('id', taskId)
+    .select('id');
+  return writeOutcome(write);
+}
+
+// מחיקה, לא השלמה. בקשת חקלאי מפורשת: לפעמים משימה פשוט לא רלוונטית
+// יותר ואין טעם לרשום אותה כ"בוצע" (שקורא בעתיד ל-Completion Prompts,
+// "להוסיף ליומן/הוצאות?"). soft delete בלבד, deleted_at כבר קיים
+// בסכמה מ-core_schema.sql ומסונן ב-tasks_view, לא UPDATE חדש ולא מחיקת
+// שורה בפועל.
+export async function deleteTask(supabase: SupabaseClient, taskId: string): Promise<WriteOutcome> {
+  const write = await supabase
+    .from('tasks')
+    .update({ deleted_at: new Date().toISOString() })
     .eq('id', taskId)
     .select('id');
   return writeOutcome(write);

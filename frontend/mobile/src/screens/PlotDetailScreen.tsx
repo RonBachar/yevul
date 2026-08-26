@@ -30,6 +30,7 @@ import { supabase } from '../lib/supabase';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from '../components/BottomSheet';
+import { JournalList } from '../components/JournalList';
 import { TaskBoard } from '../components/TaskBoard';
 import { YieldUnitField } from '../components/YieldUnitField';
 import type { PlotsStackParamList } from '../navigation/PlotsStack';
@@ -211,7 +212,13 @@ export function PlotDetailScreen() {
         </View>
       )}
 
-      {tab !== 'income' && tab !== 'tasks' && (
+      {tab === 'journal' && (
+        <View style={styles.tasksBody}>
+          <JournalList supabase={supabase} plotId={plotId} showPlotName={false} />
+        </View>
+      )}
+
+      {tab === 'expenses' && (
         <View style={styles.center}>
           <Text style={styles.note}>{t('screen.comingSoon')}</Text>
         </View>

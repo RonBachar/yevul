@@ -10,7 +10,7 @@ create extension if not exists pgtap;
 
 begin;
 
-select plan(47);
+select plan(56);
 
 -- ====================================================================
 -- הכנה, חמישה משתמשי בדיקה, שני משקים נפרדים
@@ -383,6 +383,21 @@ select throws_ok(
   'worker_a still cannot write a non-null estimated_cost via UPDATE, same as INSERT'
 );
 
+-- deleteTask, בקשת חקלאי: מחיקה אמיתית (soft), לא סתם השלמה. אותו UPDATE
+-- כמו completed_at/snoozed_until/archived_at למעלה, ולכן צריך לעבור באותו
+-- פער בדיוק, deleted_at כבר בעמודות ה-SELECT שהוענקו ב-20260824090000.
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
+select lives_ok(
+  $$ update public.tasks set deleted_at = now()
+     where farm_id = (select value from fixture where key = 'farm_a') and title = 'ריסוס עובד בלי עלות' $$,
+  'owner_a can soft-delete a task'
+);
+select is(
+  (select count(*)::int from public.tasks_view where farm_id = (select value from fixture where key = 'farm_a') and title = 'ריסוס עובד בלי עלות'),
+  0,
+  'the soft-deleted task no longer resolves via tasks_view, filtering is a query-layer concern (same rule as group 6)'
+);
+
 -- ====================================================================
 -- קבוצה 12, task_cost_memory. לא עבר את ה-REVOKE הגורף שתפס את
 -- crop_cycles ו-tasks (core_schema.sql מעניק SELECT מלא מלכתחילה), כי
@@ -422,6 +437,64 @@ select throws_ok(
   '42501',
   null,
   'worker_a cannot write a remembered cost either'
+);
+
+-- ====================================================================
+-- קבוצה 13, log_entries. עצמאי מ-tasks, טבלה תפעולית ולא כסף, ולכן
+-- worker כותב וקורא בה במלואה, בדיוק כמו plots (הוא זה שמרסס וקוטף
+-- בפועל, prd.md סעיף 8). הבדיקה כאן גם מכסה את הרחבת domain הסוגים
+-- ב-20260825060000, שלושת הערכים המקוריים בלבד עברו בדיקה קודם.
+-- ====================================================================
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
+
+select lives_ok(
+  $$ insert into public.log_entries (farm_id, plot_id, date, type, source, note)
+     values ((select value from fixture where key = 'farm_a'), (select value from fixture where key = 'plot_a'), current_date, 'fertilize', 'manual', 'דישון יסוד') $$,
+  'owner_a can insert one of the seven types the domain gained in 20260825060000, not just the original spray/harvest/other'
+);
+
+select throws_ok(
+  $$ insert into public.log_entries (farm_id, plot_id, date, type, source)
+     values ((select value from fixture where key = 'farm_a'), (select value from fixture where key = 'plot_a'), current_date, 'dance', 'manual') $$,
+  '23514',
+  null,
+  'a type outside the closed list of ten is still rejected by the check constraint'
+);
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000003', 'role', 'authenticated')::text, true);
+
+select lives_ok(
+  $$ insert into public.log_entries (farm_id, plot_id, date, type, source, note)
+     values ((select value from fixture where key = 'farm_a'), (select value from fixture where key = 'plot_a'), current_date, 'other', 'manual', 'נרשם על ידי העובד') $$,
+  'worker_a can insert a log entry directly, log_entries is operational not money'
+);
+
+select is(
+  (select count(*)::int from public.log_entries where farm_id = (select value from fixture where key = 'farm_a')) >= 3,
+  true,
+  'worker_a can read farm_a journal entries too, same row-level access as plots'
+);
+
+select set_config('request.jwt.claims', json_build_object('sub', 'cccccccc-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
+
+select is(
+  (select count(*)::int from public.log_entries where farm_id = (select value from fixture where key = 'farm_a')),
+  0,
+  'a stranger with no membership in farm A sees zero journal entries'
+);
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
+
+select lives_ok(
+  $$ update public.log_entries set note = 'דישון יסוד, מנה שנייה'
+     where farm_id = (select value from fixture where key = 'farm_a') and note = 'דישון יסוד' $$,
+  'owner_a can edit a journal entry after creating it, Log Entry Sheet supports create and edit on the same row'
+);
+select is(
+  (select note from public.log_entries where farm_id = (select value from fixture where key = 'farm_a') and type = 'fertilize'),
+  'דישון יסוד, מנה שנייה',
+  'the edit actually landed and did not silently no-op like the crop_cycles/tasks SELECT-for-UPDATE gap did before those fixes'
 );
 
 select * from finish();

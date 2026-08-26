@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import ChevronLeft from 'lucide-react-native/icons/chevron-left';
+import NotebookPen from 'lucide-react-native/icons/notebook-pen';
 import Settings from 'lucide-react-native/icons/settings';
 import { t } from '@yevul/shared';
 import { useAuth } from '../auth/AuthProvider';
@@ -29,12 +30,22 @@ export function MoreScreen() {
     <ScreenPlaceholder title={t('screen.more')}>
       <Pressable
         style={styles.row}
+        onPress={() => navigation.navigate('Journal' as never)}
+        accessibilityRole="button"
+      >
+        <NotebookPen size={24} strokeWidth={2} color={colors.field700} />
+        <Text style={styles.rowLabel}>{t('screen.journal')}</Text>
+        {/* חץ הכניסה פונה שמאלה תחת RTL, זה הכיוון "פנימה" */}
+        <ChevronLeft size={24} strokeWidth={2} color={colors.slate600} />
+      </Pressable>
+
+      <Pressable
+        style={styles.row}
         onPress={() => navigation.navigate('Settings' as never)}
         accessibilityRole="button"
       >
         <Settings size={24} strokeWidth={2} color={colors.field700} />
         <Text style={styles.rowLabel}>{t('screen.settings')}</Text>
-        {/* חץ הכניסה פונה שמאלה תחת RTL, זה הכיוון "פנימה" */}
         <ChevronLeft size={24} strokeWidth={2} color={colors.slate600} />
       </Pressable>
 

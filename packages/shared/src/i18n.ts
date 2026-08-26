@@ -14,6 +14,9 @@ const strings: Record<string, string> = {
   'auth.continueWithApple': 'המשיכו עם Apple',
   'auth.legal': 'בהמשך אתם מאשרים את תנאי השימוש ומדיניות הפרטיות',
   'auth.error': 'ההתחברות נכשלה, נסו שוב',
+  // כפתור dev בלבד, מוצג רק כש-__DEV__/import.meta.env.DEV דלוקים,
+  // לא מגיע לבילד release. נכנס כמשתמש הבדיקה מ-backend/supabase/seed.sql.
+  'auth.devDemoLogin': 'כניסה כמשתמש בדיקה (dev)',
   'app.fontError': 'טעינת הגופנים נכשלה. סגרו את האפליקציה ופתחו אותה מחדש.',
   'common.loading': 'טוען',
   // placeholder גנרי לשדה מספרי. שדה מספר ריק בלי רמז נראה כמו שדה
@@ -174,7 +177,12 @@ const strings: Record<string, string> = {
   'tasks.group.overdue': 'באיחור',
   'tasks.group.today': 'היום',
   'tasks.group.week': 'השבוע',
-  'tasks.group.someday': 'מתישהו',
+  'tasks.group.later': 'בהמשך',
+  // "ללא תאריך" ולא "מתישהו" (כמו בצ'יפ הבחירה בגיליון), הערת מוצר:
+  // ככותרת קבוצה על משימות שכבר קיימות "מתישהו" נשמע לא רציני. הצ'יפ
+  // בגיליון היצירה/עריכה (tasks.form.dueSomeday) לא השתנה, שם זו בחירה
+  // פעילה ולא תיאור של רשימה קיימת.
+  'tasks.group.someday': 'ללא תאריך',
   'tasks.due.today': 'היום',
   'tasks.due.tomorrow': 'מחר',
   'tasks.due.overduePrefix': 'באיחור',
@@ -182,9 +190,12 @@ const strings: Record<string, string> = {
 
   // שורת משימה, פעולות swipe/כפתור
   'tasks.action.complete': 'בוצע',
+  'tasks.action.delete': 'מחיקה',
+  'tasks.deleteConfirmTitle': 'למחוק את המשימה?',
   'tasks.action.snooze': 'דחה שבוע',
   'tasks.action.undo': 'ביטול',
   'tasks.completedToast': 'סומן כבוצע',
+  'tasks.deletedToast': 'המשימה נמחקה',
   'tasks.snoozedToast': 'נדחה בשבוע',
 
   // גיליון יצירה/עריכה
@@ -203,6 +214,55 @@ const strings: Record<string, string> = {
   'tasks.form.saveError': 'לא הצלחנו לשמור, נסו שוב',
   'tasks.save': 'שמירה',
   'tasks.saving': 'שומר',
+
+  // יומן, prd.md סעיף 8. עשרת סוגי הפעולה, בסדר LOG_ENTRY_TYPES
+  // ב-packages/shared/src/logEntries.ts.
+  'log.type.till': 'חריש',
+  'log.type.sow': 'זריעה',
+  'log.type.fertilize': 'דישון',
+  'log.type.spray': 'ריסוס',
+  'log.type.irrigate': 'השקיה',
+  'log.type.prune': 'גיזום',
+  'log.type.thin': 'דילול',
+  'log.type.harvest': 'קטיף',
+  'log.type.repair': 'תיקון',
+  'log.type.other': 'אחר',
+
+  'log.new': 'רישום חדש',
+  'log.empty': 'עדיין אין רישומים ביומן',
+  'log.loadError': 'לא הצלחנו לטעון את היומן, נסו שוב',
+  // שתי התוויות למקור רשומה שאינו ידני, design.md, Log Row. רשומה
+  // ידנית (המקור היחיד שהמסך הזה כותב) לא מציגה תווית מקור בכלל.
+  'log.row.sourceVoice': 'נרשם בקול',
+  'log.row.sourceTask': 'ממשימה שהסתיימה',
+
+  // גיליון יצירה/עריכה, design.md, Log Entry Sheet
+  'log.form.titleNew': 'רישום חדש',
+  'log.form.titleEdit': 'עריכת רישום',
+  'log.form.type': 'סוג',
+  'log.form.date': 'תאריך',
+  'log.form.dateDay': 'יום',
+  'log.form.dateMonth': 'חודש',
+  'log.form.note': 'הערה',
+  'log.form.notePlaceholder': 'הערה קצרה, לא חובה',
+  'log.form.sprayPest': 'מזיק או סיבה',
+  'log.form.sprayPestPlaceholder': 'למשל, כנימה',
+  'log.form.sprayMaterial': 'חומר',
+  'log.form.sprayMaterialPlaceholder': 'למשל, קונפידור',
+  'log.form.sprayDose': 'מינון',
+  'log.form.sprayPhiDays': 'ימי המתנה עד קטיף',
+  'log.form.harvestQty': 'כמות',
+  'log.form.harvestUnit': 'יחידה',
+  'log.form.harvestUnitPlaceholder': 'למשל, ק"ג',
+  // "…" נשאר חלק מהמפתח, design.md כותב "בטוח לקטיף מ-…" בדיוק, התאריך
+  // עצמו מתווסף אחרי המקף בקוד.
+  'log.form.safeHarvestPrefix': 'בטוח לקטיף מ',
+  'log.form.pestRequired': 'יש להזין נגד איזה מזיק ריססתם',
+  'log.form.materialRequired': 'יש להזין באיזה חומר ריססתם',
+  'log.form.forbidden': 'אין לכם הרשאה ליצור או לערוך רישומים ביומן',
+  'log.form.saveError': 'לא הצלחנו לשמור, נסו שוב',
+  'log.save': 'שמירה',
+  'log.saving': 'שומר',
 };
 
 // מחזיר את המחרוזת לפי המפתח, ואם אין, מחזיר את המפתח עצמו כדי

@@ -4,12 +4,29 @@ import { t } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import './LoginScreen.css';
 
+// משתמש הבדיקה מ-backend/supabase/seed.sql, קיים רק ב-DB המקומי.
+// כפתור הכניסה איתו מוצג רק ב-import.meta.env.DEV, נעלם מבילד
+// production, בדיוק כמו window.supabase שנחשף רק ב-DEV ב-lib/supabase.ts.
+const DEV_DEMO_EMAIL = 'demo-owner@yevul.app';
+const DEV_DEMO_PASSWORD = 'password123';
+
 // מסך התחברות. שני נתיבי כניסה, גוגל ואפל. הלקוח רק פותח את זרימת
 // ה-OAuth של Supabase, כל האימות קורה בשרת. אחרי חזרה מוצלחת, הטריגר
 // on_auth_user_created כבר דאג למשק, הלקוח לא יוצר כלום.
 export function LoginScreen() {
   const [error, setError] = useState<string | null>(null);
-  const [pending, setPending] = useState<Provider | null>(null);
+  const [pending, setPending] = useState<Provider | 'dev' | null>(null);
+
+  async function signInWithDevDemoUser() {
+    setError(null);
+    setPending('dev');
+    const { error: authError } = await supabase.auth.signInWithPassword({
+      email: DEV_DEMO_EMAIL,
+      password: DEV_DEMO_PASSWORD,
+    });
+    if (authError) setError(t('auth.error'));
+    setPending(null);
+  }
 
   async function signInWith(provider: Provider) {
     setError(null);
@@ -61,6 +78,17 @@ export function LoginScreen() {
             <AppleMark />
             <span>{t('auth.continueWithApple')}</span>
           </button>
+
+          {import.meta.env.DEV && (
+            <button
+              type="button"
+              className="login__btn login__btn--dev"
+              onClick={signInWithDevDemoUser}
+              disabled={pending !== null}
+            >
+              <span>{t('auth.devDemoLogin')}</span>
+            </button>
+          )}
         </div>
 
         {error ? (

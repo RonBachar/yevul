@@ -92,6 +92,17 @@
   color: var(--color-paper);
 }
 
+/* כפתור dev בלבד, ראה import.meta.env.DEV ב-LoginScreen.tsx. סגנון
+   מקווקו ומעומעם בכוונה, כדי שיהיה ברור שזה כלי פיתוח ולא נתיב כניסה
+   אמיתי. */
+.login__btn--dev {
+  background: var(--color-mist-200);
+  color: var(--color-slate-600);
+  border: 1px dashed var(--color-border-200);
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-medium);
+}
+
 .login__icon {
   width: 20px;
   height: 20px;

@@ -4,8 +4,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import Plus from 'lucide-react-native/icons/plus';
 import {
   completeTask,
+  deleteTask,
   groupTasksByUrgency,
-  snoozeTask,
   t,
   useTasks,
   type Currency,
@@ -51,8 +51,8 @@ export function TaskBoard({
     tasksState.refresh();
   }
 
-  async function handleSnooze(task: Task) {
-    await snoozeTask(supabase, task);
+  async function handleDelete(taskId: string) {
+    await deleteTask(supabase, taskId);
     tasksState.refresh();
   }
 
@@ -77,9 +77,7 @@ export function TaskBoard({
         <ScrollView style={styles.scroll} contentContainerStyle={styles.groups}>
           {groups.map((group) => (
             <View key={group.key} style={styles.group}>
-              <Text style={styles.sectionHeader}>
-                {t(group.labelKey)} · {group.tasks.length}
-              </Text>
+              <Text style={styles.sectionHeader}>{t(group.labelKey)}</Text>
               <View style={styles.rows}>
                 {group.tasks.map((task) => (
                   <TaskRow
@@ -91,7 +89,7 @@ export function TaskBoard({
                     currency={currency}
                     onPress={() => openEdit(task)}
                     onCompleteCommit={() => handleComplete(task.id)}
-                    onSnoozeCommit={() => handleSnooze(task)}
+                    onDeleteCommit={() => handleDelete(task.id)}
                   />
                 ))}
               </View>
@@ -107,7 +105,6 @@ export function TaskBoard({
         task={editingTask}
         defaultPlotId={plotId ?? null}
         farmId={tasksState.farmId}
-        currency={currency}
         onSaved={() => {
           setSheetOpen(false);
           tasksState.refresh();

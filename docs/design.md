@@ -420,17 +420,18 @@ The task family follows one rule that overrides normal component instincts:
 
 **Role:** The atom of the whole feature. Appears in the task board, in plot detail, and in the Round screen.
 
-Single row, 72px minimum height (above the 56px floor, this row carries three lines of information and two swipe gestures). Mist-100 fill, no border, 16px vertical rhythm between rows.
+Single row, 72px minimum height. Mist-100 fill, no border, 16px vertical rhythm between rows.
 
 **Structure, reading right-to-left:**
 
-| Zone            | Content                                                                                                                                     |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| Leading (right) | 28px `circle` outline checkbox, Slate-600 stroke, Field-700 on press. **Not** a native checkbox: the tap target extends the full row height |
-| Body            | Task title in `body-lg`/600 Ink-900. Second line in `body-sm`/Slate-600: plot name · due date · estimated cost, separated by `·`            |
-| Trailing (left) | Assignee avatar (sharing only), else empty. Never a chevron, the whole row is tappable                                                      |
+| Zone            | Content                                                                                                            |
+| ---------------- | --------------------------------------------------------------------------------------------------------------- |
+| Body (right)     | Task title in `body-lg`/600 Ink-900. Second line in `body-sm`/Slate-600: plot name · due date, separated by `·`  |
+| Trailing (left)  | Two 48px round icon buttons, side by side: `check` on Field-500 (`בוצע`), `trash-2` on Loss-600 (`מחיקה`), one tap each |
 
-**The metadata line only renders what exists.** A task with no date and no cost shows just the plot name. A general farm task with none of the three shows nothing, one line, and that's a legitimate, common task. Do not render empty-state placeholders like "ללא תאריך"; absence is information the farmer already has.
+Both actions are also reachable by swipe on mobile (see below), the buttons are the platform-independent fallback, web has no gesture equivalent so the buttons are its only path.
+
+**The metadata line only renders what exists.** A task with no date shows just the plot name. A general farm task with neither shows nothing, one line, and that's a legitimate, common task. Do not render empty-state placeholders like "ללא תאריך" on the row itself (the group header may say it, see Task Board); absence on the row is information the farmer already has.
 
 **Due-date rendering in the metadata line:**
 
@@ -444,16 +445,22 @@ Single row, 72px minimum height (above the 56px floor, this row carries three li
 
 Relative language until it stops being useful, "מחר" is instantly actionable, "עוד 19 ימים" is not, so past a week it becomes a date.
 
-### Task Row, Swipe Actions
+### Task Row, Actions
 
-**Role:** The two actions that carry the feature. Both must be reachable without opening anything.
+**Role:** The two actions that carry the row. Both must be reachable without opening anything.
 
-- **Swipe right → `בוצע`:** Field-500 fill revealed behind the row, white `check` glyph. On release the row collapses over 200ms.
-- **Swipe left → `דחה שבוע`:** Wheat-500 fill, white `clock-arrow-up` glyph.
+- **`בוצע`:** marks the task done, `completed_at`. Fires immediately and surfaces an undo toast for 5 seconds (`tasks.completedToast` + `ביטול`), replacing the row in place for that window. `completed_at` is a one-way write (no `UPDATE` un-completes a row), so the 5-second undo defers the actual write rather than reversing it after the fact. This matches the flow's founding rule (see "A task is captured in under five seconds" above): no confirmation dialog interrupts marking a task done, low-stakes and instantly reversible.
+- **`מחיקה`:** removes the task, a soft delete (`deleted_at`), not a completion. For a task that's simply no longer relevant, there's no reason to record it as done just to get it off the list. **Deliberately a different safety mechanism, not the same undo toast**: tapping it opens a centered `ConfirmDialog` (Loss-600 confirm button, farmer-requested, "an undo toast that fires silently after a swipe isn't enough warning for something that feels final"), and the delete only writes on explicit confirmation, no 5-second window afterward. `בוצע` stays low-friction because being wrong about it costs nothing; `מחיקה` gets a real question because being wrong about it costs the record.
 
-Both fire immediately, both surface an undo toast for 5 seconds. Threshold is 40% of row width, deliberately forgiving, since this audience is often wearing gloves or operating one-handed in a vehicle.
+**Mobile also carries both as a swipe on the row itself**, `PanResponder`/`Animated`, no new dependency. Swipe right-to-left → `בוצע` (Field-500 revealed, `check` glyph), swipe left-to-right → `מחיקה` (Loss-600 revealed, `trash-2` glyph). Right-to-left for the primary action, not left-to-right: matches the direction the eye and hand already move in Hebrew. Confirmed on device with the farmer this product is built for, not assumed from an LTR default — an earlier attempt at this row shipped the swipe with the reveal colors and the committed action out of sync (a symptom of RN mirroring `left`/`right` styles under RTL while leaving raw gesture deltas untouched), so if this ever needs touching again, verify the color that's *visually* revealed mid-drag matches the action that actually fires on release, on a real device, not in the simulator. Threshold is 40% of row width, deliberately forgiving, since this audience is often wearing gloves or operating one-handed in a vehicle.
 
-> **Snooze is a first-class action, not a secondary one.** It gets equal visual weight to completion because it is the mechanism that keeps the list survivable. A task list this audience can only complete or delete becomes a wall of guilt within a month, and a guilt wall stops being opened. Design it as generously as the success path.
+> **An earlier version of this row also had `דחה שבוע` (snooze) as a swipe action.** Dropped per direct farmer feedback: three competing gestures on one row read as clutter, and delete already covers "get this off my list" for a task that isn't going to happen. `snoozeTask` remains in `packages/shared`, tested, unused by any screen right now, see `open-items.md`.
+
+### Confirm Dialog
+
+**Role:** A centered yes/no gate for a destructive action, first used by `מחיקה` above. General component, not task-specific, so the next destructive action in the product reuses it instead of rebuilding it (same reasoning as `BottomSheet`/`Modal`).
+
+Title (`body-lg`/700), one line of context (`body-sm`/Slate-600, e.g. the item's name), both **center-aligned**, not right-aligned like every other RTL text block in this product: this dialog is a small isolated card, not a line in a list or a form, and a short centered question reads calmer than a right-ragged one on a dialog this narrow. Two stacked full-width 48px pill buttons below: confirm on top, cancel below. `destructive` prop paints the confirm button Loss-600 instead of Field-700, the color itself says "this can't be undone." Built on the platform's existing centered-dialog primitive (`BottomSheet`'s `Modal` wrapper on mobile, the shared `Modal` component on web), not a new one.
 
 ### Task Sheet (create / edit)
 
@@ -466,9 +473,10 @@ Vertical order, and this order is the spec:
 1. **Title:** `body-lg`, borderless input, placeholder "מה צריך לעשות?". No label; the placeholder is the label.
 2. **Plot:** horizontally scrolling chip row of the farm's plots, plus a `כללי` chip for farm-level tasks. Pre-selected when opened from plot detail or the Round. **`כללי` is a real, first-class option:** "לתקן את הטרקטור" is a task the farmer will absolutely try to enter, and forcing it onto a plot is how a data model teaches someone that an app doesn't understand their work.
 3. **Due date:** three chips: `מתישהו` · `השבוע` · `עד תאריך ▾`. **`מתישהו` is selected by default**, so a task with no deadline requires zero taps. Only the third chip opens a picker.
-4. **Estimated cost:** numeric input, `body-lg`, `₪` suffix, **pre-filled from `TaskCostMemory`** when the title matches a previously-costed task. Pre-filled values render in Slate-600 until touched, then Ink-900, the farmer can see at a glance that this is a remembered number and not something he entered today.
-5. **Actions:** `camera` and `mic` as 56px icon buttons in a row: attach a photo of the problem, or a voice note. Both optional, both one tap.
-6. **Save:** full-width Field-700 pill, 56px+.
+4. **Actions:** `camera` and `mic` as 56px icon buttons in a row: attach a photo of the problem, or a voice note. Both optional, both one tap.
+5. **Save:** full-width Field-700 pill, 56px+.
+
+**No cost field here.** An earlier version asked for an estimated cost at creation time, pre-filled from `TaskCostMemory`. Removed: this audience found a money question on a form meant to take five seconds actively unwelcome, and it duplicates a better-placed question. Cost belongs to *completion*, not authoring, ask "add this to expenses?" when the task is marked `בוצע`, see Completion Prompts, not before the work has even happened.
 
 **Nothing below the fold.** If the sheet needs to scroll to reach Save on a small phone, cut a field.
 
@@ -496,9 +504,9 @@ Never Loss-600, never an alert icon, never a badge count in the tab bar for over
 
 **Role:** All open tasks across the farm, on the home screen below the plot cards.
 
-Grouped by **time** by default: `באיחור` → `היום` → `השבוע` → `מתישהו`. A segmented control at the top switches to grouping by plot. Time wins by default because the board's job in the evening is answering "what am I doing tomorrow," not "what's the state of plot C."
+Grouped by **time** by default: `באיחור` → `היום` → `השבוע` → `בהמשך` → `מתישהו`. A segmented control at the top switches to grouping by plot. Time wins by default because the board's job in the evening is answering "what am I doing tomorrow," not "what's the state of plot C." `בהמשך` holds anything due more than a week out (an explicit date, months away is common for this audience), so it doesn't get mislabeled as `השבוע`.
 
-Section headers in `caption`/600/Slate-600, all-caps is **not** used (Hebrew has no case, and faking emphasis with letter-spacing is banned system-wide). Each header carries a count. Empty groups don't render.
+Section headers in `caption`/600/Slate-600, all-caps is **not** used (Hebrew has no case, and faking emphasis with letter-spacing is banned system-wide). No count next to the header, tried it, with one or two tasks per group it read as noise rather than information. Empty groups don't render.
 
 Collapsed to the first 5 rows with `עוד 12 משימות` as a text link. The home screen belongs to the P&L number; the board is a resident, not the owner.
 

@@ -9,8 +9,5 @@ export function MoneyScreen() {
   return <ScreenPlaceholder title={t('screen.money')} />;
 }
 
-export function JournalScreen() {
-  return <ScreenPlaceholder title={t('screen.journal')} />;
-}
-
-// SettingsScreen כבר איננו placeholder, הוא יצא לקובץ משלו.
+// JournalScreen ו-SettingsScreen כבר אינם placeholder, שניהם יצאו
+// לקובץ משלהם.

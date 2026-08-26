@@ -73,6 +73,7 @@ export {
   completeTask,
   snoozeTask,
   archiveTask,
+  deleteTask,
   taskCostMemory,
   normalizeTaskTitle,
   taskDueDisplay,
@@ -87,3 +88,18 @@ export {
   type UrgencyGroupKey,
   type UrgencyGroup,
 } from './tasks';
+export {
+  useLogEntries,
+  useSpraySuggestions,
+  createLogEntry,
+  updateLogEntry,
+  logEntryTypeLabelKey,
+  LOG_ENTRY_TYPES,
+  type LogEntryType,
+  type LogEntrySource,
+  type LogEntry,
+  type LogEntriesListState,
+  type LogEntryInput,
+  type LogEntryWriteResult,
+  type SpraySuggestions,
+} from './logEntries';

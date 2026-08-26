@@ -2,66 +2,83 @@ import { useRef, useState } from 'react';
 import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { LayoutChangeEvent } from 'react-native';
 import Check from 'lucide-react-native/icons/check';
-import ClockArrowUp from 'lucide-react-native/icons/clock-arrow-up';
+import Trash2 from 'lucide-react-native/icons/trash-2';
 import { formatAmount, t, taskDueDisplay, type Currency, type Task } from '@yevul/shared';
 import { colors, fonts, fontSize, radius, spacing } from '../theme/tokens';
+import { ConfirmDialog } from './ConfirmDialog';
 
-const SWIPE_THRESHOLD_RATIO = 0.4;
 const UNDO_MS = 5000;
 const ROW_HEIGHT = 72;
+const ACTION_SIZE = 48;
 
-// אטום התכונה, design.md "Task Row" ו-"Task Row, Swipe Actions". שלוש
-// אזורי מגע: התיבה המובילה משלימה ישירות בלי צורך בהחלקה (התיבה
-// עצמה נגישה ל-28px, אבל אזור המגע שלה נמתח לגובה השורה המלאה, לפי
-// המפרט), גוף השורה פותח את גיליון העריכה, וההחלקה על השורה כולה
-// משלימה (ימינה) או דוחה שבוע (שמאלה).
+// אטום התכונה, design.md "Task Row". שתי פעולות: "בוצע" ו"מחיקה" (לא
+// snooze יותר, בקשת חקלאי מפורשת: לפעמים משימה כבר לא רלוונטית ואין
+// טעם לרשום אותה כבוצעה, רק להסיר). כל אחת נגישה משני מקומות, כפתור
+// עגול קטן (48px, מעל רצפת הנגישות של 56 כי זה לא כל אזור המגע, ראה
+// למטה) וגם החלקה על השורה כולה, אותה פעולה בשתי הדרכים.
 //
-// "בוצע" ו"דחה שבוע" קוראים ל-commit רק אחרי חלון ה-undo, לא לפניו.
-// completed_at הוא אירוע חד-כיווני במסד (אין UPDATE שהופך אותו בחזרה
-// ל-null), ולכן ה-undo של חמש השניות חייב לדחות את הכתיבה עצמה, לא
-// לבטל אותה אחרי שכבר נשלחה.
+// שני מנגנוני בטיחות שונים, במכוון לא אותו אחד: "בוצע" משתמש ב-undo
+// toast של חמש שניות (completed_at הוא אירוע חד-כיווני במסד, אין
+// UPDATE שהופך אותו בחזרה, אז הכתיבה בפועל נדחית ולא מבוטלת אחרי
+// שנשלחה). "מחיקה" מציגה דיאלוג אישור מודעי במקום, בקשת חקלאי מפורשת:
+// מחיקה מרגישה סופית יותר מהשלמה, ומגיעה אחרי אישור ולא אחרי חלון
+// המתנה שקט.
 export function TaskRow({
   task,
   plotName,
   currency,
   onPress,
   onCompleteCommit,
-  onSnoozeCommit,
+  onDeleteCommit,
 }: {
   task: Task;
   plotName: string | null;
   currency: Currency;
   onPress: () => void;
   onCompleteCommit: () => void;
-  onSnoozeCommit: () => void;
+  onDeleteCommit: () => void;
 }) {
-  const [width, setWidth] = useState(0);
-  const [pending, setPending] = useState<'complete' | 'snooze' | null>(null);
+  const [pending, setPending] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const translateX = useRef(new Animated.Value(0)).current;
-  const collapse = useRef(new Animated.Value(1)).current;
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // ref ולא state: ה-PanResponder נבנה פעם אחת בלבד ב-useRef למטה,
+  // ונועל בסגירה (closure) את הערך של כל משתנה חיצוני כפי שהיה ברגע
+  // ה-mount. עם state נשאר הרוחב תמיד 0 בתוך onPanResponderRelease.
+  const widthRef = useRef(0);
 
   function onLayout(event: LayoutChangeEvent) {
-    setWidth(event.nativeEvent.layout.width);
+    widthRef.current = event.nativeEvent.layout.width;
   }
 
   function resetSwipe() {
     Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 8 }).start();
   }
 
-  function fire(kind: 'complete' | 'snooze', commit: () => void) {
-    setPending(kind);
-    Animated.timing(collapse, { toValue: 0, duration: 200, useNativeDriver: false }).start();
-    timerRef.current = setTimeout(commit, UNDO_MS);
+  function fireComplete() {
+    setPending(true);
+    timerRef.current = setTimeout(onCompleteCommit, UNDO_MS);
   }
 
   function undo() {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
     translateX.setValue(0);
-    Animated.timing(collapse, { toValue: 1, duration: 150, useNativeDriver: false }).start(() =>
-      setPending(null),
-    );
+    setPending(false);
+  }
+
+  function askDelete() {
+    setConfirmingDelete(true);
+  }
+
+  function confirmDelete() {
+    setConfirmingDelete(false);
+    onDeleteCommit();
+  }
+
+  function cancelDelete() {
+    setConfirmingDelete(false);
+    resetSwipe();
   }
 
   const panResponder = useRef(
@@ -70,11 +87,15 @@ export function TaskRow({
         Math.abs(gesture.dx) > 12 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
       onPanResponderMove: (_, gesture) => translateX.setValue(gesture.dx),
       onPanResponderRelease: (_, gesture) => {
-        const threshold = width * SWIPE_THRESHOLD_RATIO;
-        if (width > 0 && gesture.dx > threshold) {
-          fire('complete', onCompleteCommit);
-        } else if (width > 0 && gesture.dx < -threshold) {
-          fire('snooze', onSnoozeCommit);
+        const width = widthRef.current;
+        const threshold = width * 0.4;
+        // dx שלילי (גרירה פיזית מימין לשמאל, כיוון הקריאה הטבעי בעברית)
+        // הוא "בוצע", לא dx חיובי. נבדק בפועל עם המשתמש, ראה ההערה על
+        // actionComplete/actionDelete למטה לגבי היפוך RTL.
+        if (width > 0 && gesture.dx < -threshold) {
+          fireComplete();
+        } else if (width > 0 && gesture.dx > threshold) {
+          askDelete();
         } else {
           resetSwipe();
         }
@@ -82,24 +103,16 @@ export function TaskRow({
     }),
   ).current;
 
+  // ללא אנימציה: השורה מתחלפת מיד לחיווי ה-undo ונשארת בו לכל אורך
+  // חמש השניות, אותו גובה בדיוק כמו השורה הרגילה.
   if (pending) {
     return (
-      <Animated.View
-        style={{
-          maxHeight: collapse.interpolate({ inputRange: [0, 1], outputRange: [0, ROW_HEIGHT] }),
-          opacity: collapse,
-          overflow: 'hidden',
-        }}
-      >
-        <View style={styles.undoRow}>
-          <Text style={styles.undoText}>
-            {pending === 'complete' ? t('tasks.completedToast') : t('tasks.snoozedToast')}
-          </Text>
-          <Pressable onPress={undo} accessibilityRole="button" hitSlop={12}>
-            <Text style={styles.undoAction}>{t('tasks.action.undo')}</Text>
-          </Pressable>
-        </View>
-      </Animated.View>
+      <View style={styles.undoRow}>
+        <Text style={styles.undoText}>{t('tasks.completedToast')}</Text>
+        <Pressable onPress={undo} accessibilityRole="button" hitSlop={12}>
+          <Text style={styles.undoAction}>{t('tasks.action.undo')}</Text>
+        </Pressable>
+      </View>
     );
   }
 
@@ -113,28 +126,23 @@ export function TaskRow({
 
   return (
     <View style={styles.wrap} onLayout={onLayout}>
-      {/* המסך שנחשף מאחורי השורה כשהיא נגררת. גרירה ימינה (dx חיובי)
-          חושפת רצועה בצד שמאל של ה-wrap, כי תוכן החזית זז ימינה
-          ומתגלה משמאלו, לכן "בוצע" (Field-500) יושב ב-left ולא ב-right,
-          וההפך ל"דחה שבוע". שיוך לכיוון הגרירה, לא למיקום החזותי. */}
+      {/* המסך שנחשף מאחורי השורה כשהיא נגררת. translateX הוא ערך גיאומטרי
+          גולמי ולא הופך תחת RTL (בניגוד ל-left/right בסטייל, ש-RN הופך
+          אוטומטית כש-I18nManager.allowRTL(true) פעיל, App.tsx). גרירה
+          שמאלה בפועל (dx שלילי, כיוון "בוצע") מזיזה את השורה שמאלה
+          ומגלה את הרצועה הפיזית הימנית — ולכן "בוצע" מקודד left:0, ש-RN
+          הופך ל"ימין" הפיזי, וההפך ל"מחיקה". שיוך לצבע שמתגלה בפועל
+          בשחרור (ראו onPanResponderRelease), לא לשם הסגנון. */}
       <View style={[styles.action, styles.actionComplete]}>
         <Check size={22} color={colors.paper} strokeWidth={2.5} />
       </View>
-      <View style={[styles.action, styles.actionSnooze]}>
-        <ClockArrowUp size={22} color={colors.paper} strokeWidth={2.5} />
+      <View style={[styles.action, styles.actionDelete]}>
+        <Trash2 size={22} color={colors.paper} strokeWidth={2.5} />
       </View>
       <Animated.View
         style={[styles.row, overdue && styles.rowOverdue, { transform: [{ translateX }] }]}
         {...panResponder.panHandlers}
       >
-        <Pressable
-          style={styles.checkboxZone}
-          onPress={() => fire('complete', onCompleteCommit)}
-          accessibilityRole="button"
-          accessibilityLabel={t('tasks.action.complete')}
-        >
-          <View style={styles.checkbox} />
-        </Pressable>
         <Pressable style={styles.body} onPress={onPress} accessibilityRole="button">
           <Text style={styles.title} numberOfLines={1}>
             {task.title}
@@ -145,7 +153,35 @@ export function TaskRow({
             </Text>
           )}
         </Pressable>
+        <View style={styles.buttons}>
+          <Pressable
+            style={[styles.iconButton, styles.completeButton]}
+            onPress={fireComplete}
+            accessibilityRole="button"
+            accessibilityLabel={t('tasks.action.complete')}
+          >
+            <Check size={20} color={colors.paper} strokeWidth={2.5} />
+          </Pressable>
+          <Pressable
+            style={[styles.iconButton, styles.deleteButton]}
+            onPress={askDelete}
+            accessibilityRole="button"
+            accessibilityLabel={t('tasks.action.delete')}
+          >
+            <Trash2 size={20} color={colors.paper} strokeWidth={2.5} />
+          </Pressable>
+        </View>
       </Animated.View>
+      <ConfirmDialog
+        visible={confirmingDelete}
+        title={t('tasks.deleteConfirmTitle')}
+        message={task.title}
+        confirmLabel={t('tasks.action.delete')}
+        cancelLabel={t('tasks.action.undo')}
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={cancelDelete}
+      />
     </View>
   );
 }
@@ -168,9 +204,9 @@ const styles = StyleSheet.create({
     left: 0,
     backgroundColor: colors.field500,
   },
-  actionSnooze: {
+  actionDelete: {
     right: 0,
-    backgroundColor: colors.wheat500,
+    backgroundColor: colors.loss600,
   },
   row: {
     flexDirection: 'row',
@@ -178,24 +214,13 @@ const styles = StyleSheet.create({
     minHeight: ROW_HEIGHT,
     backgroundColor: colors.mist100,
     borderRadius: radius.card,
+    gap: spacing.s8,
+    paddingLeft: spacing.s8,
   },
   rowOverdue: {
     backgroundColor: colors.wheat100,
     borderRightWidth: 4,
     borderRightColor: colors.wheat500,
-  },
-  checkboxZone: {
-    width: 56,
-    minHeight: ROW_HEIGHT,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkbox: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: colors.slate600,
   },
   body: {
     flex: 1,
@@ -218,6 +243,26 @@ const styles = StyleSheet.create({
   metaOverdue: {
     fontFamily: fonts.medium,
     color: colors.wheat800,
+  },
+  buttons: {
+    flexDirection: 'row',
+    gap: spacing.s8,
+  },
+  // 48px, לא 56: זה כפתור בתוך שורה שכבר יש לה החלקה מקבילה לאותה
+  // פעולה בדיוק, לא נקודת הכניסה היחידה. רצפת הנגישות של 56
+  // (design.md, Touch Targets) חלה על אלמנטים שהם הדרך היחידה לפעולה.
+  iconButton: {
+    width: ACTION_SIZE,
+    height: ACTION_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+  },
+  completeButton: {
+    backgroundColor: colors.field500,
+  },
+  deleteButton: {
+    backgroundColor: colors.loss600,
   },
   undoRow: {
     minHeight: ROW_HEIGHT,

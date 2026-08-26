@@ -1,15 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import {
-  createTask,
-  currencySymbol,
-  t,
-  taskCostMemory,
-  updateTask,
-  usePlots,
-  type Currency,
-  type Task,
-} from '@yevul/shared';
+import { createTask, t, updateTask, usePlots, type Task } from '@yevul/shared';
 import { Modal } from './Modal';
 
 type DueMode = 'someday' | 'week' | 'date';
@@ -25,7 +16,9 @@ function computeDueDate(mode: DueMode, customDate: string, now: Date): string | 
 // גיליון יצירה/עריכה של משימה, design.md "Task Sheet", כדיאלוג ממורכז
 // (Modal) במקום גיליון תחתון, לפי אותה הפרדה שכבר קיימת בין הלקוחות
 // לשדות בחירה: תפריט נפתח בווב, שורת צ'יפים בנייד (ראה roadmap.md,
-// שלב 2). בלי כפתורי מצלמה ומיקרופון, אלה תלויים בתשתית הקול של שלב 5.
+// שלב 2). כותרת, חלקה, תאריך, בלי עלות: עלות שאלה על "בוצע", לא על
+// יצירה, ראה Completion Prompts (טרם נבנה). בלי כפתורי מצלמה ומיקרופון,
+// אלה תלויים בתשתית הקול של שלב 5.
 export function TaskSheet({
   supabase,
   open,
@@ -33,7 +26,6 @@ export function TaskSheet({
   task,
   defaultPlotId,
   farmId,
-  currency,
   onSaved,
 }: {
   supabase: SupabaseClient;
@@ -42,7 +34,6 @@ export function TaskSheet({
   task: Task | null;
   defaultPlotId: string | null;
   farmId: string | null;
-  currency: Currency;
   onSaved: () => void;
 }) {
   const plotsState = usePlots(supabase);
@@ -51,17 +42,6 @@ export function TaskSheet({
   const [plotId, setPlotId] = useState<string | null>(null);
   const [dueMode, setDueMode] = useState<DueMode>('someday');
   const [customDate, setCustomDate] = useState('');
-  const [costText, setCostText] = useState('');
-  // "touched" נדבק ברגע שהמשתמש נוגע בשדה העלות בעצמו, ומאותו רגע
-  // חיפוש הזיכרון מפסיק לגעת בשדה, גם אם הכותרת ממשיכה להשתנות. משימה
-  // בעריכה עם עלות שמורה מתחילה touched, כדי שעריכת הכותרת לא תדרוס
-  // ערך אמיתי בניחוש מהזיכרון.
-  const [costTouched, setCostTouched] = useState(false);
-  // "prefilled" שולט רק בצבע, design.md: "Pre-filled values render in
-  // Slate-600 until touched, then Ink-900, the farmer can see at a
-  // glance that this is a remembered number and not something he
-  // entered today."
-  const [costPrefilled, setCostPrefilled] = useState(false);
   const [status, setStatus] = useState<'idle' | 'saving' | 'titleRequired' | 'forbidden' | 'error'>(
     'idle',
   );
@@ -79,61 +59,26 @@ export function TaskSheet({
         setDueMode('someday');
         setCustomDate('');
       }
-      setCostText(task.estimatedCost != null ? String(task.estimatedCost) : '');
-      setCostTouched(task.estimatedCost != null);
     } else {
       setTitle('');
       setPlotId(defaultPlotId);
       setDueMode('someday');
       setCustomDate('');
-      setCostText('');
-      setCostTouched(false);
     }
-    setCostPrefilled(false);
     setStatus('idle');
   }, [open, task, defaultPlotId]);
-
-  // TaskCostMemory, prd.md: "בפעם הבאה שהוא פותח משימה עם אותה כותרת
-  // השדה כבר מלא במה שרשם קודם". דחייה של 400ms כדי לא לשלוח שאילתה
-  // על כל תו, ונעצר לגמרי אחרי שהמשתמש נגע בשדה העלות בעצמו.
-  useEffect(() => {
-    if (!open || !farmId || costTouched) return;
-    if (!title.trim()) {
-      setCostText('');
-      setCostPrefilled(false);
-      return;
-    }
-    let active = true;
-    const timer = setTimeout(() => {
-      void taskCostMemory(supabase, farmId, title).then((cost) => {
-        if (!active) return;
-        setCostText(cost != null ? String(cost) : '');
-        setCostPrefilled(cost != null);
-      });
-    }, 400);
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [open, farmId, title, costTouched, supabase]);
-
-  function onCostChange(value: string) {
-    setCostText(value);
-    setCostTouched(true);
-    setCostPrefilled(false);
-  }
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!farmId) return;
     setStatus('saving');
-    const costTrimmed = costText.trim();
-    const cost = costTrimmed === '' ? null : Number(costTrimmed.replace(',', '.'));
     const input = {
       title,
       plotId,
       dueDate: computeDueDate(dueMode, customDate, new Date()),
-      estimatedCost: cost != null && Number.isFinite(cost) ? cost : null,
+      // עלות משוערת ירדה מהגיליון: היא שאלה ששייכת ל"בוצע", לא ליצירה.
+      // ראה ההערה למעלה ליד TaskSheet.
+      estimatedCost: null,
     };
     const result = task
       ? await updateTask(supabase, task.id, farmId, input)
@@ -211,23 +156,6 @@ export function TaskSheet({
               disabled={busy}
             />
           )}
-        </div>
-
-        <div className="form__row">
-          <label className="form__label" htmlFor="task-cost">
-            {t('tasks.form.cost')}
-            <span className="form__label-unit"> · {currencySymbol(currency)}</span>
-          </label>
-          <input
-            id="task-cost"
-            className={costPrefilled ? 'form__input form__input--prefilled' : 'form__input'}
-            type="number"
-            step="any"
-            placeholder={t('common.optional')}
-            value={costText}
-            onChange={(e) => onCostChange(e.target.value)}
-            disabled={busy}
-          />
         </div>
 
         <div className="form__actions">

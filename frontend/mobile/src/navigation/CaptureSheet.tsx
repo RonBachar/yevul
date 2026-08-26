@@ -13,7 +13,19 @@ import { BottomSheet } from '../components/BottomSheet';
 //
 // המחרוזות נקראות בתוך הרכיב ולא ברמת המודול, כדי שהחלפת שפה בשלב 8
 // תשפיע מיד ולא תיתקע על ערכים שנקראו פעם אחת בזמן ה-import.
-export function CaptureSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+//
+// onJournalPress הוא היחיד מבין השלושה שכבר מחובר בפועל, שלב 3: יומן
+// ומשימות עצמאיים בסכמה, אבל רק היומן קיבל מסך יצירה עד כה. הוצאה
+// ומשימה נשארות סוגרות בלבד עד שהמסכים שלהן נבנים.
+export function CaptureSheet({
+  visible,
+  onClose,
+  onJournalPress,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onJournalPress: () => void;
+}) {
   const options = [
     { key: 'expense', Icon: Wallet, title: t('capture.expense'), hint: t('capture.expenseHint') },
     { key: 'task', Icon: ListChecks, title: t('capture.task'), hint: t('capture.taskHint') },
@@ -31,7 +43,7 @@ export function CaptureSheet({ visible, onClose }: { visible: boolean; onClose: 
         <Pressable
           key={key}
           style={styles.row}
-          onPress={onClose}
+          onPress={key === 'journal' ? onJournalPress : onClose}
           accessibilityRole="button"
           accessibilityLabel={`${title}, ${hint}`}
         >

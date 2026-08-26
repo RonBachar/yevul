@@ -1,4 +1,5 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { JournalScreen } from '../screens/JournalScreen';
 import { MoreScreen } from '../screens/MoreScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
 import { colors } from '../theme/tokens';
@@ -25,6 +26,11 @@ export function MoreStack() {
         component={SettingsScreen}
         // כותרת עם חזרה רק כאן. חץ החזרה מתהפך לבד תחת RTL כפוי,
         // ולכן לא מחליפים אותו ידנית.
+        options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal', title: '' }}
+      />
+      <Stack.Screen
+        name="Journal"
+        component={JournalScreen}
         options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal', title: '' }}
       />
     </Stack.Navigator>

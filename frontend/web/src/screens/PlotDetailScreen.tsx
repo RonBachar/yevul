@@ -22,6 +22,7 @@ import {
   type Currency,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
+import { JournalList } from '../components/JournalList';
 import { TaskBoard } from '../components/TaskBoard';
 import { YieldUnitField } from '../components/YieldUnitField';
 import '../styles/form.css';
@@ -125,9 +126,11 @@ export function PlotDetailScreen() {
         />
       )}
 
-      {tab !== 'income' && tab !== 'tasks' && (
-        <p className="screen__note">{t('screen.comingSoon')}</p>
+      {tab === 'journal' && (
+        <JournalList supabase={supabase} plotId={plot.id} showPlotName={false} />
       )}
+
+      {tab === 'expenses' && <p className="screen__note">{t('screen.comingSoon')}</p>}
     </div>
   );
 }

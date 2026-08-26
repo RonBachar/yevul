@@ -1,50 +1,57 @@
 import { useRef, useState } from 'react';
-import { Clock4 } from 'lucide-react';
+import { Check, Trash2 } from 'lucide-react';
 import { formatAmount, t, taskDueDisplay, type Currency, type Task } from '@yevul/shared';
+import { ConfirmDialog } from './ConfirmDialog';
 import './TaskRow.css';
 
 const UNDO_MS = 5000;
 
-// אטום התכונה בווב, מקביל ל-Task Row של design.md. בלי מחוות swipe,
-// אין להן מקבילה בעכבר/מקלדת, ולכן שתי הפעולות מקבלות כפתור גלוי
-// במקום זאת: תיבת סימון משלימה ישירות, כפתור שעון דוחה שבוע. אותו
-// מנגנון undo של חמש שניות עם דחיית כתיבה, ראה ההערה המקבילה ב-TaskRow
-// של הנייד לגבי completed_at כאירוע חד-כיווני.
+// אטום התכונה בווב, מקביל ל-Task Row של design.md. שני כפתורי אייקון
+// קטנים, ירוק "בוצע" ואדום "מחיקה" (לא snooze יותר, בקשת חקלאי
+// מפורשת: לפעמים משימה כבר לא רלוונטית ואין טעם לרשום אותה כבוצעה, רק
+// להסיר). שני מנגנוני בטיחות שונים במכוון: "בוצע" עם undo toast של חמש
+// שניות (completed_at הוא אירוע חד-כיווני במסד, הכתיבה נדחית ולא
+// מבוטלת אחרי שנשלחה), "מחיקה" עם דיאלוג אישור מודעי במקום, בקשת
+// חקלאי מפורשת: מחיקה מרגישה סופית יותר מהשלמה.
 export function TaskRow({
   task,
   plotName,
   currency,
   onEdit,
   onCompleteCommit,
-  onSnoozeCommit,
+  onDeleteCommit,
 }: {
   task: Task;
   plotName: string | null;
   currency: Currency;
   onEdit: () => void;
   onCompleteCommit: () => void;
-  onSnoozeCommit: () => void;
+  onDeleteCommit: () => void;
 }) {
-  const [pending, setPending] = useState<'complete' | 'snooze' | null>(null);
+  const [pending, setPending] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function fire(kind: 'complete' | 'snooze', commit: () => void) {
-    setPending(kind);
-    timerRef.current = setTimeout(commit, UNDO_MS);
+  function fireComplete() {
+    setPending(true);
+    timerRef.current = setTimeout(onCompleteCommit, UNDO_MS);
   }
 
   function undo() {
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = null;
-    setPending(null);
+    setPending(false);
+  }
+
+  function confirmDelete() {
+    setConfirmingDelete(false);
+    onDeleteCommit();
   }
 
   if (pending) {
     return (
       <div className="task-row task-row--undo">
-        <span className="task-row__undo-text">
-          {pending === 'complete' ? t('tasks.completedToast') : t('tasks.snoozedToast')}
-        </span>
+        <span className="task-row__undo-text">{t('tasks.completedToast')}</span>
         <button type="button" className="task-row__undo-action" onClick={undo}>
           {t('tasks.action.undo')}
         </button>
@@ -62,12 +69,6 @@ export function TaskRow({
 
   return (
     <div className={overdue ? 'task-row task-row--overdue' : 'task-row'}>
-      <button
-        type="button"
-        className="task-row__checkbox"
-        onClick={() => fire('complete', onCompleteCommit)}
-        aria-label={t('tasks.action.complete')}
-      />
       <button type="button" className="task-row__body" onClick={onEdit}>
         <span className="task-row__title">{task.title}</span>
         {metaParts.length > 0 && (
@@ -76,14 +77,34 @@ export function TaskRow({
           </span>
         )}
       </button>
-      <button
-        type="button"
-        className="task-row__snooze"
-        onClick={() => fire('snooze', onSnoozeCommit)}
-        aria-label={t('tasks.action.snooze')}
-      >
-        <Clock4 size={18} strokeWidth={2} />
-      </button>
+      <div className="task-row__actions">
+        <button
+          type="button"
+          className="task-row__icon-button task-row__icon-button--complete"
+          onClick={fireComplete}
+          aria-label={t('tasks.action.complete')}
+        >
+          <Check size={18} strokeWidth={2.5} />
+        </button>
+        <button
+          type="button"
+          className="task-row__icon-button task-row__icon-button--delete"
+          onClick={() => setConfirmingDelete(true)}
+          aria-label={t('tasks.action.delete')}
+        >
+          <Trash2 size={18} strokeWidth={2.5} />
+        </button>
+      </div>
+      <ConfirmDialog
+        open={confirmingDelete}
+        title={t('tasks.deleteConfirmTitle')}
+        message={task.title}
+        confirmLabel={t('tasks.action.delete')}
+        cancelLabel={t('tasks.action.undo')}
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmingDelete(false)}
+      />
     </div>
   );
 }

@@ -2,8 +2,8 @@ import { useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   completeTask,
+  deleteTask,
   groupTasksByUrgency,
-  snoozeTask,
   t,
   useTasks,
   type Currency,
@@ -47,8 +47,8 @@ export function TaskBoard({
     tasksState.refresh();
   }
 
-  async function handleSnooze(task: Task) {
-    await snoozeTask(supabase, task);
+  async function handleDelete(taskId: string) {
+    await deleteTask(supabase, taskId);
     tasksState.refresh();
   }
 
@@ -74,9 +74,7 @@ export function TaskBoard({
         !tasksState.failed &&
         groups.map((group) => (
           <div key={group.key} className="task-board__group">
-            <p className="task-board__section-header">
-              {t(group.labelKey)} · {group.tasks.length}
-            </p>
+            <p className="task-board__section-header">{t(group.labelKey)}</p>
             <div className="task-board__rows">
               {group.tasks.map((task) => (
                 <TaskRow
@@ -88,7 +86,7 @@ export function TaskBoard({
                   currency={currency}
                   onEdit={() => openEdit(task)}
                   onCompleteCommit={() => handleComplete(task.id)}
-                  onSnoozeCommit={() => handleSnooze(task)}
+                  onDeleteCommit={() => handleDelete(task.id)}
                 />
               ))}
             </div>
@@ -102,7 +100,6 @@ export function TaskBoard({
         task={editingTask}
         defaultPlotId={plotId ?? null}
         farmId={tasksState.farmId}
-        currency={currency}
         onSaved={() => {
           setSheetOpen(false);
           tasksState.refresh();

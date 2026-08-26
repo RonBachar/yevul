@@ -7,7 +7,9 @@ import House from 'lucide-react-native/icons/house';
 import LayoutGrid from 'lucide-react-native/icons/layout-grid';
 import Wallet from 'lucide-react-native/icons/wallet';
 import Ellipsis from 'lucide-react-native/icons/ellipsis';
-import { t } from '@yevul/shared';
+import { t, useCurrentFarm } from '@yevul/shared';
+import { supabase } from '../lib/supabase';
+import { LogEntrySheet } from '../components/LogEntrySheet';
 import { HomeScreen } from '../screens/HomeScreen';
 import { MoneyScreen } from '../screens/MoneyScreen';
 import { MoreStack } from './MoreStack';
@@ -27,7 +29,9 @@ import { TabBar } from './TabBar';
 const Tab = createBottomTabNavigator();
 
 export function RootTabs() {
+  const farmState = useCurrentFarm(supabase);
   const [captureOpen, setCaptureOpen] = useState(false);
+  const [journalOpen, setJournalOpen] = useState(false);
 
   // פתיחת הגיליון משנה state שיושב מעל הנאוויגייטור, ולכן בלי הייצוב
   // הזה כל לחיצה על כפתור הרישום הייתה בונה מחדש את פונקציית שורת
@@ -36,6 +40,13 @@ export function RootTabs() {
   // חמה על המכשירים החלשים ביותר שאנחנו מכוונים אליהם.
   const openCapture = useCallback(() => setCaptureOpen(true), []);
   const closeCapture = useCallback(() => setCaptureOpen(false), []);
+  // בחירת "יומן" בגיליון הרישום סוגרת אותו ופותחת ישר את גיליון היצירה,
+  // המסלול הישיר של prd.md סעיף 8, בלי משימה בתווך.
+  const openJournal = useCallback(() => {
+    setCaptureOpen(false);
+    setJournalOpen(true);
+  }, []);
+  const closeJournal = useCallback(() => setJournalOpen(false), []);
   const renderTabBar = useCallback(
     (props: BottomTabBarProps) => <TabBar {...props} onCapturePress={openCapture} />,
     [openCapture],
@@ -80,7 +91,16 @@ export function RootTabs() {
           }}
         />
       </Tab.Navigator>
-      <CaptureSheet visible={captureOpen} onClose={closeCapture} />
+      <CaptureSheet visible={captureOpen} onClose={closeCapture} onJournalPress={openJournal} />
+      <LogEntrySheet
+        supabase={supabase}
+        visible={journalOpen}
+        onClose={closeJournal}
+        entry={null}
+        defaultPlotId={null}
+        farmId={farmState.farm?.id ?? null}
+        onSaved={closeJournal}
+      />
     </>
   );
 }

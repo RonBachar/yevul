@@ -13,21 +13,6 @@
   border-right: 4px solid var(--color-wheat-500);
 }
 
-.task-row__checkbox {
-  flex-shrink: 0;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 2px solid var(--color-slate-600);
-  background: transparent;
-  cursor: pointer;
-  padding: 0;
-}
-
-.task-row__checkbox:hover {
-  border-color: var(--color-field-700);
-}
-
 .task-row__body {
   flex: 1;
   min-width: 0;
@@ -66,22 +51,38 @@
   color: var(--color-wheat-800);
 }
 
-.task-row__snooze {
+.task-row__actions {
   flex-shrink: 0;
-  min-height: 40px;
-  min-width: 40px;
+  display: flex;
+  gap: var(--spacing-8);
+}
+
+.task-row__icon-button {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 40px;
+  height: 40px;
   border: none;
   border-radius: var(--radius-pill);
-  background: var(--color-mist-200);
-  color: var(--color-field-700);
+  color: var(--color-paper);
   cursor: pointer;
 }
 
-.task-row__snooze:hover {
-  background: var(--color-field-100);
+.task-row__icon-button--complete {
+  background: var(--color-field-500);
+}
+
+.task-row__icon-button--complete:hover {
+  background: var(--color-field-700);
+}
+
+.task-row__icon-button--delete {
+  background: var(--color-loss-600);
+}
+
+.task-row__icon-button--delete:hover {
+  opacity: 0.85;
 }
 
 .task-row--undo {

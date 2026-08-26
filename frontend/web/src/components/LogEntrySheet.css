@@ -1,0 +1,6 @@
+/* Field-700, לא Profit-600: design.md מפרט את שורת "בטוח לקטיף" בצבע
+   הזה במפורש (Spray Log Screen), זו תזכורת רגועה ולא הכרזת רווח. */
+.log-entry-sheet__safe-harvest {
+  color: var(--color-field-700);
+  font-weight: var(--font-weight-medium);
+}
