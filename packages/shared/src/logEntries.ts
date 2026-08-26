@@ -120,10 +120,12 @@ function mapLogEntry(row: LogEntryRow): LogEntry {
 
 // ============================================================
 // רשימת רשומות היומן. plotId מצמצם לחלקה אחת (טאב יומן בפרטי חלקה),
-// בלעדיו כל רשומות המשק (מסך היומן הכללי). מהחדש לישן לפי date,
-// design.md, Journal List: "grouped by date, newest first, no section
-// headers beyond the date itself" — בלי כותרות קבוצה נפרדות כמו בלוח
-// המשימות, כל שורה כבר נושאת את התאריך שלה.
+// בלעדיו כל רשומות המשק (מסך היומן הכללי). type מצמצם לסוג אחד, קיים
+// בשביל מסך יומן הריסוס (design.md, Spray Log Screen), כדי שהשאילתה
+// עצמה תסנן במסד ולא תמשוך כל רשומה כדי לזרוק אותה בקליינט. מהחדש
+// לישן לפי date, design.md, Journal List: "grouped by date, newest
+// first, no section headers beyond the date itself" — בלי כותרות
+// קבוצה נפרדות כמו בלוח המשימות, כל שורה כבר נושאת את התאריך שלה.
 // ============================================================
 
 export type LogEntriesListState = {
@@ -135,7 +137,11 @@ export type LogEntriesListState = {
   refresh: () => void;
 };
 
-export function useLogEntries(supabase: SupabaseClient, plotId?: string): LogEntriesListState {
+export function useLogEntries(
+  supabase: SupabaseClient,
+  plotId?: string,
+  type?: LogEntryType,
+): LogEntriesListState {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [farmId, setFarmId] = useState<string | null>(null);
@@ -165,6 +171,7 @@ export function useLogEntries(supabase: SupabaseClient, plotId?: string): LogEnt
         .eq('farm_id', farm.id)
         .is('deleted_at', null);
       if (plotId) query = query.eq('plot_id', plotId);
+      if (type) query = query.eq('type', type);
 
       const [entriesResult, plotsResult] = await Promise.all([
         query.order('date', { ascending: false }).order('created_at', { ascending: false }),
@@ -190,7 +197,7 @@ export function useLogEntries(supabase: SupabaseClient, plotId?: string): LogEnt
     return () => {
       active = false;
     };
-  }, [supabase, plotId, tick]);
+  }, [supabase, plotId, type, tick]);
 
   return { loading, failed, farmId, entries, plotNames, refresh };
 }

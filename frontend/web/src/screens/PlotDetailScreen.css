@@ -204,6 +204,21 @@
   cursor: pointer;
 }
 
+.plot-detail__spray-log-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  align-self: flex-start;
+  min-height: calc(var(--touch-min) - 16px);
+  padding: 0 var(--spacing-16);
+  border-radius: var(--radius-pill);
+  background: var(--color-field-100);
+  color: var(--color-field-700);
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-bold);
+  text-decoration: none;
+}
+
 .plot-detail__income {
   margin: 0 0 var(--spacing-12);
   font-size: var(--text-heading-lg);

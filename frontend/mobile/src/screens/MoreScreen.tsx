@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import ChevronLeft from 'lucide-react-native/icons/chevron-left';
 import NotebookPen from 'lucide-react-native/icons/notebook-pen';
 import Settings from 'lucide-react-native/icons/settings';
+import SprayCan from 'lucide-react-native/icons/spray-can';
 import { t } from '@yevul/shared';
 import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '../lib/supabase';
@@ -36,6 +37,16 @@ export function MoreScreen() {
         <NotebookPen size={24} strokeWidth={2} color={colors.field700} />
         <Text style={styles.rowLabel}>{t('screen.journal')}</Text>
         {/* חץ הכניסה פונה שמאלה תחת RTL, זה הכיוון "פנימה" */}
+        <ChevronLeft size={24} strokeWidth={2} color={colors.slate600} />
+      </Pressable>
+
+      <Pressable
+        style={styles.row}
+        onPress={() => navigation.navigate('SprayLog' as never)}
+        accessibilityRole="button"
+      >
+        <SprayCan size={24} strokeWidth={2} color={colors.field700} />
+        <Text style={styles.rowLabel}>{t('sprayLog.title')}</Text>
         <ChevronLeft size={24} strokeWidth={2} color={colors.slate600} />
       </Pressable>
 

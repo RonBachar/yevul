@@ -1,18 +1,26 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { logEntryTypeLabelKey, t, type LogEntry } from '@yevul/shared';
+import { logEntryTypeLabelKey, safeHarvestDate, t, type LogEntry } from '@yevul/shared';
 import { colors, fonts, fontSize, radius, spacing } from '../theme/tokens';
 
 // אטום היומן, design.md "Log Row". בניגוד ל-Task Row, בלי שום פעולת
 // swipe: רשומת יומן היא תיעוד של משהו שכבר קרה, אין מה להשלים או
 // לדחות. לחיצה על השורה פותחת את אותו Log Entry Sheet לעריכה.
+//
+// sprayDetailed מיועד אך ורק למסך יומן הריסוס (design.md, Spray Log
+// Screen: "each showing pest, material and PHI days on its detail
+// line, and, where applicable, the derived 'בטוח לקטיף' line"). ביומן
+// הכללי ובטאב יומן בפרטי חלקה השורה נשארת קומפקטית בלי שני הפרטים
+// האלה, אותו רכיב בדיוק עם הרחבה מותנית ולא עותק שני.
 export function LogRow({
   entry,
   plotName,
   onPress,
+  sprayDetailed = false,
 }: {
   entry: LogEntry;
   plotName: string | null;
   onPress: () => void;
+  sprayDetailed?: boolean;
 }) {
   const tag =
     entry.type === 'spray'
@@ -23,7 +31,15 @@ export function LogRow({
 
   const detail =
     entry.type === 'spray'
-      ? [entry.sprayPest, entry.sprayMaterial].filter(Boolean).join(' · ')
+      ? [
+          entry.sprayPest,
+          entry.sprayMaterial,
+          sprayDetailed && entry.sprayPhiDays != null
+            ? `${entry.sprayPhiDays} ${t('sprayLog.phiDaysSuffix')}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(' · ')
       : entry.type === 'harvest'
         ? [entry.harvestQty, entry.harvestUnit].filter(Boolean).join(' ')
         : entry.source === 'voice'
@@ -33,6 +49,11 @@ export function LogRow({
             : (entry.note ?? '');
 
   const metaParts = [plotName, detail].filter((part): part is string => Boolean(part));
+
+  const safeHarvest =
+    sprayDetailed && entry.type === 'spray' && entry.sprayPhiDays != null
+      ? safeHarvestDate(entry.date, entry.sprayPhiDays)
+      : null;
 
   return (
     <Pressable style={styles.row} onPress={onPress} accessibilityRole="button">
@@ -60,6 +81,16 @@ export function LogRow({
         {metaParts.length > 0 && (
           <Text style={styles.meta} numberOfLines={1}>
             {metaParts.join(' · ')}
+          </Text>
+        )}
+        {safeHarvest && (
+          <Text style={styles.safeHarvest} numberOfLines={1}>
+            {t('log.form.safeHarvestPrefix')}{' '}
+            {new Date(safeHarvest).toLocaleDateString('he-IL', {
+              day: '2-digit',
+              month: '2-digit',
+              year: 'numeric',
+            })}
           </Text>
         )}
       </View>
@@ -129,6 +160,14 @@ const styles = StyleSheet.create({
     fontFamily: fonts.regular,
     fontSize: fontSize.bodySm,
     color: colors.slate600,
+    writingDirection: 'rtl',
+  },
+  // Field-700, לא Profit-600, אותה הבחנה כמו ב-LogEntrySheet: תזכורת
+  // רגועה לתכנון, לא הכרזת רווח.
+  safeHarvest: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.caption,
+    color: colors.field700,
     writingDirection: 'rtl',
   },
 });

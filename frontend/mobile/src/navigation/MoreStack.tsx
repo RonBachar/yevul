@@ -2,6 +2,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { JournalScreen } from '../screens/JournalScreen';
 import { MoreScreen } from '../screens/MoreScreen';
 import { SettingsScreen } from '../screens/SettingsScreen';
+import { SprayLogScreen } from '../screens/SprayLogScreen';
 import { colors } from '../theme/tokens';
 
 // טאב "עוד" הוא היחיד שמוביל פנימה למסכים נוספים, ולכן הוא סטאק ולא
@@ -31,6 +32,11 @@ export function MoreStack() {
       <Stack.Screen
         name="Journal"
         component={JournalScreen}
+        options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal', title: '' }}
+      />
+      <Stack.Screen
+        name="SprayLog"
+        component={SprayLogScreen}
         options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal', title: '' }}
       />
     </Stack.Navigator>

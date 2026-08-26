@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
+import { SprayCan } from 'lucide-react';
 import {
   expectedPriceDisplay,
   expectedYieldDisplay,
@@ -114,6 +115,13 @@ export function PlotDetailScreen() {
             currency={settings.form?.currency ?? 'ILS'}
             onSaved={detail.refresh}
           />
+          {/* design.md, Spray Log Screen: "a button on the Plot Detail
+              Screen's Profitability tab", אחת משלוש נקודות הכניסה
+              הקבועות למסך יומן הריסוס. */}
+          <Link className="plot-detail__spray-log-link" to={`/spray-log?plot=${plot.id}`}>
+            <SprayCan size={18} strokeWidth={2} aria-hidden="true" />
+            <span>{t('sprayLog.title')}</span>
+          </Link>
         </div>
       )}
 

@@ -1,0 +1,16 @@
+.settings__spray-log-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-12);
+  min-height: var(--touch-min);
+  padding: 0 var(--spacing-16);
+  margin-bottom: var(--spacing-24);
+  border-radius: var(--radius-pill);
+  background: var(--color-field-100);
+  color: var(--color-field-700);
+  font-family: inherit;
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-bold);
+  text-decoration: none;
+  width: fit-content;
+}

@@ -7,6 +7,7 @@ import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import PencilLine from 'lucide-react-native/icons/pencil-line';
 import TrendingUp from 'lucide-react-native/icons/trending-up';
 import TrendingDown from 'lucide-react-native/icons/trending-down';
+import SprayCan from 'lucide-react-native/icons/spray-can';
 import {
   expectedPriceDisplay,
   expectedYieldDisplay,
@@ -198,6 +199,18 @@ export function PlotDetailScreen() {
               </>
             )}
           </View>
+
+          {/* design.md, Spray Log Screen: "a button on the Plot Detail
+              Screen's Profitability tab", אחת משלוש נקודות הכניסה
+              הקבועות למסך יומן הריסוס. */}
+          <Pressable
+            style={styles.sprayLogButton}
+            onPress={() => navigation.navigate('SprayLog', { plotId })}
+            accessibilityRole="button"
+          >
+            <SprayCan size={18} strokeWidth={2} color={colors.field700} />
+            <Text style={styles.sprayLogButtonText}>{t('sprayLog.title')}</Text>
+          </Pressable>
         </ScrollView>
       )}
 
@@ -695,6 +708,21 @@ const styles = StyleSheet.create({
     padding: spacing.s24,
     paddingBottom: spacing.s48,
     gap: spacing.s16,
+  },
+  sprayLogButton: {
+    alignSelf: 'flex-start',
+    minHeight: touchTarget.min - 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s8,
+    paddingHorizontal: spacing.s16,
+    borderRadius: radius.pill,
+    backgroundColor: colors.field100,
+  },
+  sprayLogButtonText: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.bodySm,
+    color: colors.field700,
   },
   tasksBody: {
     flex: 1,

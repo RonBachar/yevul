@@ -263,6 +263,16 @@ const strings: Record<string, string> = {
   'log.form.saveError': 'לא הצלחנו לשמור, נסו שוב',
   'log.save': 'שמירה',
   'log.saving': 'שומר',
+
+  // מסך יומן ריסוס, design.md "Spray Log Screen". prd.md סעיף 8: מסך
+  // עצמאי, נגיש מהיומן הכללי, מפרטי חלקה, ומעוד/הגדרות. אותה כותרת
+  // משמשת גם ככותרת המסך וגם כתווית הקישור אליו משלושת המקומות האלה.
+  'sprayLog.title': 'יומן ריסוס',
+  'sprayLog.countSuffix': 'ריסוסים',
+  'sprayLog.allPlots': 'כל החלקות',
+  'sprayLog.empty': 'אין עדיין רישומי ריסוס',
+  'sprayLog.loadError': 'לא הצלחנו לטעון את יומן הריסוס, נסו שוב',
+  'sprayLog.phiDaysSuffix': 'ימי המתנה',
 };
 
 // מחזיר את המחרוזת לפי המפתח, ואם אין, מחזיר את המפתח עצמו כדי

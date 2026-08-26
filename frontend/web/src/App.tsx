@@ -10,6 +10,7 @@ import { PlotsScreen } from './screens/PlotsScreen';
 import { PlotDetailScreen } from './screens/PlotDetailScreen';
 import { PlotFormScreen } from './screens/PlotFormScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
+import { SprayLogScreen } from './screens/SprayLogScreen';
 
 // ניתוב אמיתי עם כתובות, ולא החלפת מסכים לפי state. בווב הכתובת היא
 // חלק מהמוצר, סימנייה, כפתור אחורה של הדפדפן, ושיתוף קישור לחלקה
@@ -35,6 +36,7 @@ function Gate() {
         <Route path="plots/:plotId/edit" element={<PlotFormScreen />} />
         <Route path="money" element={<MoneyScreen />} />
         <Route path="journal" element={<JournalScreen />} />
+        <Route path="spray-log" element={<SprayLogScreen />} />
         <Route path="settings" element={<SettingsScreen />} />
       </Route>
       {/* כתובת לא מוכרת חוזרת לבית, במקום מסך ריק בלי ניווט */}

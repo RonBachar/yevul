@@ -1,0 +1,40 @@
+.spray-log__header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-12);
+  margin-bottom: var(--spacing-16);
+}
+
+.spray-log__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-8);
+  margin-bottom: var(--spacing-24);
+}
+
+.spray-log__filter {
+  min-height: var(--touch-min);
+  padding: 0 var(--spacing-20);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-pill);
+  background: var(--color-paper);
+  color: var(--color-slate-600);
+  font-family: inherit;
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.spray-log__filter--active {
+  border-color: var(--color-field-700);
+  background: var(--color-field-100);
+  color: var(--color-field-700);
+  font-weight: var(--font-weight-bold);
+}
+
+.spray-log__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+  max-width: 640px;
+}

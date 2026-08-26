@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from 'react';
+import { Link } from 'react-router-dom';
+import { SprayCan } from 'lucide-react';
 import {
   AREA_UNITS,
   CURRENCIES,
@@ -12,6 +14,7 @@ import {
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import '../styles/form.css';
+import './SettingsScreen.css';
 
 // מסך ההגדרות של המשק. המסך הראשון שקורא וכותב נתונים אמיתיים, ולכן
 // גם הראשון שנוגע ב-RLS בפועל מהקליינט.
@@ -90,6 +93,13 @@ export function SettingsScreen() {
   return (
     <div className="screen">
       <h1 className="screen__title">{t('screen.settings')}</h1>
+
+      {/* design.md, Spray Log Screen: "an entry under עוד". בווב אין
+          "עוד", ולכן זו נקודת הכניסה המקבילה, לצד היומן ופרטי חלקה. */}
+      <Link className="settings__spray-log-link" to="/spray-log">
+        <SprayCan size={20} strokeWidth={2} aria-hidden="true" />
+        <span>{t('sprayLog.title')}</span>
+      </Link>
 
       <form className="form" onSubmit={onSubmit} noValidate>
         <div className="form__row">
