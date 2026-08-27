@@ -21,7 +21,13 @@
       "softwareKeyboardLayoutMode": "pan"
     },
     "plugins": [
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "האפליקציה זקוקה לגישה לגלריה כדי לצרף קבלות"
+        }
+      ]
     ]
   }
 }

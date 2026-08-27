@@ -21,6 +21,10 @@ export type FarmSettingsForm = {
   currency: Currency;
   areaUnit: AreaUnit;
   locale: Locale;
+  // שני מתגי Completion Prompts, design.md: "Both toggles live in
+  // Settings and can be turned off independently."
+  journalPromptEnabled: boolean;
+  expensePromptEnabled: boolean;
 };
 
 // nameRequired הוא כלל נורמליזציה ולא הרשאה, ולכן הוא חי כאן ולא בשני
@@ -36,7 +40,13 @@ export type FarmSettingsState = {
   save: (next: FarmSettingsForm) => Promise<SaveResult>;
 };
 
-type SettingsRow = { currency: Currency; area_unit: AreaUnit; locale: Locale };
+type SettingsRow = {
+  currency: Currency;
+  area_unit: AreaUnit;
+  locale: Locale;
+  journal_prompt_enabled: boolean;
+  expense_prompt_enabled: boolean;
+};
 type FarmWithSettings = { id: string; name: string; settings: SettingsRow | null };
 
 export function useFarmSettings(supabase: SupabaseClient): FarmSettingsState {
@@ -54,7 +64,7 @@ export function useFarmSettings(supabase: SupabaseClient): FarmSettingsState {
       // הוא מפתח ראשי שמצביע על farms(id), ו-PostgREST יודע לשבץ.
       const { data, error } = await currentFarmQuery(
         supabase,
-        'id, name, settings(currency, area_unit, locale)',
+        'id, name, settings(currency, area_unit, locale, journal_prompt_enabled, expense_prompt_enabled)',
       );
 
       if (!active) return;
@@ -73,6 +83,8 @@ export function useFarmSettings(supabase: SupabaseClient): FarmSettingsState {
         currency: settings.currency,
         areaUnit: settings.area_unit,
         locale: settings.locale,
+        journalPromptEnabled: settings.journal_prompt_enabled,
+        expensePromptEnabled: settings.expense_prompt_enabled,
       });
       setLoading(false);
     }
@@ -97,7 +109,13 @@ export function useFarmSettings(supabase: SupabaseClient): FarmSettingsState {
         supabase.from('farms').update({ name: farmName }).eq('id', farmId).select('id'),
         supabase
           .from('settings')
-          .update({ currency: next.currency, area_unit: next.areaUnit, locale: next.locale })
+          .update({
+            currency: next.currency,
+            area_unit: next.areaUnit,
+            locale: next.locale,
+            journal_prompt_enabled: next.journalPromptEnabled,
+            expense_prompt_enabled: next.expensePromptEnabled,
+          })
           .eq('farm_id', farmId)
           .select('farm_id'),
       ]);

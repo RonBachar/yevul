@@ -287,7 +287,10 @@ export async function taskCostMemory(
 // מהאמת של המשימה, ואם הכתיבה הזו נכשלת (למשל worker, שלא אמור להגיע
 // לכאן כי הוא לא יכול לכתוב estimated_cost לא-ריק מלכתחילה) המשימה
 // עצמה כבר נשמרה בהצלחה ואין מה להציג כשגיאה למשתמש.
-async function rememberTaskCost(
+//
+// מיוצא, לא רק פנימי ל-createTask/updateTask: Completion Prompts זוכר
+// עלות בזמן האישור בסיום, לא ביצירה, ראה completionPrompts.ts.
+export async function rememberTaskCost(
   supabase: SupabaseClient,
   farmId: string,
   title: string,

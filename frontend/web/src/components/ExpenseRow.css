@@ -1,0 +1,70 @@
+.expense-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: var(--spacing-12);
+  min-height: 64px;
+  padding: var(--spacing-12) var(--spacing-16);
+  border: none;
+  border-radius: var(--radius-card);
+  background: var(--color-mist-100);
+  text-align: right;
+  cursor: pointer;
+}
+
+.expense-row__icon {
+  flex-shrink: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  color: var(--color-slate-600);
+  background: var(--color-mist-200);
+}
+
+.expense-row__receipt-dot {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-field-700);
+}
+
+.expense-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.expense-row__title {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-ink-900);
+}
+
+.expense-row__meta {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-body-sm);
+  color: var(--color-slate-600);
+}
+
+.expense-row__amount {
+  flex-shrink: 0;
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink-900);
+}

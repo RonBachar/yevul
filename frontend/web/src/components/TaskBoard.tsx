@@ -2,13 +2,15 @@ import { useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   completeTask,
+  completionPromptVisibility,
   deleteTask,
   groupTasksByUrgency,
   t,
+  useFarmSettings,
   useTasks,
-  type Currency,
   type Task,
 } from '@yevul/shared';
+import { CompletionPromptSheet } from './CompletionPromptSheet';
 import { TaskRow } from './TaskRow';
 import { TaskSheet } from './TaskSheet';
 import './TaskBoard.css';
@@ -17,20 +19,25 @@ import './TaskBoard.css';
 // בבית (כל המשק) וגם בטאב משימות בפרטי חלקה (חלקה אחת בלבד), אותה
 // שורה ואותה שאילתה מצומצמת. plotId קובע את ההבדל, showPlotName קובע
 // אם שם החלקה חוזר על עצמו בכל שורה, מיותר כשכבר בתוך מסך אותה חלקה.
+//
+// useFarmSettings נקרא כאן ולא מקבל currency כפרופ מההורה יותר: ברגע
+// שהלוח זקוק גם למתגי Completion Prompts, אין טעם שההורה ימשיך למשוך
+// הגדרות רק כדי להעביר שדה אחד ממנו הלאה.
 export function TaskBoard({
   supabase,
   plotId,
   showPlotName,
-  currency,
 }: {
   supabase: SupabaseClient;
   plotId?: string;
   showPlotName: boolean;
-  currency: Currency;
 }) {
+  const settings = useFarmSettings(supabase);
+  const currency = settings.form?.currency ?? 'ILS';
   const tasksState = useTasks(supabase, plotId);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [completingTask, setCompletingTask] = useState<Task | null>(null);
 
   function openCreate() {
     setEditingTask(null);
@@ -42,9 +49,18 @@ export function TaskBoard({
     setSheetOpen(true);
   }
 
+  const promptVisibility = completionPromptVisibility(
+    settings.form?.journalPromptEnabled ?? false,
+    settings.form?.expensePromptEnabled ?? false,
+  );
+
   async function handleComplete(taskId: string) {
+    const task = tasksState.tasks.find((candidate) => candidate.id === taskId) ?? null;
     await completeTask(supabase, taskId);
     tasksState.refresh();
+    // Completion Prompts מוצג רק אחרי שהכתיבה בפועל הצליחה, במקום
+    // ה-undo toast של חמש שניות שכבר חלף עד שהגענו לכאן.
+    if (task && promptVisibility.showPrompt) setCompletingTask(task);
   }
 
   async function handleDelete(taskId: string) {
@@ -104,6 +120,17 @@ export function TaskBoard({
           setSheetOpen(false);
           tasksState.refresh();
         }}
+      />
+
+      <CompletionPromptSheet
+        supabase={supabase}
+        open={completingTask != null}
+        task={completingTask}
+        farmId={tasksState.farmId}
+        currency={currency}
+        journalEnabled={promptVisibility.showJournal}
+        expenseEnabled={promptVisibility.showExpense}
+        onClose={() => setCompletingTask(null)}
       />
     </div>
   );

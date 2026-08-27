@@ -14,3 +14,19 @@
   text-decoration: none;
   width: fit-content;
 }
+
+/* form__row הרגיל הוא עמודה, תווית מעל שדה. מתג בוליאני קורא הפוך,
+   תווית ואז מתג באותה שורה. */
+.form__row--toggle {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-16);
+}
+
+.form__row--toggle input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--color-field-700);
+  cursor: pointer;
+}

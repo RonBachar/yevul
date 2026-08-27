@@ -147,6 +147,23 @@ export function SettingsScreen() {
           disabled={busy}
         />
 
+        {/* Completion Prompts, design.md: "Both toggles live in
+            Settings and can be turned off independently." */}
+        <ToggleField
+          id="journal-prompt"
+          label={t('settings.journalPrompt')}
+          checked={current.journalPromptEnabled}
+          onChange={(value) => update('journalPromptEnabled', value)}
+          disabled={busy}
+        />
+        <ToggleField
+          id="expense-prompt"
+          label={t('settings.expensePrompt')}
+          checked={current.expensePromptEnabled}
+          onChange={(value) => update('expensePromptEnabled', value)}
+          disabled={busy}
+        />
+
         <div className="form__actions">
           <button type="submit" className="form__submit" disabled={busy}>
             {status === 'saving' ? t('settings.saving') : t('settings.save')}
@@ -162,6 +179,38 @@ export function SettingsScreen() {
           )}
         </div>
       </form>
+    </div>
+  );
+}
+
+// שדה בוליאני, לשני מתגי Completion Prompts. checkbox הוא הביטוי
+// הטבעי של בוליאן בפלטפורמה, בניגוד לשדות הבחירה הסגורים למעלה שיש
+// בהם כמה אפשרויות ומקבלים select.
+function ToggleField({
+  id,
+  label,
+  checked,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  label: string;
+  checked: boolean;
+  onChange: (value: boolean) => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="form__row form__row--toggle">
+      <label className="form__label" htmlFor={id}>
+        {label}
+      </label>
+      <input
+        id={id}
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
+      />
     </div>
   );
 }

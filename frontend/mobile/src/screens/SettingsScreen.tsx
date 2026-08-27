@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   AREA_UNITS,
@@ -122,6 +122,21 @@ export function SettingsScreen() {
         disabled={busy}
       />
 
+      {/* Completion Prompts, design.md: "Both toggles live in Settings
+          and can be turned off independently." */}
+      <ToggleRow
+        label={t('settings.journalPrompt')}
+        value={current.journalPromptEnabled}
+        onChange={(value) => update('journalPromptEnabled', value)}
+        disabled={busy}
+      />
+      <ToggleRow
+        label={t('settings.expensePrompt')}
+        value={current.expensePromptEnabled}
+        onChange={(value) => update('expensePromptEnabled', value)}
+        disabled={busy}
+      />
+
       <Pressable
         style={[formStyles.save, busy && formStyles.saveDisabled]}
         onPress={onSave}
@@ -142,6 +157,50 @@ export function SettingsScreen() {
     </FormScreen>
   );
 }
+
+// שורת מתג בוליאני, לשני מתגי Completion Prompts. Switch הוא הביטוי
+// הטבעי של בוליאן בפלטפורמה, בניגוד לשדות הבחירה הסגורים למעלה
+// (מטבע, יחידת שטח, שפה) שמשתמשים בצ'יפים כי יש בהם כמה אפשרויות.
+function ToggleRow({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+  disabled: boolean;
+}) {
+  return (
+    <View style={toggleStyles.row}>
+      <Text style={toggleStyles.label}>{label}</Text>
+      <Switch
+        value={value}
+        onValueChange={onChange}
+        disabled={disabled}
+        trackColor={{ true: colors.field500, false: colors.border200 }}
+        thumbColor={colors.paper}
+      />
+    </View>
+  );
+}
+
+const toggleStyles = StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.s16,
+  },
+  label: {
+    flex: 1,
+    fontFamily: fonts.bold,
+    fontSize: fontSize.bodySm,
+    color: colors.ink900,
+    writingDirection: 'rtl',
+  },
+});
 
 const styles = StyleSheet.create({
   screen: {

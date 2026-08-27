@@ -10,6 +10,7 @@ import Ellipsis from 'lucide-react-native/icons/ellipsis';
 import { t, useCurrentFarm } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { LogEntrySheet } from '../components/LogEntrySheet';
+import { ExpenseSheet } from '../components/ExpenseSheet';
 import { HomeScreen } from '../screens/HomeScreen';
 import { MoneyScreen } from '../screens/MoneyScreen';
 import { MoreStack } from './MoreStack';
@@ -32,6 +33,7 @@ export function RootTabs() {
   const farmState = useCurrentFarm(supabase);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
+  const [expenseOpen, setExpenseOpen] = useState(false);
 
   // פתיחת הגיליון משנה state שיושב מעל הנאוויגייטור, ולכן בלי הייצוב
   // הזה כל לחיצה על כפתור הרישום הייתה בונה מחדש את פונקציית שורת
@@ -47,6 +49,12 @@ export function RootTabs() {
     setJournalOpen(true);
   }, []);
   const closeJournal = useCallback(() => setJournalOpen(false), []);
+  // אותו מסלול בדיוק בשביל הוצאה, prd.md סעיף 8.
+  const openExpense = useCallback(() => {
+    setCaptureOpen(false);
+    setExpenseOpen(true);
+  }, []);
+  const closeExpense = useCallback(() => setExpenseOpen(false), []);
   const renderTabBar = useCallback(
     (props: BottomTabBarProps) => <TabBar {...props} onCapturePress={openCapture} />,
     [openCapture],
@@ -91,7 +99,12 @@ export function RootTabs() {
           }}
         />
       </Tab.Navigator>
-      <CaptureSheet visible={captureOpen} onClose={closeCapture} onJournalPress={openJournal} />
+      <CaptureSheet
+        visible={captureOpen}
+        onClose={closeCapture}
+        onJournalPress={openJournal}
+        onExpensePress={openExpense}
+      />
       <LogEntrySheet
         supabase={supabase}
         visible={journalOpen}
@@ -100,6 +113,15 @@ export function RootTabs() {
         defaultPlotId={null}
         farmId={farmState.farm?.id ?? null}
         onSaved={closeJournal}
+      />
+      <ExpenseSheet
+        supabase={supabase}
+        visible={expenseOpen}
+        onClose={closeExpense}
+        expense={null}
+        defaultPlotId={null}
+        farmId={farmState.farm?.id ?? null}
+        onSaved={closeExpense}
       />
     </>
   );

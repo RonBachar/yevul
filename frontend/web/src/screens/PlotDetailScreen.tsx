@@ -23,6 +23,7 @@ import {
   type Currency,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
+import { ExpenseList } from '../components/ExpenseList';
 import { JournalList } from '../components/JournalList';
 import { TaskBoard } from '../components/TaskBoard';
 import { YieldUnitField } from '../components/YieldUnitField';
@@ -125,20 +126,13 @@ export function PlotDetailScreen() {
         </div>
       )}
 
-      {tab === 'tasks' && (
-        <TaskBoard
-          supabase={supabase}
-          plotId={plot.id}
-          showPlotName={false}
-          currency={settings.form?.currency ?? 'ILS'}
-        />
-      )}
+      {tab === 'tasks' && <TaskBoard supabase={supabase} plotId={plot.id} showPlotName={false} />}
 
       {tab === 'journal' && (
         <JournalList supabase={supabase} plotId={plot.id} showPlotName={false} />
       )}
 
-      {tab === 'expenses' && <p className="screen__note">{t('screen.comingSoon')}</p>}
+      {tab === 'expenses' && <ExpenseList supabase={supabase} plotId={plot.id} showPlotName={false} />}
     </div>
   );
 }

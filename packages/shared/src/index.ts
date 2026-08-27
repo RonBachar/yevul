@@ -75,6 +75,7 @@ export {
   archiveTask,
   deleteTask,
   taskCostMemory,
+  rememberTaskCost,
   normalizeTaskTitle,
   taskDueDisplay,
   groupTasksByUrgency,
@@ -88,6 +89,23 @@ export {
   type UrgencyGroupKey,
   type UrgencyGroup,
 } from './tasks';
+export {
+  useExpenses,
+  createExpense,
+  updateExpense,
+  attachReceipt,
+  type Expense,
+  type ExpenseSource,
+  type ExpenseInput,
+  type ExpenseWriteResult,
+  type ExpensesListState,
+} from './expenses';
+export {
+  confirmJournalFromTask,
+  confirmExpenseFromTask,
+  completionPromptVisibility,
+  type CompletionPromptVisibility,
+} from './completionPrompts';
 export {
   useLogEntries,
   useSpraySuggestions,

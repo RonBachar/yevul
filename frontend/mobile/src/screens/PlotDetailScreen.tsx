@@ -31,6 +31,7 @@ import { supabase } from '../lib/supabase';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from '../components/BottomSheet';
+import { ExpenseList } from '../components/ExpenseList';
 import { JournalList } from '../components/JournalList';
 import { TaskBoard } from '../components/TaskBoard';
 import { YieldUnitField } from '../components/YieldUnitField';
@@ -216,12 +217,7 @@ export function PlotDetailScreen() {
 
       {tab === 'tasks' && (
         <View style={styles.tasksBody}>
-          <TaskBoard
-            supabase={supabase}
-            plotId={plotId}
-            showPlotName={false}
-            currency={settings.form?.currency ?? 'ILS'}
-          />
+          <TaskBoard supabase={supabase} plotId={plotId} showPlotName={false} />
         </View>
       )}
 
@@ -232,8 +228,8 @@ export function PlotDetailScreen() {
       )}
 
       {tab === 'expenses' && (
-        <View style={styles.center}>
-          <Text style={styles.note}>{t('screen.comingSoon')}</Text>
+        <View style={styles.tasksBody}>
+          <ExpenseList supabase={supabase} plotId={plotId} showPlotName={false} />
         </View>
       )}
 

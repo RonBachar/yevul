@@ -1,4 +1,4 @@
-import { t, useFarmSettings } from '@yevul/shared';
+import { t } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { TaskBoard } from '../components/TaskBoard';
 
@@ -7,12 +7,10 @@ import { TaskBoard } from '../components/TaskBoard';
 // (בלי plotId), הוא התוכן האמיתי הראשון כאן, יצא לקובץ משלו מ-
 // WebScreens.tsx לפי אותה מוסכמה שכבר הוחלה על PlotsScreen.
 export function HomeScreen() {
-  const settings = useFarmSettings(supabase);
-
   return (
     <div className="screen">
       <h1 className="screen__title">{t('screen.home')}</h1>
-      <TaskBoard supabase={supabase} showPlotName currency={settings.form?.currency ?? 'ILS'} />
+      <TaskBoard supabase={supabase} showPlotName />
     </div>
   );
 }

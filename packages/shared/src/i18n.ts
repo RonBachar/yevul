@@ -70,6 +70,10 @@ const strings: Record<string, string> = {
   'settings.currency': 'מטבע',
   'settings.areaUnit': 'יחידת שטח',
   'settings.locale': 'שפה',
+  // Completion Prompts, design.md: "Both toggles live in Settings and
+  // can be turned off independently."
+  'settings.journalPrompt': 'לשאול לפני שמירה ביומן בסיום משימה',
+  'settings.expensePrompt': 'לשאול לפני רישום הוצאה בסיום משימה',
   'settings.save': 'שמירה',
   'settings.saving': 'שומר',
   'settings.saved': 'ההגדרות נשמרו',
@@ -273,6 +277,51 @@ const strings: Record<string, string> = {
   'sprayLog.empty': 'אין עדיין רישומי ריסוס',
   'sprayLog.loadError': 'לא הצלחנו לטעון את יומן הריסוס, נסו שוב',
   'sprayLog.phiDaysSuffix': 'ימי המתנה',
+
+  // Completion Prompts, design.md. שתי שאלות עצמאיות בסיום משימה.
+  'completion.donePrefix': 'בוצע',
+  'completion.saveToJournal': 'לשמור ביומן?',
+  'completion.journalSaved': 'נשמר ביומן',
+  'completion.recordAsExpense': 'לרשום כהוצאה?',
+  'completion.yes': 'כן',
+  'completion.no': 'לא',
+  'completion.expenseAmount': 'סכום',
+  'completion.expenseConfirm': 'אישור',
+  'completion.expenseSaved': 'נרשם כהוצאה',
+  'completion.declined': 'בסדר, לא נשמר',
+  'completion.forbidden': 'אין לכם הרשאה לרשום הוצאות',
+  'completion.error': 'לא הצלחנו לשמור, נסו שוב',
+
+  // הוצאות, docs/roadmap.md. שלב ראשון בלבד: הקצאה יחידה, בלי פיצול,
+  // בלי הוצאה קבועה חוזרת, בלי קבלה מצורפת. הטופס עצמו ארבעה שדות
+  // בלבד לפי בקשה מפורשת של היזם: שם, סכום, תאריך, הערה, בלי קטגוריה
+  // מתוכננת ובלי בחירת חלקה בטופס (החלקה מגיעה משתיקה מההקשר).
+  'expense.new': 'הוצאה חדשה',
+  'expense.empty': 'עדיין אין הוצאות',
+  'expense.loadError': 'לא הצלחנו לטעון את ההוצאות, נסו שוב',
+  'expense.row.unnamed': 'הוצאה',
+
+  'expense.form.titleNew': 'הוצאה חדשה',
+  'expense.form.titleEdit': 'עריכת הוצאה',
+  'expense.form.amount': 'סכום',
+  'expense.form.amountRequired': 'יש להזין סכום גדול מאפס',
+  'expense.form.name': 'שם ההוצאה',
+  'expense.form.namePlaceholder': 'למשל, דלק, דשן, תיקון משאבה',
+  'expense.form.date': 'תאריך',
+  'expense.form.dateDay': 'יום',
+  'expense.form.dateMonth': 'חודש',
+  'expense.form.note': 'הערה',
+  'expense.form.notePlaceholder': 'הערה קצרה, לא חובה',
+  'expense.form.forbidden': 'אין לכם הרשאה ליצור או לערוך הוצאות',
+  'expense.form.saveError': 'לא הצלחנו לשמור, נסו שוב',
+  'expense.save': 'שמירה',
+  'expense.saving': 'שומר',
+  'expense.form.receipt': 'קבלה',
+  'expense.form.receiptAdd': 'צרף קבלה',
+  'expense.form.receiptAttached': 'קבלה מצורפת',
+  'expense.form.receiptReplace': 'החלף קבלה',
+  'expense.form.receiptUploading': 'מעלה קבלה',
+  'expense.form.receiptError': 'העלאת הקבלה נכשלה',
 };
 
 // מחזיר את המחרוזת לפי המפתח, ואם אין, מחזיר את המפתח עצמו כדי
