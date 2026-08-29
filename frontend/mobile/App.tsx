@@ -71,6 +71,11 @@ export default function App() {
     'OedooPro-Regular': require('@yevul/assets/fonts/OedooPro-Regular.ttf'),
     'OedooPro-Medium': require('@yevul/assets/fonts/OedooPro-Medium.ttf'),
     'OedooPro-Bold': require('@yevul/assets/fonts/OedooPro-Bold.ttf'),
+    // Black (900) נטען בשלב 4 בשביל Live P&L Hero Card. design.md מגדיר
+    // את מספר הרווח כ-display/900 ומכנה אותו "the single largest element
+    // in the product", ו-Bold (700) הרנדר אותו קל מדי בדיוק במקום שבו
+    // המשקל נושא את כל ההיררכיה של המסך.
+    'OedooPro-Black': require('@yevul/assets/fonts/OedooPro-Black.ttf'),
   });
 
   // כשל בטעינת פונט מוצג ולא נבלע. קודם השגיאה נזרקה לפח והמסך פשוט

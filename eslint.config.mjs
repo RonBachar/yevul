@@ -58,6 +58,15 @@ export default [
   {
     files: ['packages/**/*.ts'],
     ...tsBase,
+    languageOptions: {
+      ...tsBase.languageOptions,
+      // packages/shared הוא קוד טהור בלי תלות בסביבה, ולכן אין כאן
+      // globals.browser או globals.node. Blob הוא היוצא מן הכלל:
+      // attachReceipt מקבל אותו כטיפוס, והוא קיים זהה בשלושת
+      // הסביבות (דפדפן, React Native, Worker). מוצהר בנקודה במקום
+      // לפתוח את כל סביבת הדפדפן ולאפשר בטעות document או window.
+      globals: { Blob: 'readonly' },
+    },
   },
   {
     files: ['**/*.config.js', '**/babel.config.js'],

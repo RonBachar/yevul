@@ -101,6 +101,14 @@ export {
   type ExpensesListState,
 } from './expenses';
 export {
+  useFarmProfit,
+  usePlotExpensesTotal,
+  farmProfitForecast,
+  type FarmProfitForecast,
+  type FarmProfitState,
+  type PlotProfitRow,
+} from './profit';
+export {
   confirmJournalFromTask,
   confirmExpenseFromTask,
   completionPromptVisibility,

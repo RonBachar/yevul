@@ -1,0 +1,92 @@
+/* Live P&L Hero Card, שלב 4, design.md.
+   hairline ולא צל: המערכת היא hairline first, והצל שמור לאלמנטים
+   מרחפים בלבד (Elevation). רדיוס 28, לא 20, זה אינו כרטיס רגיל. */
+.profit-hero {
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-sheet);
+  background: var(--color-paper);
+  padding: var(--spacing-20);
+  margin-bottom: var(--spacing-24);
+}
+
+.profit-hero__label {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--text-body-sm);
+  color: var(--color-slate-600);
+}
+
+/* display (84) והמשקל הכבד ביותר. זה האלמנט הגדול ביותר במוצר.
+   clamp כדי שסכום ארוך לא יגלוש במסך צר, אותה בעיה שבנייד נפתרת
+   ב-scaledAmountFontSize. */
+.profit-hero__value {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  margin: 0 0 var(--spacing-8);
+  font-size: clamp(var(--text-heading), 11vw, var(--text-display));
+  font-weight: var(--font-weight-black);
+  line-height: 0.98;
+  white-space: nowrap;
+  /* ספרות LTR בתוך משפט RTL, prd.md נספח א.6. */
+  direction: ltr;
+  unicode-bidi: isolate;
+  transform-origin: center;
+}
+
+.profit-hero__value--profit {
+  color: var(--color-profit-600);
+}
+
+.profit-hero__value--loss {
+  color: var(--color-loss-600);
+}
+
+/* אפס אינו רווח ואינו הפסד, design.md. לצבוע אותו הוא אות שקרי
+   בפעם הראשונה שחקלאי פותח את האפליקציה. */
+.profit-hero__value--zero {
+  color: var(--color-ink-900);
+}
+
+.profit-hero__glyph {
+  flex-shrink: 0;
+}
+
+/* 1.0 → 1.03 → 1.0 ב-200ms, design.md, "to confirm this just changed". */
+.profit-hero__value--pulse {
+  animation: profit-hero-pulse 200ms ease-in-out;
+}
+
+@keyframes profit-hero-pulse {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.03);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profit-hero__value--pulse {
+    animation: none;
+  }
+}
+
+.profit-hero__breakdown {
+  margin: 0;
+  font-size: var(--text-body-sm);
+  color: var(--color-slate-600);
+}
+
+.profit-hero__caveat {
+  margin: var(--spacing-4) 0 0;
+  font-size: var(--text-caption);
+  color: var(--color-slate-600);
+}
+
+/* Wheat ולא Loss-600. design.md: חוסר מידע הוא תיקון, לא הודעת הפסד. */
+.profit-hero__caveat--wheat {
+  color: var(--color-wheat-800);
+}

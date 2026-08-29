@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import Plus from 'lucide-react-native/icons/plus';
-import { t, usePlots, type PlotWithCropCycle } from '@yevul/shared';
+import { t, useFarmProfit, useFarmSettings, type PlotProfitRow } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
@@ -17,7 +17,10 @@ type Nav = NativeStackNavigationProp<PlotsStackParamList, 'PlotsIndex'>;
 // ולא כמסך טאב יחיד, כי חלקה נפתחת למסך פרטים משלה.
 export function PlotsScreen() {
   const navigation = useNavigation<Nav>();
-  const { loading, failed, plots, refresh } = usePlots(supabase);
+  // useFarmProfit ולא usePlots: הכרטיס מציג מספר רווח משלב 4, וההוק
+  // הזה מחזיר את אותן חלקות בדיוק עם התחזית כבר מחושבת מולן.
+  const { loading, failed, plots, refresh } = useFarmProfit(supabase);
+  const settings = useFarmSettings(supabase);
 
   // useFocusEffect ולא useEffect בלבד: בניווט מבוסס Stack המסך לא
   // נבנה מחדש כשחוזרים אליו מ-PlotForm אחרי יצירה, הוא רק חוזר
@@ -65,11 +68,17 @@ export function PlotsScreen() {
       )}
 
       {!loading && !failed && plots.length > 0 && (
-        <FlatList<PlotWithCropCycle>
+        <FlatList<PlotProfitRow>
           data={plots}
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.list}
-          renderItem={({ item }) => <PlotCard plot={item} onPress={() => openPlot(item.id)} />}
+          renderItem={({ item }) => (
+            <PlotCard
+              plot={item}
+              currency={settings.form?.currency ?? 'ILS'}
+              onPress={() => openPlot(item.id)}
+            />
+          )}
         />
       )}
     </SafeAreaView>

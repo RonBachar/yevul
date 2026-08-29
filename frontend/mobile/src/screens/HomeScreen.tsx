@@ -1,19 +1,32 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { t } from '@yevul/shared';
+import { t, useCurrentFarm } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { colors, fonts, fontSize, spacing } from '../theme/tokens';
 import { TaskBoard } from '../components/TaskBoard';
+import { ProfitHeroCard } from '../components/ProfitHeroCard';
 
-// מסך הבית. Live P&L Hero Card, Data Freshness Chip וכרטיסי חלקות
-// נבנים בשלב 4, לפי הרודמאפ. לוח המשימות, כל המשק ולא חלקה בודדת
-// (בלי plotId), הוא התוכן האמיתי הראשון כאן.
+// מסך הבית. Live P&L Hero Card נבנה בשלב 4 ויושב בראש, לפי design.md,
+// "The first thing the farmer sees on opening the app". לוח המשימות
+// יורד מתחתיו, ולפי המסמך הוא דייר במסך הזה ולא בעליו.
+//
+// Data Freshness Chip הוא עדיין משימה פתוחה בשלב 4, ראה docs/roadmap.md.
+//
+// **הכרטיס מקובע והלוח הוא שגולל**, ולא מסך אחד גליל. ל-TaskBoard יש
+// ScrollView משלו, וקינון שני ScrollView באותו כיוון שובר את הגלילה
+// הפנימית ב-RN. זו גם הפריסה הנכונה מבחינת המסמך: המספר הוא בעל
+// המסך ולא אמור להיגלל אל מחוץ לתצוגה.
 export function HomeScreen() {
+  const { farm } = useCurrentFarm(supabase);
+
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
       <Text style={styles.title}>{t('screen.home')}</Text>
       <View style={styles.body}>
-        <TaskBoard supabase={supabase} showPlotName />
+        <ProfitHeroCard farmName={farm?.name ?? null} />
+        <View style={styles.board}>
+          <TaskBoard supabase={supabase} showPlotName />
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -35,5 +48,9 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
     padding: spacing.s24,
+    gap: spacing.s24,
+  },
+  board: {
+    flex: 1,
   },
 });

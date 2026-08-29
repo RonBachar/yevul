@@ -30,6 +30,45 @@
   color: var(--color-slate-600);
 }
 
+/* מספר הרווח, שלב 4. heading-lg (60) לפי design.md, עם clamp כדי
+   שסכום ארוך לא יגלוש בכרטיס צר ברשת. אותו טיפול סימן+חץ+צבע כמו
+   ה-Hero, כי design.md דורש שצבע לעולם לא יישא משמעות לבדו. */
+.plot-card__value {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  margin-top: var(--spacing-8);
+  font-size: clamp(var(--text-heading-sm), 7vw, var(--text-heading-lg));
+  font-weight: var(--font-weight-black);
+  line-height: 1.05;
+  white-space: nowrap;
+  /* ספרות LTR בתוך משפט RTL, prd.md נספח א.6. */
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.plot-card__value--profit {
+  color: var(--color-profit-600);
+}
+
+.plot-card__value--loss {
+  color: var(--color-loss-600);
+}
+
+/* אפס אינו רווח ואינו הפסד, design.md. */
+.plot-card__value--zero {
+  color: var(--color-ink-900);
+}
+
+.plot-card__glyph {
+  flex-shrink: 0;
+}
+
+.plot-card__breakdown {
+  font-size: var(--text-caption);
+  color: var(--color-slate-600);
+}
+
 .plot-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));

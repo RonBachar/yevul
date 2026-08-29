@@ -8,6 +8,7 @@ import {
   formatAmount,
   formatSignedAmount,
   plotProfitForecast,
+  usePlotExpensesTotal,
   plotSummaryLine,
   priceUnitLabel,
   profitTone,
@@ -53,6 +54,10 @@ export function PlotDetailScreen() {
   const { plotId } = useParams<{ plotId: string }>();
   const detail = usePlotDetail(supabase, plotId ?? null);
   const settings = useFarmSettings(supabase);
+  // ההוצאות בפועל של החלקה, שלב 4. עד כאן הועבר כאן `null` קבוע, כי
+  // מעקב ההוצאות עוד לא היה קיים כשהמסך נבנה, והתוצאה הייתה צפי רווח
+  // ששווה להכנסה המלאה גם אחרי שהחקלאי כבר רשם הוצאות.
+  const plotExpenses = usePlotExpensesTotal(supabase, plotId ?? null);
   const [tab, setTab] = useState<Tab>('income');
 
   if (detail.loading || detail.failed || !detail.plot) {
@@ -89,6 +94,7 @@ export function PlotDetailScreen() {
       <ProfitForecastHeader
         plotArea={plot.area}
         cropCycle={cropCycle}
+        expensesTotal={plotExpenses.total}
         currency={settings.form?.currency ?? 'ILS'}
       />
 
@@ -132,7 +138,9 @@ export function PlotDetailScreen() {
         <JournalList supabase={supabase} plotId={plot.id} showPlotName={false} />
       )}
 
-      {tab === 'expenses' && <ExpenseList supabase={supabase} plotId={plot.id} showPlotName={false} />}
+      {tab === 'expenses' && (
+        <ExpenseList supabase={supabase} plotId={plot.id} showPlotName={false} />
+      )}
     </div>
   );
 }
@@ -143,15 +151,18 @@ export function PlotDetailScreen() {
 function ProfitForecastHeader({
   plotArea,
   cropCycle,
+  expensesTotal,
   currency,
 }: {
   plotArea: number | null;
   cropCycle: CropCycle | null;
+  expensesTotal: number | null;
   currency: Currency;
 }) {
-  // null כהוצאות, ולא 0: מעקב ההוצאות עוד לא נבנה, וזה מצב שונה
-  // מ"אפס הוצאות". ההבחנה מפעילה את חיווי ה-Wheat למטה.
-  const forecast = plotProfitForecast(plotArea, cropCycle, null);
+  // expensesTotal הוא null רק בזמן טעינה או כשל, ואז חיווי ה-Wheat
+  // מוצג במקום מספר שגוי לרגע. אחרי הטעינה זה מספר אמיתי, כולל 0,
+  // שהוא עובדה ולא חוסר ידיעה.
+  const forecast = plotProfitForecast(plotArea, cropCycle, expensesTotal);
   if (!forecast) return null;
 
   const tone = profitTone(forecast.profit);

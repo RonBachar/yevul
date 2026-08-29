@@ -11,11 +11,15 @@ import { shadowFloat as sharedShadow } from '@yevul/shared';
 export { colors, spacing, radius, fontSize, touchTarget } from '@yevul/shared';
 
 // ב-RN כל משקל הוא משפחה רשומה בנפרד, ולכן המשקלים מ-shared הופכים
-// כאן לשמות המשפחות שנטענות ב-App.tsx. הנייד טוען שלושה משקלים.
+// כאן לשמות המשפחות שנטענות ב-App.tsx. הנייד טוען ארבעה משקלים.
+//
+// black (900) נוסף בשלב 4 בשביל מספרי הרווח, שהם המקום היחיד במפרט
+// שדורש את המשקל הזה (display ו-heading-lg).
 export const fonts = {
   regular: 'OedooPro-Regular',
   medium: 'OedooPro-Medium',
   bold: 'OedooPro-Bold',
+  black: 'OedooPro-Black',
 } as const;
 
 // RN מפרק צל לשדות נפרדים ולא למחרוזת אחת כמו CSS.

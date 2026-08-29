@@ -3,7 +3,7 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import * as ImagePicker from 'expo-image-picker';
 import CameraIcon from 'lucide-react-native/icons/camera';
-import CheckCircle2 from 'lucide-react-native/icons/check-circle-2';
+import CircleCheckBig from 'lucide-react-native/icons/circle-check-big';
 import { attachReceipt, createExpense, t, updateExpense, type Expense } from '@yevul/shared';
 import { colors } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
@@ -213,7 +213,7 @@ export function ExpenseSheet({
         accessibilityRole="button"
       >
         {pickedUri || expense?.receiptPath ? (
-          <CheckCircle2 size={18} strokeWidth={2} color={colors.field700} />
+          <CircleCheckBig size={18} strokeWidth={2} color={colors.field700} />
         ) : (
           <CameraIcon size={18} strokeWidth={2} color={colors.slate600} />
         )}
