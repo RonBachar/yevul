@@ -255,3 +255,34 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-ink-900);
 }
+
+/* נודניק ההתיישנות, design.md, "Staleness nudge". שורת טקסט אחת ולא
+   כרטיס: זו בדיקה עדינה על משהו שהחקלאי כבר הגדיר, לא דחיפה להגדיר
+   משהו חדש. אלמנט <button> ולא <p> כי הוא פותח את עריכת הצפי, וכך
+   הוא נגיש במקלדת בחינם. */
+.plot-detail__stale-nudge {
+  display: block;
+  margin-bottom: var(--spacing-8);
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-slate-600);
+  font-family: inherit;
+  font-size: var(--text-caption);
+  text-align: start;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* צ'יפ Field-100, design.md, טאב צפי הכנסה. width fit-content כדי
+   שהצ'יפ יימדד לפי תוכנו ולא יימתח לרוחב הכרטיס. */
+.plot-detail__safe-harvest {
+  width: fit-content;
+  margin: var(--spacing-12) 0 0;
+  padding: var(--spacing-8) var(--spacing-12);
+  border-radius: var(--radius-pill);
+  background: var(--color-field-100);
+  color: var(--color-field-700);
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-medium);
+}

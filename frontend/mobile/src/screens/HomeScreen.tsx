@@ -10,7 +10,7 @@ import { ProfitHeroCard } from '../components/ProfitHeroCard';
 // "The first thing the farmer sees on opening the app". לוח המשימות
 // יורד מתחתיו, ולפי המסמך הוא דייר במסך הזה ולא בעליו.
 //
-// Data Freshness Chip הוא עדיין משימה פתוחה בשלב 4, ראה docs/roadmap.md.
+// כרטיס הרווח מרענן את עצמו בכל חזרה למסך, ראה ProfitHeroCard.
 //
 // **הכרטיס מקובע והלוח הוא שגולל**, ולא מסך אחד גליל. ל-TaskBoard יש
 // ScrollView משלו, וקינון שני ScrollView באותו כיוון שובר את הגלילה

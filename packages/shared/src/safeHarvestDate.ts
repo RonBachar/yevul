@@ -32,6 +32,46 @@ export function safeHarvestDate(
   return formatUtcDateOnly(base);
 }
 
+/**
+ * תאריך הקטיף הבטוח **הפעיל** של חלקה, מתוך רשומות הריסוס שלה.
+ *
+ * design.md, Plot Detail Screen, טאב צפי הכנסה: "When the plot has an
+ * open spray record with `phi_days` set, a Field-100 'בטוח לקטיף מ-…'
+ * chip renders here too."
+ *
+ * "ריסוס פתוח" הוא ריסוס שתאריך הקטיף הבטוח שלו עדיין לא הגיע. כשיש
+ * כמה כאלה, המחמיר שבהם (המאוחר ביותר) הוא הקובע, כי קטיף לפניו אינו
+ * בטוח גם אם ריסוס אחר כבר פג. זהו חישוב רגולטורי, ולכן הכלל הוא
+ * המחמיר ולא הראשון שנמצא.
+ *
+ * רשומה בלי PHI, או כזו שתאריכה פגום, פשוט אינה משתתפת. היא אינה
+ * הופכת את החלקה לבטוחה ואינה חוסמת אותה, אין עליה מידע.
+ *
+ * now מוזרק ולא נלקח מ-Date.now, כדי שהפונקציה תישאר טהורה ובדיקה.
+ *
+ * @param entries רשומות ריסוס של החלקה, כל אחת עם תאריך ו-PHI.
+ * @param now הרגע שביחס אליו נקבע "עדיין לא הגיע".
+ * @returns YYYY-MM-DD של הקטיף הבטוח המאוחר ביותר שטרם הגיע, או null.
+ */
+export function openSafeHarvestDate(
+  entries: { date: string; sprayPhiDays: number | null }[],
+  now: Date,
+): string | null {
+  const today = formatUtcDateOnly(
+    new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())),
+  );
+
+  let latest: string | null = null;
+  for (const entry of entries) {
+    const safe = safeHarvestDate(entry.date, entry.sprayPhiDays);
+    // השוואת מחרוזות YYYY-MM-DD היא השוואה כרונולוגית תקפה, ולכן אין
+    // כאן המרה חוזרת ל-Date רק כדי להשוות.
+    if (safe === null || safe <= today) continue;
+    if (latest === null || safe > latest) latest = safe;
+  }
+  return latest;
+}
+
 function toUtcDateOnly(input: string | Date): Date | null {
   if (input instanceof Date) {
     if (Number.isNaN(input.getTime())) {

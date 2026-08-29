@@ -15,6 +15,21 @@ export function formatNumber(value: number): string {
   return new Intl.NumberFormat(NUMBER_LOCALE, { maximumFractionDigits: 2 }).format(value);
 }
 
+// שם החודש בלבד, לנודניק ההתיישנות של צפי הרווח ("לא עודכן מאז
+// אפריל"). design.md בוחר בשם חודש ולא בתאריך מלא או במניין ימים, כי
+// המסר הוא "מזמן", לא מדידה מדויקת. שמות החודשים נגזרים מהפלטפורמה
+// ולא ממפה ידנית של שנים עשר שמות, מאותו נימוק כמו currencySymbol.
+//
+// toLocaleDateString ולא Intl.DateTimeFormat: זו הצורה שכבר מוכחת
+// בפועל על מכשיר בקוד הזה (ראה LogEntrySheet). Hermes אינו מיישם את
+// כל משטח Intl (Intl.RelativeTimeFormat, למשל, חסר בו לגמרי), ולכן
+// אין סיבה להסתמך כאן על ענף שלא נוסה על מכשיר.
+export function formatMonthName(date: string | Date): string {
+  const value = typeof date === 'string' ? new Date(date) : date;
+  if (Number.isNaN(value.getTime())) return '';
+  return value.toLocaleDateString(NUMBER_LOCALE, { month: 'long' });
+}
+
 export function formatArea(value: number, unit: AreaUnit): string {
   return `${formatNumber(value)} ${t(areaUnitLabelKey(unit))}`;
 }

@@ -111,6 +111,37 @@ export function plotProfitForecast(
 }
 
 // ============================================================
+// נודניק התיישנות הצפי, design.md, Forecast Update, "Staleness nudge".
+//
+// "if a plot's forecast hasn't been touched in a set number of months,
+// the profitability tab surfaces a single caption line above the figure".
+// המסמך משאיר את מספר החודשים פתוח; שלושה נבחרו כי זהו בערך אורך עונה
+// אחת, כלומר הטווח שאחריו מחיר שוק או הערכת יבול כבר סביר שזזו.
+//
+// מחזיר את מחרוזת התאריך של העדכון האחרון (כדי שהתצוגה תגזור ממנה שם
+// חודש), או null כשהצפי טרי, כשמעולם לא עודכן, או כשהתאריך פגום.
+//
+// **מעולם לא עודכן מחזיר null בכוונה.** חלקה שהחקלאי רק הגדיר לה יבול
+// ומחיר בפעם הראשונה אינה "מיושנת", ונודניק שמופיע מיד אחרי ההזנה
+// הראשונה מלמד להתעלם ממנו. forecast_updated_at נכתב ב-updateForecast,
+// ולכן הוא null בדיוק במצב הזה.
+//
+// now מוזרק ולא נלקח מ-Date.now, כדי שהפונקציה תישאר טהורה ובדיקה.
+export const FORECAST_STALE_MONTHS = 3;
+
+export function staleForecastSince(cropCycle: CropCycle | null, now: Date): string | null {
+  const updatedAt = cropCycle?.forecastUpdatedAt;
+  if (!updatedAt) return null;
+
+  const updated = new Date(updatedAt);
+  if (Number.isNaN(updated.getTime())) return null;
+
+  const threshold = new Date(now);
+  threshold.setMonth(threshold.getMonth() - FORECAST_STALE_MONTHS);
+  return updated < threshold ? updatedAt : null;
+}
+
+// ============================================================
 // יחידת יבול, הצעות נפוצות.
 //
 // **זו רשימת הצעות ולא רשימה סגורה.** העמודה במסד היא טקסט חופשי

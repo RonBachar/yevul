@@ -23,6 +23,10 @@ import {
   useFarmSettings,
   usePlotDetail,
   usePlotExpensesTotal,
+  useLogEntries,
+  openSafeHarvestDate,
+  staleForecastSince,
+  formatMonthName,
   yieldRateUnitLabel,
   type AreaUnit,
   type CropCycle,
@@ -69,6 +73,9 @@ export function PlotDetailScreen() {
   // ששווה להכנסה המלאה גם אחרי שהחקלאי כבר רשם הוצאות.
   const plotExpenses = usePlotExpensesTotal(supabase, plotId);
   const expensesTotal = plotExpenses.total;
+  // רשומות הריסוס של החלקה, לצ'יפ "בטוח לקטיף". הסינון לפי סוג קורה
+  // במסד ולא בקליינט, אותו עיקרון כמו במסך יומן הריסוס.
+  const sprays = useLogEntries(supabase, plotId, 'spray');
   const [tab, setTab] = useState<Tab>('income');
   const [forecastOpen, setForecastOpen] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
@@ -92,6 +99,12 @@ export function PlotDetailScreen() {
   }
 
   const { plot, cropCycle } = detail;
+
+  // "עכשיו" נלקח פעם אחת בזמן הרינדור ומוזרק לשתי הפונקציות הטהורות,
+  // כדי שהחישוב עצמו יישאר בדיק ולא ייגע בשעון בעצמו.
+  const now = new Date();
+  const staleSince = staleForecastSince(cropCycle, now);
+  const safeHarvest = openSafeHarvestDate(sprays.entries, now);
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
@@ -178,6 +191,18 @@ export function PlotDetailScreen() {
               <>
                 <View style={styles.divider} />
 
+                {/* נודניק ההתיישנות, design.md, "Staleness nudge":
+                    שורת טקסט אחת מעל המספר, לא כרטיס ולא מודאל. לוחצים
+                    עליה ונפתח אותו גיליון דו-שדות של עדכון הצפי. */}
+                {staleSince && (
+                  <Pressable onPress={() => setForecastOpen(true)} accessibilityRole="button">
+                    <Text style={styles.staleNudge}>
+                      {t('plots.forecast.stalePrefix')} {formatMonthName(staleSince)},{' '}
+                      {t('plots.forecast.staleSuffix')}
+                    </Text>
+                  </Pressable>
+                )}
+
                 <View style={styles.incomeBlock}>
                   <Text style={styles.incomeLabel}>{t('plots.income.expected')}</Text>
                   <ExpectedIncome
@@ -204,6 +229,22 @@ export function PlotDetailScreen() {
                   <PencilLine size={16} strokeWidth={2} color={colors.field700} />
                   <Text style={styles.forecastUpdateText}>{t('plots.forecast.update')}</Text>
                 </Pressable>
+
+                {/* design.md, טאב צפי הכנסה: "When the plot has an open
+                    spray record with phi_days set, a Field-100 'בטוח
+                    לקטיף מ-…' chip renders here too". המחמיר מבין
+                    הריסוסים הפתוחים קובע, ראה openSafeHarvestDate. */}
+                {safeHarvest && (
+                  <View style={styles.safeHarvestChip}>
+                    <Text style={styles.safeHarvestText}>
+                      {t('log.form.safeHarvestPrefix')}-
+                      {new Date(safeHarvest).toLocaleDateString('he-IL', {
+                        day: '2-digit',
+                        month: '2-digit',
+                      })}
+                    </Text>
+                  </View>
+                )}
               </>
             )}
           </View>
@@ -650,6 +691,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.s8,
+  },
+  // נודניק ההתיישנות. caption/Slate-600, שורה אחת מעל המספר.
+  staleNudge: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.caption,
+    color: colors.slate600,
+    writingDirection: 'rtl',
+  },
+  // צ'יפ Field-100, design.md. ה-alignSelf מונע ממנו להימתח לרוחב
+  // הכרטיס, צ'יפ נמדד לפי תוכנו.
+  safeHarvestChip: {
+    alignSelf: 'flex-start',
+    marginTop: spacing.s12,
+    paddingVertical: spacing.s8,
+    paddingHorizontal: spacing.s12,
+    borderRadius: radius.pill,
+    backgroundColor: colors.field100,
+  },
+  safeHarvestText: {
+    fontFamily: fonts.medium,
+    fontSize: fontSize.bodySm,
+    color: colors.field700,
+    writingDirection: 'rtl',
   },
   // heading/900, אותו משקל כמו שאר מספרי הרווח במוצר, design.md.
   profitValue: {

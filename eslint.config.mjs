@@ -61,11 +61,16 @@ export default [
     languageOptions: {
       ...tsBase.languageOptions,
       // packages/shared הוא קוד טהור בלי תלות בסביבה, ולכן אין כאן
-      // globals.browser או globals.node. Blob הוא היוצא מן הכלל:
-      // attachReceipt מקבל אותו כטיפוס, והוא קיים זהה בשלושת
-      // הסביבות (דפדפן, React Native, Worker). מוצהר בנקודה במקום
+      // globals.browser או globals.node. אלה היוצאים מן הכלל, וכולם
+      // קיימים זהה בשלושת הסביבות (דפדפן, React Native, Worker):
+      // Blob (attachReceipt מקבל אותו כטיפוס) והטיימרים (useDataFreshness
+      // מתקתק כדי שתווית הטריות תזדקן על המסך). מוצהרים בנקודה במקום
       // לפתוח את כל סביבת הדפדפן ולאפשר בטעות document או window.
-      globals: { Blob: 'readonly' },
+      globals: {
+        Blob: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+      },
     },
   },
   {

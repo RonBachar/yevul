@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { AccessibilityInfo, Animated, StyleSheet, Text, View } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import TrendingUp from 'lucide-react-native/icons/trending-up';
 import TrendingDown from 'lucide-react-native/icons/trending-down';
 import {
@@ -30,8 +31,22 @@ import { colors, fonts, fontSize, radius, spacing } from '../theme/tokens';
 // כן להציג ₪0 ב-Ink-900.
 
 export function ProfitHeroCard({ farmName }: { farmName: string | null }) {
-  const { loading, failed, forecast, renderable } = useFarmProfit(supabase);
+  const { loading, failed, forecast, renderable, refresh } = useFarmProfit(supabase);
   const settings = useFarmSettings(supabase);
+
+  // רענון בכל חזרה למסך, בדיוק כמו PlotsScreen ו-PlotDetailScreen.
+  // בלעדיו מספר הרווח נטען פעם אחת ונשאר תקוע: בניווט טאבים המסך
+  // נשאר מעוגן ואינו נבנה מחדש, כך שהוספת הוצאה בטאב הכסף לא הייתה
+  // משתקפת כאן עד סגירת האפליקציה.
+  //
+  // **זהו גם התחליף לצ'יפ הטריות שהיה כאן.** הצ'יפ דיווח על תסמין
+  // ("המספר הזה בן שעה") בלי לתת לחקלאי מה לעשות איתו, בעוד שהסיבה
+  // האמיתית הייתה חוסר הרענון הזה. נמחק בהחלטת היזם 2026-08-29.
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
 
   if (loading || failed || !renderable) return null;
 

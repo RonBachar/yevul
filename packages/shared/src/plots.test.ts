@@ -5,6 +5,7 @@ import {
   expectedYieldDisplay,
   isCustomYieldUnit,
   plotProfitForecast,
+  staleForecastSince,
   yieldUnitPresets,
 } from './plots';
 import type { CropCycle } from './plots';
@@ -167,5 +168,35 @@ describe('expectedPriceDisplay', () => {
     expect(expectedPriceDisplay(cropCycle({ expectedPricePerUnit: null }), 'ILS')).toBe(
       'לא הוזן עדיין',
     );
+  });
+});
+
+// נודניק התיישנות הצפי, design.md, Forecast Update, "Staleness nudge".
+// now מוזרק, ולכן הבדיקות אינן תלויות במועד הרצתן.
+describe('staleForecastSince', () => {
+  const now = new Date('2026-08-29T10:00:00Z');
+
+  it('reports the update date when the forecast is older than the threshold', () => {
+    const cycle = cropCycle({ forecastUpdatedAt: '2026-04-10T08:00:00Z' });
+    expect(staleForecastSince(cycle, now)).toBe('2026-04-10T08:00:00Z');
+  });
+
+  it('stays quiet while the forecast is still fresh', () => {
+    const cycle = cropCycle({ forecastUpdatedAt: '2026-07-20T08:00:00Z' });
+    expect(staleForecastSince(cycle, now)).toBeNull();
+  });
+
+  // חלקה שהחקלאי רק הגדיר לה יבול ומחיר בפעם הראשונה אינה מיושנת,
+  // ונודניק מיד אחרי ההזנה הראשונה מלמד להתעלם ממנו.
+  it('stays quiet when the forecast was never updated', () => {
+    expect(staleForecastSince(cropCycle({ forecastUpdatedAt: null }), now)).toBeNull();
+  });
+
+  it('stays quiet when there is no crop cycle at all', () => {
+    expect(staleForecastSince(null, now)).toBeNull();
+  });
+
+  it('stays quiet on a malformed timestamp rather than nagging wrongly', () => {
+    expect(staleForecastSince(cropCycle({ forecastUpdatedAt: 'not-a-date' }), now)).toBeNull();
   });
 });

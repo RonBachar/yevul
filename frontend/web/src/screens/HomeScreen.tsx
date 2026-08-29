@@ -7,7 +7,8 @@ import { ProfitHeroCard } from '../components/ProfitHeroCard';
 // "The first thing the farmer sees on opening the app". לוח המשימות
 // יורד מתחתיו, ולפי המסמך הוא דייר במסך הזה ולא בעליו.
 //
-// Data Freshness Chip הוא עדיין משימה פתוחה בשלב 4, ראה docs/roadmap.md.
+// בווב מעבר בין מסכים מבצע mount מחדש דרך React Router, ולכן
+// המספר נטען מחדש מאליו בכל חזרה לבית.
 export function HomeScreen() {
   return (
     <div className="screen">

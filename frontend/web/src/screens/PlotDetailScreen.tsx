@@ -9,6 +9,10 @@ import {
   formatSignedAmount,
   plotProfitForecast,
   usePlotExpensesTotal,
+  useLogEntries,
+  openSafeHarvestDate,
+  staleForecastSince,
+  formatMonthName,
   plotSummaryLine,
   priceUnitLabel,
   profitTone,
@@ -58,6 +62,9 @@ export function PlotDetailScreen() {
   // מעקב ההוצאות עוד לא היה קיים כשהמסך נבנה, והתוצאה הייתה צפי רווח
   // ששווה להכנסה המלאה גם אחרי שהחקלאי כבר רשם הוצאות.
   const plotExpenses = usePlotExpensesTotal(supabase, plotId ?? null);
+  // רשומות הריסוס של החלקה, לצ'יפ "בטוח לקטיף". הסינון לפי סוג קורה
+  // במסד ולא בקליינט, אותו עיקרון כמו במסך יומן הריסוס.
+  const sprays = useLogEntries(supabase, plotId ?? undefined, 'spray');
   const [tab, setTab] = useState<Tab>('income');
 
   if (detail.loading || detail.failed || !detail.plot) {
@@ -75,6 +82,12 @@ export function PlotDetailScreen() {
   }
 
   const { plot, cropCycle } = detail;
+
+  // "עכשיו" נלקח פעם אחת בזמן הרינדור ומוזרק לשתי הפונקציות הטהורות,
+  // כדי שהחישוב עצמו יישאר בדיק ולא ייגע בשעון בעצמו.
+  const now = new Date();
+  const staleSince = staleForecastSince(cropCycle, now);
+  const safeHarvest = openSafeHarvestDate(sprays.entries, now);
 
   return (
     <div className="screen">
@@ -120,6 +133,8 @@ export function PlotDetailScreen() {
             areaUnit={plot.areaUnit}
             cropCycle={cropCycle}
             currency={settings.form?.currency ?? 'ILS'}
+            staleSince={staleSince}
+            safeHarvest={safeHarvest}
             onSaved={detail.refresh}
           />
           {/* design.md, Spray Log Screen: "a button on the Plot Detail
@@ -199,12 +214,16 @@ function ProfitabilityCard({
   areaUnit,
   cropCycle,
   currency,
+  staleSince,
+  safeHarvest,
   onSaved,
 }: {
   plotArea: number | null;
   areaUnit: AreaUnit | null;
   cropCycle: CropCycle | null;
   currency: Currency;
+  staleSince: string | null;
+  safeHarvest: string | null;
   onSaved: () => void;
 }) {
   const [cropEditing, setCropEditing] = useState(false);
@@ -490,6 +509,19 @@ function ProfitabilityCard({
             </form>
           ) : (
             <>
+              {/* נודניק ההתיישנות, design.md, "Staleness nudge": שורת
+                  טקסט אחת מעל המספר, לא כרטיס ולא מודאל. לחיצה עליה
+                  פותחת בדיוק את אותה עריכת צפי. */}
+              {staleSince && (
+                <button
+                  type="button"
+                  className="plot-detail__stale-nudge"
+                  onClick={startForecastEdit}
+                >
+                  {t('plots.forecast.stalePrefix')} {formatMonthName(staleSince)},{' '}
+                  {t('plots.forecast.staleSuffix')}
+                </button>
+              )}
               <p className="plot-detail__income-label">{t('plots.income.expected')}</p>
               {expectedIncome != null && (
                 <p
@@ -522,6 +554,19 @@ function ProfitabilityCard({
               >
                 {t('plots.forecast.update')}
               </button>
+
+              {/* design.md, טאב צפי הכנסה: צ'יפ Field-100 "בטוח לקטיף
+                  מ-…" כשלחלקה יש ריסוס פתוח עם phi_days. המחמיר מבין
+                  הריסוסים הפתוחים קובע, ראה openSafeHarvestDate. */}
+              {safeHarvest && (
+                <p className="plot-detail__safe-harvest">
+                  {t('log.form.safeHarvestPrefix')}-
+                  {new Date(safeHarvest).toLocaleDateString('he-IL', {
+                    day: '2-digit',
+                    month: '2-digit',
+                  })}
+                </p>
+              )}
             </>
           )}
         </>
