@@ -1,0 +1,86 @@
+/*
+  גיליון ההדפסה. **זהו מנגנון ה-PDF של המוצר**, בהחלטה מפורשת של
+  היזם 2026-08-30: המשתמש לוחץ הדפסה ובוחר "שמור כ-PDF".
+
+  ספריית PDF בדפדפן (jsPDF וכדומה) נדחתה במכוון. היא דורשת הטמעת
+  פונט ידנית וסידור RTL ידני, וזהו מקור קלאסי לטקסט עברי הפוך או
+  לריבועים. כאן הדפדפן מרנדר, ולכן העברית וה-RTL נכונים בהגדרה,
+  ובלי שום תלות חדשה.
+
+  אין כאן שום עיצוב חדש, רק הסרה: הניווט, הכפתורים והצבעים יורדים,
+  ומה שנשאר הוא התוכן עצמו בשחור על לבן.
+*/
+
+@media print {
+  /* דיו. רקעים צבעוניים מבזבזים טונר ומורידים ניגודיות על נייר. */
+  * {
+    background: transparent !important;
+    box-shadow: none !important;
+    color: #000 !important;
+  }
+
+  /* כרום שאין לו מה לעשות על דף מודפס. */
+  .sidebar,
+  .shell__skip,
+  .print-hide {
+    display: none !important;
+  }
+
+  .shell {
+    display: block !important;
+  }
+
+  .shell__content,
+  .screen {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* סולם הטיפוגרפיה של המוצר נכתב לקריאה ממרחק זרוע בשמש ישירה,
+     והוא גדול מדי לנייר. כאן הוא יורד לגדלים של מסמך מודפס. */
+  .screen__title {
+    font-size: 22pt !important;
+    margin-bottom: 12pt !important;
+  }
+
+  .profit-hero__value {
+    font-size: 28pt !important;
+  }
+
+  .plot-card__value {
+    font-size: 16pt !important;
+  }
+
+  body {
+    font-size: 11pt !important;
+  }
+
+  /* מסגרות דקות במקום רקעים, כדי שכרטיסים יישארו מובחנים על נייר. */
+  .profit-hero,
+  .plot-card,
+  .expense-row,
+  .log-row,
+  .task-row {
+    border: 1px solid #999 !important;
+    border-radius: 0 !important;
+  }
+
+  /* שורה או כרטיס לא אמורים להיחתך בין שני דפים. */
+  .plot-card,
+  .expense-row,
+  .log-row,
+  .task-row,
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .profit-hero {
+    break-after: avoid;
+  }
+
+  @page {
+    margin: 15mm;
+  }
+}

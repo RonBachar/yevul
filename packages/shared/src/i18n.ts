@@ -151,6 +151,40 @@ const strings: Record<string, string> = {
   'plots.crop.saved': 'פרטי הגידול נשמרו',
   'plots.crop.forbidden': 'אין לכם הרשאה לערוך את הגידול',
   'plots.crop.saveError': 'לא הצלחנו לשמור, נסו שוב',
+  // ייצוא דוחות, שלב 4, prd.md סעיף 10. כותרות העמודות בקבצי ה-CSV
+  // עוברות דרך t() כמו כל מחרוזת אחרת, כי הקובץ נפתח אצל רואה חשבון
+  // ובשפה שלו.
+  'report.column.plot': 'חלקה',
+  'report.column.crop': 'גידול',
+  'report.column.season': 'עונה',
+  'report.column.area': 'שטח',
+  'report.column.expectedIncome': 'צפי הכנסה',
+  'report.column.expenses': 'הוצאות',
+  'report.column.profitForecast': 'צפי רווח',
+  'report.column.date': 'תאריך',
+  'report.column.expenseName': 'שם ההוצאה',
+  'report.column.amount': 'סכום',
+  'report.column.receipt': 'קבלה',
+  'report.column.note': 'הערה',
+  'report.column.type': 'סוג',
+  'report.column.pest': 'מזיק',
+  'report.column.material': 'חומר',
+  'report.column.dose': 'מינון',
+  'report.column.phiDays': 'ימי המתנה',
+  'report.column.safeHarvest': 'בטוח לקטיף מ',
+  'report.column.harvestQty': 'כמות יבול',
+  // הוצאה שלא שויכה לאף חלקה. תווית מפורשת ולא תא ריק, כדי שרואה
+  // החשבון יראה שזו הוצאה כללית ולא יחשוב שחסר נתון.
+  'report.generalExpense': 'כללי, ללא חלקה',
+  'report.yes': 'כן',
+  'report.no': 'לא',
+  // כפתורי הייצוא במסכים
+  'report.exportProfitability': 'ייצוא דוח רווחיות',
+  'report.exportExpenses': 'ייצוא הוצאות לרואה חשבון',
+  'report.exportJournal': 'ייצוא יומן מלא',
+  'report.exportSprayLog': 'ייצוא לרגולטור',
+  'report.print': 'הדפסה או שמירה כ-PDF',
+  'report.sectionTitle': 'דוחות וייצוא',
   'plots.forecast.update': 'עדכון צפי',
   // נודניק ההתיישנות, design.md, "Staleness nudge". שם החודש נכנס בין
   // שני החלקים (אין אינטרפולציה ב-t, ראה ראש הקובץ), אותה תבנית כמו

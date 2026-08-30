@@ -103,6 +103,7 @@ export {
   type ExpenseWriteResult,
   type ExpensesListState,
 } from './expenses';
+export { toCsv, profitabilityCsv, expensesCsv, journalCsv, type CsvReport } from './reports';
 export {
   useFarmProfit,
   usePlotExpensesTotal,

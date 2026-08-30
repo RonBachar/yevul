@@ -1,15 +1,20 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { t, useLogEntries, usePlots } from '@yevul/shared';
+import { journalCsv, t, useCurrentFarm, useLogEntries, usePlots } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { LogRow } from '../components/LogRow';
 import { LogEntrySheet } from '../components/LogEntrySheet';
+import { ExportBar } from '../components/ExportBar';
 import './SprayLogScreen.css';
 
 // מסך יומן ריסוס נפרד, design.md "Spray Log Screen". מוצג רק ריסוסים,
 // מסונן לפי חלקה, prd.md סעיף 8: "מה שהחקלאי חייב להציג לרגולטור...
 // הוא הדבר הכי חשוב שיש לו באפליקציה, והוא צריך למצוא אותו בלי לחפש".
-// כפתור "ייצוא לרגולטור" לא נבנה כאן במכוון, ראה docs/roadmap.md.
+// כפתור "ייצוא לרגולטור" נבנה בשלב 4, design.md, Spray Log Screen:
+// "A single full-width pill at the bottom reads ייצוא לרגולטור".
+// הוא מייצא **את מה שמסונן על המסך**, כלומר מכבד את בורר החלקה
+// שמעליו, כי מפקח מבקש בדרך כלל חלקה אחת ולא את כל המשק. הקובץ נושא
+// את שדה "בטוח לקטיף" הנגזר, שהוא מה שהמפקח באמת בודק.
 //
 // plotId מגיע כפרמטר שאילתה אופציונלי (?plot=...) כשמגיעים מכפתור
 // בפרטי חלקה, כדי שהמסך ייפתח כבר מסונן לאותה חלקה בלי לאבד את
@@ -18,6 +23,7 @@ export function SprayLogScreen() {
   const [searchParams] = useSearchParams();
   const routePlotId = searchParams.get('plot');
 
+  const { farm } = useCurrentFarm(supabase);
   const plotsState = usePlots(supabase);
   const [selectedPlotId, setSelectedPlotId] = useState<string | null>(routePlotId);
   const entriesState = useLogEntries(supabase, selectedPlotId ?? undefined, 'spray');
@@ -97,6 +103,16 @@ export function SprayLogScreen() {
           ))}
         </div>
       )}
+
+      <ExportBar
+        farmName={farm?.name ?? null}
+        actions={[
+          {
+            label: t('report.exportSprayLog'),
+            build: () => journalCsv(entriesState.entries, entriesState.plotNames, 'spray-log'),
+          },
+        ]}
+      />
 
       <LogEntrySheet
         supabase={supabase}
