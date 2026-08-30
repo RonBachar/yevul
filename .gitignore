@@ -56,3 +56,5 @@ backend/supabase/snippets/
 # מתעלם מ-backend/supabase/config.toml, ומרים ברירות מחדל בלי להתריע.
 # השורה הזאת מונעת מהשארית הזאת להיכנס ל-git בשקט.
 /supabase/
+.dev.vars
+.wrangler/

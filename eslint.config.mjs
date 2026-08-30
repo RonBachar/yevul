@@ -23,7 +23,17 @@ const tsBase = {
 
 export default [
   {
-    ignores: ['**/node_modules/**', '**/dist/**', '**/.expo/**', '**/web-build/**', 'docs/**'],
+    ignores: [
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/.expo/**',
+      '**/web-build/**',
+      // תוצרי בנייה זמניים של wrangler dev/deploy. קוד שנוצר אוטומטית
+      // ואינו שלנו, ו-`npm run lint` נכשל עליו ב-23 שגיאות ברגע שמריצים
+      // את ה-Worker מקומית.
+      '**/.wrangler/**',
+      'docs/**',
+    ],
   },
   js.configs.recommended,
   {
