@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useExpenses } from './expenses';
 import {
@@ -124,17 +124,41 @@ export function usePlotExpensesTotal(
         : expenses.reduce((sum, expense) => sum + expense.amount, 0),
     [plotId, loading, failed, expenses],
   );
-  return { total, refresh };
+  // ממוזכר, ולא אובייקט literal חדש בכל רינדור, מאותו נימוק שמפורט
+  // ב-useFarmProfit: קורא שישים את התוצאה בתלויות של אפקט יקבל זהות
+  // חדשה בכל רינדור ויסתובב בלולאה.
+  return useMemo(() => ({ total, refresh }), [total, refresh]);
 }
 
 export function useFarmProfit(supabase: SupabaseClient): FarmProfitState {
   const plotsState = usePlots(supabase);
   const expensesState = useExpenses(supabase);
 
+  // **הפירוק לשדות בודדים אינו סגנוני, הוא מה שמונע לולאת רינדור
+  // אינסופית.** usePlots ו-useExpenses מחזירים אובייקט חדש בכל רינדור
+  // (הם בונים אותו literal ולא ממוזכר), ולכן useMemo שתלוי באובייקט
+  // עצמו לעולם אינו פוגע, וכל ערך שנוצר בתוכו, ובכללו refresh, מקבל
+  // זהות חדשה בכל רינדור. מסך שקורא useFocusEffect עם refresh בתלויות
+  // היה מזהה שינוי בכל רינדור, קורא ל-refresh, גורם לרינדור, וחוזר
+  // חלילה. זה בדיוק מה שקרה במסך הבית וב-PlotsScreen.
+  //
+  // המערכים והדגלים כאן מגיעים מ-setState ולכן יציבים בין רינדורים
+  // כשהנתונים לא השתנו, ושתי פונקציות ה-refresh כבר עטופות ב-useCallback
+  // ריק במקורן, כלומר יציבות מלכתחילה.
+  const { plots: rawPlots, loading: plotsLoading, failed: plotsFailed, farmId } = plotsState;
+  const { expenses, loading: expensesLoading, failed: expensesFailed } = expensesState;
+  const refreshPlots = plotsState.refresh;
+  const refreshExpenses = expensesState.refresh;
+
+  const refresh = useCallback(() => {
+    refreshPlots();
+    refreshExpenses();
+  }, [refreshPlots, refreshExpenses]);
+
   return useMemo(() => {
     const expensesByPlot = new Map<string, number>();
     let generalExpenses = 0;
-    for (const expense of expensesState.expenses) {
+    for (const expense of expenses) {
       if (expense.plotId) {
         expensesByPlot.set(
           expense.plotId,
@@ -145,12 +169,12 @@ export function useFarmProfit(supabase: SupabaseClient): FarmProfitState {
       }
     }
 
-    const plots: PlotProfitRow[] = plotsState.plots.map((plot) => {
-      const expenses = expensesByPlot.get(plot.id) ?? 0;
+    const plots: PlotProfitRow[] = rawPlots.map((plot) => {
+      const plotExpenses = expensesByPlot.get(plot.id) ?? 0;
       return {
         ...plot,
-        expenses,
-        forecast: plotProfitForecast(plot.area, plot.cropCycle, expenses),
+        expenses: plotExpenses,
+        forecast: plotProfitForecast(plot.area, plot.cropCycle, plotExpenses),
       };
     });
 
@@ -160,20 +184,26 @@ export function useFarmProfit(supabase: SupabaseClient): FarmProfitState {
         expenses: plot.expenses,
       })),
       generalExpenses,
-      expensesState.expenses.length > 0,
+      expenses.length > 0,
     );
 
     return {
-      loading: plotsState.loading || expensesState.loading,
-      failed: plotsState.failed || expensesState.failed,
-      farmId: plotsState.farmId,
+      loading: plotsLoading || expensesLoading,
+      failed: plotsFailed || expensesFailed,
+      farmId,
       forecast,
       plots,
       renderable: plots.length === 0 || forecast.plotsWithForecast > 0,
-      refresh: () => {
-        plotsState.refresh();
-        expensesState.refresh();
-      },
+      refresh,
     };
-  }, [plotsState, expensesState]);
+  }, [
+    rawPlots,
+    expenses,
+    plotsLoading,
+    plotsFailed,
+    expensesLoading,
+    expensesFailed,
+    farmId,
+    refresh,
+  ]);
 }
