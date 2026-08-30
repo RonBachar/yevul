@@ -6,7 +6,7 @@
 // עד ביקורת הארכיטקטורה של שלב 2 הערכים ישבו כאן וגם ב-tokens.css של
 // הווב, שני עותקים ידניים שכבר הספיקו להיפרד.
 
-import { shadowFloat as sharedShadow } from '@yevul/shared';
+import { colors, shadowFloat as sharedShadow, type ProfitTone } from '@yevul/shared';
 
 export { colors, spacing, radius, fontSize, touchTarget } from '@yevul/shared';
 
@@ -30,3 +30,14 @@ export const shadowFloat = {
   shadowOpacity: sharedShadow.opacity,
   elevation: 12,
 } as const;
+
+// צבע מספר רווח לפי הטון. שלושה מסכים בנייד הציגו את אותה שרשרת
+// שלישייה מילה במילה (כרטיס הבית, כרטיס החלקה, וכותרת פרטי החלקה),
+// וזה בדיוק סוג הכפילות שגורמת לצבע להתפצל כשמישהו משנה אחד מהם.
+// אפס הוא Ink-900 ולא ירוק ולא אדום, design.md: הוא אינו רווח ואינו
+// הפסד, ולצבוע אותו הוא אות שקרי.
+export function profitToneColor(tone: ProfitTone): string {
+  if (tone === 'profit') return colors.profit600;
+  if (tone === 'loss') return colors.loss600;
+  return colors.ink900;
+}

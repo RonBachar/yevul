@@ -24,7 +24,10 @@ export function downloadCsv(report: CsvReport, farmName: string | null): void {
   link.click();
   link.remove();
 
-  // שחרור ה-object URL. בלעדיו כל ייצוא משאיר את תוכן הקובץ בזיכרון
-  // הלשונית עד לרענון.
-  URL.revokeObjectURL(url);
+  // שחרור ה-object URL, **אבל לא באותו tick**. חלק מהדפדפנים (פיירפוקס
+  // בעיקר) מתחילים לקרוא את ה-blob אחרי שה-click חוזר, ושחרור מיידי
+  // עלול לשחרר אותו לפני שההורדה התחילה, כלומר קובץ ריק או הורדה
+  // שנכשלת בשקט. בלי השחרור בכלל, כל ייצוא משאיר את תוכן הקובץ בזיכרון
+  // הלשונית עד לרענון. נמצא בקוד ריוויו של שלב 4.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }

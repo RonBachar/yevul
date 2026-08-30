@@ -33,7 +33,15 @@ import {
   type Currency,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
-import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
+import {
+  colors,
+  fonts,
+  fontSize,
+  profitToneColor,
+  radius,
+  spacing,
+  touchTarget,
+} from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from '../components/BottomSheet';
 import { ExpenseList } from '../components/ExpenseList';
@@ -72,7 +80,6 @@ export function PlotDetailScreen() {
   // מעקב ההוצאות עוד לא היה קיים כשהמסך נבנה, והתוצאה הייתה צפי רווח
   // ששווה להכנסה המלאה גם אחרי שהחקלאי כבר רשם הוצאות.
   const plotExpenses = usePlotExpensesTotal(supabase, plotId);
-  const expensesTotal = plotExpenses.total;
   // רשומות הריסוס של החלקה, לצ'יפ "בטוח לקטיף". הסינון לפי סוג קורה
   // במסד ולא בקליינט, אותו עיקרון כמו במסך יומן הריסוס.
   const sprays = useLogEntries(supabase, plotId, 'spray');
@@ -139,7 +146,8 @@ export function PlotDetailScreen() {
       <ProfitForecastHeader
         plotArea={plot.area}
         cropCycle={cropCycle}
-        expensesTotal={expensesTotal}
+        expensesTotal={plotExpenses.total}
+        expensesLoading={plotExpenses.loading}
         currency={settings.form?.currency ?? 'ILS'}
       />
 
@@ -318,19 +326,24 @@ function ProfitForecastHeader({
   plotArea,
   cropCycle,
   expensesTotal,
+  expensesLoading,
   currency,
 }: {
   plotArea: number | null;
   cropCycle: CropCycle | null;
   expensesTotal: number | null;
+  expensesLoading: boolean;
   currency: Currency;
 }) {
+  // הכותרת כולה מוסתרת עד שההוצאות ידועות. מספר כספי שגוי, ובמיוחד
+  // המשפט "עדיין לא נרשמו הוצאות" על חלקה שיש בה הוצאות, גרועים
+  // מהופעה של הכותרת רבע שנייה מאוחר יותר. ראה usePlotExpensesTotal.
+  if (expensesLoading) return null;
   // null כשאין מספיק נתונים לחשב, וגם כשהמשתמש הוא עובד ששדות התחזית
   // ממוסכים לו במסד. בשני המקרים הכותרת פשוט לא מרונדרת.
   //
-  // expensesTotal הוא null רק בזמן טעינה או כשל, ואז חיווי ה-Wheat
-  // מוצג במקום מספר שגוי לרגע. אחרי הטעינה זה מספר אמיתי, כולל 0,
-  // שהוא עובדה ולא חוסר ידיעה.
+  // אחרי הטעינה expensesTotal הוא מספר אמיתי, כולל 0, שהוא עובדה ולא
+  // חוסר ידיעה. null כאן נשאר רק לכשל טעינה, ושם חיווי ה-Wheat נכון.
   const forecast = plotProfitForecast(plotArea, cropCycle, expensesTotal);
   if (!forecast) return null;
 
@@ -342,8 +355,7 @@ function ProfitForecastHeader({
         ? styles.profitValueLoss
         : styles.profitValueZero;
   const Glyph = tone === 'loss' ? TrendingDown : TrendingUp;
-  const glyphColor =
-    tone === 'profit' ? colors.profit600 : tone === 'loss' ? colors.loss600 : colors.ink900;
+  const glyphColor = profitToneColor(tone);
 
   return (
     <View style={styles.profitHeader}>

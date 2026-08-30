@@ -136,9 +136,18 @@ export function staleForecastSince(cropCycle: CropCycle | null, now: Date): stri
   const updated = new Date(updatedAt);
   if (Number.isNaN(updated.getTime())) return null;
 
-  const threshold = new Date(now);
-  threshold.setMonth(threshold.getMonth() - FORECAST_STALE_MONTHS);
-  return updated < threshold ? updatedAt : null;
+  // **היום מקוצץ לאורך חודש היעד, ולא נמסר כמו שהוא.** גם setMonth
+  // וגם Date.UTC מנרמלים גלישה: ב-31 במאי, פחות שלושה חודשים, שניהם
+  // הופכים "31 בפברואר" ל-3 במרץ, הסף זז כמה ימים קדימה, והנודניק
+  // מופיע מוקדם מדי. Date.UTC(year, month + 1, 0) מחזיר את היום
+  // האחרון בחודש היעד, ומגלגל שנים נכון גם כשהחודש יוצא שלילי.
+  // נמצא בקוד ריוויו של שלב 4, ותוקן אחרי שהתיקון הראשון נפל על
+  // אותה גלישה עצמה.
+  const year = now.getUTCFullYear();
+  const month = now.getUTCMonth() - FORECAST_STALE_MONTHS;
+  const lastDayOfTargetMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const threshold = Date.UTC(year, month, Math.min(now.getUTCDate(), lastDayOfTargetMonth));
+  return updated.getTime() < threshold ? updatedAt : null;
 }
 
 // ============================================================

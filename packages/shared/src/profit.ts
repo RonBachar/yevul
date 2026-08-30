@@ -106,16 +106,23 @@ export type FarmProfitState = {
 
 // סכום ההוצאות של חלקה אחת, לכותרת צפי הרווח בפרטי חלקה. עוטף את
 // useExpenses עם plotId, שכבר מצמצם במסד דרך expense_allocations!inner,
-// כדי שהמסך לא יחזיק לוגיקת סכימה משלו. מחזיר null בזמן טעינה או כשל,
-// וזה בדיוק מה ש-plotProfitForecast מבין כ"אין מעקב", כך שהמסך לא
-// מהבהב מספר שגוי לרגע לפני שההוצאות הגיעו.
+// כדי שהמסך לא יחזיק לוגיקת סכימה משלו.
+//
+// **loading נחשף בנפרד, ולא מקופל לתוך total, וזה תיקון של באג אמיתי.**
+// הגרסה הראשונה החזירה null בזמן טעינה, ו-plotProfitForecast מפרש null
+// כ"אין מעקב הוצאות". התוצאה הייתה שבכל פתיחת חלקה שיש בה הוצאות,
+// עד שהשאילתה חזרה, המסך הציג "עדיין לא נרשמו הוצאות" יחד עם רווח
+// ששווה להכנסה המלאה. כלומר הוא לא הבהב מספר שגוי, הוא הבהב **הצהרה
+// כספית שקרית**, וזה גרוע יותר. המסך מסתיר את הכותרת בזמן טעינה במקום
+// לנחש. נמצא בקוד ריוויו של שלב 4.
+//
 // plotId יכול להיות null רק כשהנתיב עצמו פגום (הווב גוזר אותו
 // מ-useParams). במקרה כזה מוחזר null בלי לגעת בתוצאה, כדי שלא ייווצר
 // מצב שבו היעדר חלקה נקרא בטעות כ"כל הוצאות המשק".
 export function usePlotExpensesTotal(
   supabase: SupabaseClient,
   plotId: string | null,
-): { total: number | null; refresh: () => void } {
+): { total: number | null; loading: boolean; refresh: () => void } {
   const { loading, failed, expenses, refresh } = useExpenses(supabase, plotId ?? undefined);
   const total = useMemo(
     () =>
@@ -127,7 +134,7 @@ export function usePlotExpensesTotal(
   // ממוזכר, ולא אובייקט literal חדש בכל רינדור, מאותו נימוק שמפורט
   // ב-useFarmProfit: קורא שישים את התוצאה בתלויות של אפקט יקבל זהות
   // חדשה בכל רינדור ויסתובב בלולאה.
-  return useMemo(() => ({ total, refresh }), [total, refresh]);
+  return useMemo(() => ({ total, loading, refresh }), [total, loading, refresh]);
 }
 
 export function useFarmProfit(supabase: SupabaseClient): FarmProfitState {

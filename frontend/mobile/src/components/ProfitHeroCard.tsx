@@ -14,7 +14,7 @@ import {
   type Currency,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
-import { colors, fonts, fontSize, radius, spacing } from '../theme/tokens';
+import { colors, fonts, fontSize, profitToneColor, radius, spacing } from '../theme/tokens';
 
 // Live P&L Hero Card, שלב 4, design.md. "The first thing the farmer sees
 // on opening the app."
@@ -114,8 +114,7 @@ function HeroCardView({
   }, [profit, scale]);
 
   const tone = profitTone(profit);
-  const toneColor =
-    tone === 'profit' ? colors.profit600 : tone === 'loss' ? colors.loss600 : colors.ink900;
+  const toneColor = profitToneColor(tone);
   const Glyph = tone === 'loss' ? TrendingDown : TrendingUp;
   const formatted = formatSignedAmount(profit, currency);
 

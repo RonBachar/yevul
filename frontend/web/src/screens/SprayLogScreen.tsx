@@ -106,6 +106,7 @@ export function SprayLogScreen() {
 
       <ExportBar
         farmName={farm?.name ?? null}
+        loading={entriesState.loading}
         actions={[
           {
             label: t('report.exportSprayLog'),

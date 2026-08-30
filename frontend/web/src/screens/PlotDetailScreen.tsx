@@ -108,6 +108,7 @@ export function PlotDetailScreen() {
         plotArea={plot.area}
         cropCycle={cropCycle}
         expensesTotal={plotExpenses.total}
+        expensesLoading={plotExpenses.loading}
         currency={settings.form?.currency ?? 'ILS'}
       />
 
@@ -167,16 +168,21 @@ function ProfitForecastHeader({
   plotArea,
   cropCycle,
   expensesTotal,
+  expensesLoading,
   currency,
 }: {
   plotArea: number | null;
   cropCycle: CropCycle | null;
   expensesTotal: number | null;
+  expensesLoading: boolean;
   currency: Currency;
 }) {
-  // expensesTotal הוא null רק בזמן טעינה או כשל, ואז חיווי ה-Wheat
-  // מוצג במקום מספר שגוי לרגע. אחרי הטעינה זה מספר אמיתי, כולל 0,
-  // שהוא עובדה ולא חוסר ידיעה.
+  // הכותרת כולה מוסתרת עד שההוצאות ידועות. מספר כספי שגוי, ובמיוחד
+  // המשפט "עדיין לא נרשמו הוצאות" על חלקה שיש בה הוצאות, גרועים
+  // מהופעה של הכותרת רבע שנייה מאוחר יותר. ראה usePlotExpensesTotal.
+  if (expensesLoading) return null;
+  // אחרי הטעינה expensesTotal הוא מספר אמיתי, כולל 0, שהוא עובדה ולא
+  // חוסר ידיעה. null כאן נשאר רק לכשל טעינה, ושם חיווי ה-Wheat נכון.
   const forecast = plotProfitForecast(plotArea, cropCycle, expensesTotal);
   if (!forecast) return null;
 

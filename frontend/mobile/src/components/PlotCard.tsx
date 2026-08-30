@@ -11,7 +11,7 @@ import {
   type Currency,
   type PlotProfitRow,
 } from '@yevul/shared';
-import { colors, fonts, fontSize, radius, spacing } from '../theme/tokens';
+import { colors, fonts, fontSize, profitToneColor, radius, spacing } from '../theme/tokens';
 
 // כרטיס חלקה, design.md "Plot Card": רדיוס 20, רקע Mist-100, ריפוד 20.
 // שם החלקה ב-subheading, שורת caption, ומספר הרווח ב-heading-lg עם
@@ -34,8 +34,7 @@ export function PlotCard({
 }) {
   const forecast = plot.forecast;
   const tone = forecast ? profitTone(forecast.profit) : 'zero';
-  const toneColor =
-    tone === 'profit' ? colors.profit600 : tone === 'loss' ? colors.loss600 : colors.ink900;
+  const toneColor = profitToneColor(tone);
   const Glyph = tone === 'loss' ? TrendingDown : TrendingUp;
   const formatted = forecast ? formatSignedAmount(forecast.profit, currency) : '';
 

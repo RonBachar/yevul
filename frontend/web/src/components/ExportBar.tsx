@@ -19,11 +19,15 @@ export type ExportAction = { label: string; build: () => CsvReport };
 export function ExportBar({
   actions,
   farmName,
-  showPrint = true,
+  loading,
 }: {
   actions: ExportAction[];
   farmName: string | null;
-  showPrint?: boolean;
+  // **חובה, ולא אופציונלי.** בלי זה לחיצה לפני שהנתונים הגיעו מורידה
+  // קובץ עם שורת כותרות בלבד, בשם קובץ תקין למראה ובלי שום שגיאה,
+  // והחקלאי שולח לרואה החשבון דוח ריק שנראה אמיתי. נמצא בקוד ריוויו
+  // של שלב 4.
+  loading: boolean;
 }) {
   return (
     <section className="export-bar print-hide">
@@ -34,6 +38,7 @@ export function ExportBar({
             key={action.label}
             type="button"
             className="export-bar__button"
+            disabled={loading}
             onClick={() => downloadCsv(action.build(), farmName)}
           >
             <Download size={18} strokeWidth={2} aria-hidden="true" />
@@ -42,16 +47,15 @@ export function ExportBar({
         ))}
         {/* ה-PDF של המוצר. הדפדפן מרנדר, ולכן עברית ו-RTL נכונים
             בהגדרה ובלי תלות חדשה. ראה styles/print.css. */}
-        {showPrint && (
-          <button
-            type="button"
-            className="export-bar__button export-bar__button--ghost"
-            onClick={() => window.print()}
-          >
-            <Printer size={18} strokeWidth={2} aria-hidden="true" />
-            {t('report.print')}
-          </button>
-        )}
+        <button
+          type="button"
+          className="export-bar__button export-bar__button--ghost"
+          disabled={loading}
+          onClick={() => window.print()}
+        >
+          <Printer size={18} strokeWidth={2} aria-hidden="true" />
+          {t('report.print')}
+        </button>
       </div>
     </section>
   );

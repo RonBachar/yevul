@@ -196,6 +196,24 @@ describe('staleForecastSince', () => {
     expect(staleForecastSince(null, now)).toBeNull();
   });
 
+  // setMonth היה מנרמל 31 בפברואר ל-3 במרץ ומזיז את הסף קדימה, כלומר
+  // מקדים את הנודניק בכמה ימים. נמצא בקוד ריוויו של שלב 4.
+  it('does not drift when the month before has fewer days', () => {
+    const endOfMay = new Date('2026-05-31T10:00:00Z');
+    // בדיוק שלושה חודשים אחורה מ-31 במאי הוא 28 בפברואר (Date.UTC
+    // מגלגל 31 בפברואר ליום האחרון האפשרי בלי לדלג על מרץ).
+    const justInside = cropCycle({ forecastUpdatedAt: '2026-03-01T00:00:00Z' });
+    expect(staleForecastSince(justInside, endOfMay)).toBeNull();
+  });
+
+  it('crosses the year boundary correctly', () => {
+    const january = new Date('2026-01-15T10:00:00Z');
+    const old = cropCycle({ forecastUpdatedAt: '2025-10-01T00:00:00Z' });
+    const fresh = cropCycle({ forecastUpdatedAt: '2025-11-20T00:00:00Z' });
+    expect(staleForecastSince(old, january)).toBe('2025-10-01T00:00:00Z');
+    expect(staleForecastSince(fresh, january)).toBeNull();
+  });
+
   it('stays quiet on a malformed timestamp rather than nagging wrongly', () => {
     expect(staleForecastSince(cropCycle({ forecastUpdatedAt: 'not-a-date' }), now)).toBeNull();
   });

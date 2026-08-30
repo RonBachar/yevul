@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { t, useExpenses, useFarmSettings, type Expense } from '@yevul/shared';
 import { ExpenseRow } from './ExpenseRow';
@@ -8,14 +8,24 @@ import './ExpenseList.css';
 // ההוצאות בווב, שלב ראשון בלבד (ראה packages/shared/src/expenses.ts).
 // רכיב תוכן, לא מסך, אותו עיקרון בדיוק כמו JournalList: מרונדר גם
 // בטאב כסף (כל המשק) וגם בטאב הוצאות בפרטי חלקה (חלקה אחת).
+// renderHeader מקבל את המצב **שכבר נטען כאן** ומרנדר מעליו. זה קיים
+// כדי שמסך הכסף יוכל לתלות סרגל ייצוא על אותם נתונים בלי לקרוא
+// ל-useExpenses בעצמו: הגרסה הראשונה עשתה בדיוק את זה, והתוצאה הייתה
+// שלוש שאילתות הוצאות זהות בכל טעינת המסך. נמצא בקוד ריוויו של שלב 4.
 export function ExpenseList({
   supabase,
   plotId,
   showPlotName,
+  renderHeader,
 }: {
   supabase: SupabaseClient;
   plotId?: string;
   showPlotName: boolean;
+  renderHeader?: (state: {
+    expenses: Expense[];
+    plotNames: Map<string, string>;
+    loading: boolean;
+  }) => ReactNode;
 }) {
   const settings = useFarmSettings(supabase);
   const currency = settings.form?.currency ?? 'ILS';
@@ -35,6 +45,11 @@ export function ExpenseList({
 
   return (
     <div className="expense-list">
+      {renderHeader?.({
+        expenses: expensesState.expenses,
+        plotNames: expensesState.plotNames,
+        loading: expensesState.loading,
+      })}
       <button type="button" className="form__submit expense-list__new" onClick={openCreate}>
         {t('expense.new')}
       </button>

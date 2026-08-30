@@ -49,7 +49,6 @@ export {
   expectedIncomeFor,
   plotProfitForecast,
   staleForecastSince,
-  FORECAST_STALE_MONTHS,
   type PlotProfitForecast,
   createPlot,
   updatePlot,
@@ -103,13 +102,11 @@ export {
   type ExpenseWriteResult,
   type ExpensesListState,
 } from './expenses';
-export { toCsv, profitabilityCsv, expensesCsv, journalCsv, type CsvReport } from './reports';
+export { profitabilityCsv, expensesCsv, journalCsv, type CsvReport } from './reports';
 export {
   useFarmProfit,
   usePlotExpensesTotal,
-  farmProfitForecast,
   type FarmProfitForecast,
-  type FarmProfitState,
   type PlotProfitRow,
 } from './profit';
 export {

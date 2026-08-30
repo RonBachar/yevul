@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { SprayCan } from 'lucide-react';
-import { journalCsv, t, useCurrentFarm, useLogEntries } from '@yevul/shared';
+import { journalCsv, t, useCurrentFarm } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { JournalList } from '../components/JournalList';
 import { ExportBar } from '../components/ExportBar';
@@ -11,9 +11,10 @@ import './JournalScreen.css';
 //
 // ייצוא היומן המלא נוסף בשלב 4, prd.md סעיף 8: "בנוסף לכפתור הייצוא
 // שבמסך הזה, יש בתוך היומן המלא גם כפתור ייצוא של היומן כולו".
+// הסרגל נתלה על הנתונים של JournalList דרך renderHeader ולא טוען
+// אותם בעצמו, אחרת אותה שאילתת יומן הייתה רצה פעמיים בכל טעינה.
 export function JournalScreen() {
   const { farm } = useCurrentFarm(supabase);
-  const { entries, plotNames } = useLogEntries(supabase);
 
   return (
     <div className="screen">
@@ -27,17 +28,22 @@ export function JournalScreen() {
         <span>{t('sprayLog.title')}</span>
       </Link>
 
-      <ExportBar
-        farmName={farm?.name ?? null}
-        actions={[
-          {
-            label: t('report.exportJournal'),
-            build: () => journalCsv(entries, plotNames, 'journal'),
-          },
-        ]}
+      <JournalList
+        supabase={supabase}
+        showPlotName
+        renderHeader={({ entries, plotNames, loading }) => (
+          <ExportBar
+            farmName={farm?.name ?? null}
+            loading={loading}
+            actions={[
+              {
+                label: t('report.exportJournal'),
+                build: () => journalCsv(entries, plotNames, 'journal'),
+              },
+            ]}
+          />
+        )}
       />
-
-      <JournalList supabase={supabase} showPlotName />
     </div>
   );
 }
