@@ -1,6 +1,6 @@
 export const SHARED_PACKAGE_VERSION = '0.0.1';
 
-export { safeHarvestDate, openSafeHarvestDate } from './safeHarvestDate';
+export { safeHarvestDate, openSafeHarvestDate, isCalendarDate } from './safeHarvestDate';
 export { t } from './i18n';
 export { useAuthSession, type AuthState } from './auth';
 export { colors } from './colors';
@@ -102,6 +102,25 @@ export {
   type ExpenseWriteResult,
   type ExpensesListState,
 } from './expenses';
+export {
+  parseVoiceExpense,
+  parseVoiceTask,
+  parseVoiceJournal,
+  parseVoiceResult,
+  resolvePlotName,
+  voiceJsonSchema,
+  VOICE_KINDS,
+  VOICE_EXPENSE_JSON_SCHEMA,
+  VOICE_TASK_JSON_SCHEMA,
+  VOICE_JOURNAL_JSON_SCHEMA,
+  type VoiceKind,
+  type VoiceExpense,
+  type VoiceTask,
+  type VoiceJournal,
+  type VoiceParsed,
+  type VoiceParseResult,
+  type PlotMatch,
+} from './voice';
 export { profitabilityCsv, expensesCsv, journalCsv, type CsvReport } from './reports';
 export {
   useFarmProfit,

@@ -72,6 +72,17 @@ export function openSafeHarvestDate(
   return latest;
 }
 
+/**
+ * האם המחרוזת היא תאריך לוח תקין בפורמט YYYY-MM-DD.
+ *
+ * יושב כאן ולא בקובץ שצורך אותו, כי ההיגיון שדוחה תאריך שגלש
+ * (2026-02-31) כבר קיים כאן ב-toUtcDateOnly, ואין סיבה לכתוב אותו
+ * פעם שנייה. נצרך בעיקר בוולידציה של פלט ה-LLM, שאינו מקור אמין.
+ */
+export function isCalendarDate(value: string): boolean {
+  return toUtcDateOnly(value) !== null && /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
 function toUtcDateOnly(input: string | Date): Date | null {
   if (input instanceof Date) {
     if (Number.isNaN(input.getTime())) {
