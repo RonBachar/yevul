@@ -102,6 +102,9 @@ export {
   type ExpenseWriteResult,
   type ExpensesListState,
 } from './expenses';
+// חילוץ מקול, שלב 5. **מוקפא בהחלטת היזם 2026-08-30**, ראה
+// docs/roadmap.md. קוד טהור בלי תלויות ובלי צרכן, שממתין ליום שבו
+// הקול ייבנה, ומשרת גם את OCR הקבלות.
 export {
   parseVoiceExpense,
   parseVoiceTask,
