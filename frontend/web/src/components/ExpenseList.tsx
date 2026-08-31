@@ -8,7 +8,7 @@ import './ExpenseList.css';
 // ההוצאות בווב, שלב ראשון בלבד (ראה packages/shared/src/expenses.ts).
 // רכיב תוכן, לא מסך, אותו עיקרון בדיוק כמו JournalList: מרונדר גם
 // בטאב כסף (כל המשק) וגם בטאב הוצאות בפרטי חלקה (חלקה אחת).
-// renderHeader מקבל את המצב **שכבר נטען כאן** ומרנדר מעליו. זה קיים
+// renderAside מקבל את המצב **שכבר נטען כאן** ומרנדר מעליו. זה קיים
 // כדי שמסך הכסף יוכל לתלות סרגל ייצוא על אותם נתונים בלי לקרוא
 // ל-useExpenses בעצמו: הגרסה הראשונה עשתה בדיוק את זה, והתוצאה הייתה
 // שלוש שאילתות הוצאות זהות בכל טעינת המסך. נמצא בקוד ריוויו של שלב 4.
@@ -16,12 +16,12 @@ export function ExpenseList({
   supabase,
   plotId,
   showPlotName,
-  renderHeader,
+  renderAside,
 }: {
   supabase: SupabaseClient;
   plotId?: string;
   showPlotName: boolean;
-  renderHeader?: (state: {
+  renderAside?: (state: {
     expenses: Expense[];
     plotNames: Map<string, string>;
     loading: boolean;
@@ -43,13 +43,8 @@ export function ExpenseList({
     setSheetOpen(true);
   }
 
-  return (
+  const list = (
     <div className="expense-list">
-      {renderHeader?.({
-        expenses: expensesState.expenses,
-        plotNames: expensesState.plotNames,
-        loading: expensesState.loading,
-      })}
       <button type="button" className="form__submit expense-list__new" onClick={openCreate}>
         {t('expense.new')}
       </button>
@@ -92,6 +87,24 @@ export function ExpenseList({
           expensesState.refresh();
         }}
       />
+    </div>
+  );
+
+  // בלי aside אין מה לפרוס, והרשימה חוזרת כמו שהיא. עם aside, מ-1024
+  // ומעלה הם יושבים זה לצד זה במקום זה מעל זה. ראה .layout-rail
+  // ב-shell.css.
+  if (!renderAside) return list;
+
+  return (
+    <div className="layout-rail">
+      {list}
+      <aside className="layout-rail__aside">
+        {renderAside({
+          expenses: expensesState.expenses,
+          plotNames: expensesState.plotNames,
+          loading: expensesState.loading,
+        })}
+      </aside>
     </div>
   );
 }

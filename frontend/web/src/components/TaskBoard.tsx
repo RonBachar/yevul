@@ -86,28 +86,33 @@ export function TaskBoard({
         <p className="screen__note">{t('tasks.empty')}</p>
       )}
 
-      {!tasksState.loading &&
-        !tasksState.failed &&
-        groups.map((group) => (
-          <div key={group.key} className="task-board__group">
-            <p className="task-board__section-header">{t(group.labelKey)}</p>
-            <div className="task-board__rows">
-              {group.tasks.map((task) => (
-                <TaskRow
-                  key={task.id}
-                  task={task}
-                  plotName={
-                    showPlotName ? (tasksState.plotNames.get(task.plotId ?? '') ?? null) : null
-                  }
-                  currency={currency}
-                  onEdit={() => openEdit(task)}
-                  onCompleteCommit={() => handleComplete(task.id)}
-                  onDeleteCommit={() => handleDelete(task.id)}
-                />
-              ))}
+      {/* עוטף אחד לכל הקבוצות, כדי שהן תוכלנה לזרום לשתי עמודות
+          ברוחב גדול. בלעדיו כל קבוצה היא ילד ישיר של flex column
+          ואין למה להחיל את ה-columns. ראה TaskBoard.css. */}
+      {!tasksState.loading && !tasksState.failed && (
+        <div className="task-board__groups">
+          {groups.map((group) => (
+            <div key={group.key} className="task-board__group">
+              <p className="task-board__section-header">{t(group.labelKey)}</p>
+              <div className="task-board__rows">
+                {group.tasks.map((task) => (
+                  <TaskRow
+                    key={task.id}
+                    task={task}
+                    plotName={
+                      showPlotName ? (tasksState.plotNames.get(task.plotId ?? '') ?? null) : null
+                    }
+                    currency={currency}
+                    onEdit={() => openEdit(task)}
+                    onCompleteCommit={() => handleComplete(task.id)}
+                    onDeleteCommit={() => handleDelete(task.id)}
+                  />
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+      )}
 
       <TaskSheet
         supabase={supabase}

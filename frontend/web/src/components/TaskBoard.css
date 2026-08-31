@@ -1,8 +1,28 @@
+/* **התקרה הקבועה של 640 הוסרה 2026-08-31.** על מסך 1536 היא השאירה
+   43 אחוז מהעמודה ריקים, נמדד בפועל.
+
+   הלוח מקובץ ממילא (באיחור, השבוע, בהמשך, ללא תאריך), ולכן ברוחב
+   גדול הוא זורם לשתי עמודות של קבוצות שלמות במקום למתוח כל שורה
+   לרוחב המסך. שורה ארוכה מדי מרחיקה את שם המשימה מהתאריך שלה. */
 .task-board {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-24);
-  max-width: 640px;
+}
+
+/* columns ולא grid: הקבוצות באורך משתנה, ו-columns ממלא אותן לפי
+   גובה בפועל במקום להשאיר חורים בעמודה הקצרה. break-inside שומר
+   קבוצה שלמה יחד. */
+@media (min-width: 1024px) {
+  .task-board__groups {
+    columns: 2;
+    column-gap: var(--spacing-32);
+  }
+
+  .task-board__group {
+    break-inside: avoid;
+    margin-bottom: var(--spacing-24);
+  }
 }
 
 .task-board__new {

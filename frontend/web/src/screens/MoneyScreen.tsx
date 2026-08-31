@@ -34,10 +34,13 @@ export function MoneyScreen() {
     <div className="screen">
       <h1 className="screen__title">{t('screen.money')}</h1>
 
+      {/* פריסת מסילה מ-1024 ומעלה: הרשימה מימין, הייצוא בעמודה
+          צדדית דביקה. עד כאן סרגל הייצוא ישב מעל הרשימה ודחף אותה
+          למטה, ורוחב המסך לא נוצל בכלל. ראה shell.css. */}
       <ExpenseList
         supabase={supabase}
         showPlotName
-        renderHeader={({ expenses, plotNames, loading }) => (
+        renderAside={({ expenses, plotNames, loading }) => (
           <ExportBar
             farmName={farm?.name ?? null}
             loading={loading || profitLoading}

@@ -8,19 +8,19 @@ import './JournalList.css';
 // היומן בווב, design.md "Journal List". רכיב תוכן, לא מסך, מרונדר גם
 // ביומן הכללי (כל המשק) וגם בטאב יומן בפרטי חלקה (חלקה אחת). רשימה
 // שטוחה מהחדש לישן, בלי כותרות קבוצה, כל שורה נושאת את התאריך שלה.
-// renderHeader מקבל את המצב **שכבר נטען כאן** ומרנדר מעליו, מאותו
+// renderAside מקבל את המצב **שכבר נטען כאן** ומרנדר מעליו, מאותו
 // נימוק בדיוק כמו ב-ExpenseList: מסך היומן תולה עליו סרגל ייצוא בלי
 // לקרוא ל-useLogEntries בעצמו ולשכפל את השאילתה.
 export function JournalList({
   supabase,
   plotId,
   showPlotName,
-  renderHeader,
+  renderAside,
 }: {
   supabase: SupabaseClient;
   plotId?: string;
   showPlotName: boolean;
-  renderHeader?: (state: {
+  renderAside?: (state: {
     entries: LogEntry[];
     plotNames: Map<string, string>;
     loading: boolean;
@@ -40,13 +40,8 @@ export function JournalList({
     setSheetOpen(true);
   }
 
-  return (
+  const list = (
     <div className="journal-list">
-      {renderHeader?.({
-        entries: entriesState.entries,
-        plotNames: entriesState.plotNames,
-        loading: entriesState.loading,
-      })}
       <button type="button" className="form__submit journal-list__new" onClick={openCreate}>
         {t('log.new')}
       </button>
@@ -88,6 +83,24 @@ export function JournalList({
           entriesState.refresh();
         }}
       />
+    </div>
+  );
+
+  // בלי aside אין מה לפרוס, והרשימה חוזרת כמו שהיא. עם aside, מ-1024
+  // ומעלה הם יושבים זה לצד זה במקום זה מעל זה. ראה .layout-rail
+  // ב-shell.css.
+  if (!renderAside) return list;
+
+  return (
+    <div className="layout-rail">
+      {list}
+      <aside className="layout-rail__aside">
+        {renderAside({
+          entries: entriesState.entries,
+          plotNames: entriesState.plotNames,
+          loading: entriesState.loading,
+        })}
+      </aside>
     </div>
   );
 }

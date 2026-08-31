@@ -1,8 +1,11 @@
+/* תקרת 640 הוסרה 2026-08-31. הרשימה כרונולוגית ולכן נשארת עמודה
+   אחת, אבל היא ממלאת את העמודה שהמסך נתן לה. המסך שמעליה הוא זה
+   שמחליט כמה רוחב זה, דרך .layout-rail. */
 .expense-list {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-24);
-  max-width: 640px;
+  min-width: 0;
 }
 
 .expense-list__new {

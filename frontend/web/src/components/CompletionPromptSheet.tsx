@@ -149,10 +149,18 @@ export function CompletionPromptSheet({
           <p className="completion-prompt__question-text">{t('completion.saveToJournal')}</p>
           {journalStatus === 'idle' ? (
             <div className="completion-prompt__answers">
-              <button type="button" className="completion-prompt__answer" onClick={() => onJournalAnswer(true)}>
+              <button
+                type="button"
+                className="completion-prompt__answer"
+                onClick={() => onJournalAnswer(true)}
+              >
                 {t('completion.yes')}
               </button>
-              <button type="button" className="completion-prompt__answer" onClick={() => onJournalAnswer(false)}>
+              <button
+                type="button"
+                className="completion-prompt__answer"
+                onClick={() => onJournalAnswer(false)}
+              >
                 {t('completion.no')}
               </button>
             </div>

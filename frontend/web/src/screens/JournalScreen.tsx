@@ -31,7 +31,7 @@ export function JournalScreen() {
       <JournalList
         supabase={supabase}
         showPlotName
-        renderHeader={({ entries, plotNames, loading }) => (
+        renderAside={({ entries, plotNames, loading }) => (
           <ExportBar
             farmName={farm?.name ?? null}
             loading={loading}
