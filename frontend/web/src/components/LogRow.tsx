@@ -65,7 +65,14 @@ export function LogRow({
           <span className="log-row__title">{t(logEntryTypeLabelKey(entry.type))}</span>
           {tag && <span className={`log-row__tag ${tag.className}`}>{tag.label}</span>}
         </span>
-        {metaParts.length > 0 && <span className="log-row__meta">{metaParts.join(' · ')}</span>}
+        {/* המודיפייר תלוי ב-sprayDetailed ולא במסך שמרנדר. הוא זה
+            שמוסיף את ימי ההמתנה למחרוזת כמה שורות מעל, ולכן הוא גם
+            התנאי המדויק שבו השורה מתארכת ואסור לה להיחתך. */}
+        {metaParts.length > 0 && (
+          <span className={sprayDetailed ? 'log-row__meta log-row__meta--wrap' : 'log-row__meta'}>
+            {metaParts.join(' · ')}
+          </span>
+        )}
         {safeHarvest && (
           <span className="log-row__safe-harvest">
             {t('log.form.safeHarvestPrefix')}{' '}

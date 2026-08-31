@@ -27,7 +27,7 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-8);
-  margin: 0 0 var(--spacing-4);
+  margin: 0;
   font-size: var(--text-heading);
   font-weight: var(--font-weight-bold);
   white-space: nowrap;
@@ -51,8 +51,15 @@
   line-height: 1;
 }
 
+/* ארבעת הפיקסלים יושבים כאן ולא כ-margin-bottom על הערך שמעל, ובכוונה.
+   בנייד זה אותו דבר בדיוק, שוליים של אחים סמוכים מתמוטטים ו-4 מול 0
+   שווה ל-0 מול 4. בדסקטופ, שבו השניים הופכים לילדי גריד באותה שורה,
+   השוליים כבר לא מתמוטטים, ואילו ה-4 היה למטה על הערך הוא היה מגביה
+   את השורה ודוחף את ההסתייגות. כאן הוא נבלע בהיסט קו הבסיס, כי
+   ה-ascent של הערך בגופן heading גדול ממנו ממילא. הבחירה הזו חוסכת
+   דריסה שלמה בתוך המדיה קוורי. */
 .plot-profit__breakdown {
-  margin: 0;
+  margin: var(--spacing-4) 0 0;
   font-size: var(--text-body-sm);
   color: var(--color-slate-600);
 }
@@ -89,11 +96,8 @@
     grid-area: 1 / 1;
   }
 
-  /* המרווח התחתון היה מפריד בין הערך לפירוק כשהם היו זה מתחת לזה.
-     עכשיו הם באותה שורה, והוא רק היה מזיז את הערך מקו הבסיס. */
   .plot-profit__value {
     grid-area: 2 / 1;
-    margin-bottom: 0;
   }
 
   .plot-profit__breakdown {
