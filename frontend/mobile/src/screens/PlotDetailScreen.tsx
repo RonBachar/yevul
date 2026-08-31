@@ -722,14 +722,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.field100,
   },
   safeHarvestText: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.bodySm,
     color: colors.field700,
     writingDirection: 'rtl',
   },
   // heading/900, אותו משקל כמו שאר מספרי הרווח במוצר, design.md.
   profitValue: {
-    fontFamily: fonts.black,
+    fontFamily: fonts.bold,
     fontSize: fontSize.heading,
     writingDirection: 'rtl',
   },
@@ -750,7 +750,7 @@ const styles = StyleSheet.create({
     writingDirection: 'rtl',
   },
   profitCaveat: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.caption,
     color: colors.wheat800,
     writingDirection: 'rtl',
@@ -774,7 +774,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.paper,
   },
   tabLabel: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.bodySm,
     color: colors.slate600,
   },
@@ -865,7 +865,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: radius.pill,
     backgroundColor: colors.field700,
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.caption,
     color: colors.paper,
     writingDirection: 'rtl',

@@ -68,14 +68,13 @@ export default function App() {
   // כך שהחלפת קובץ פונט במקום אחד הייתה משאירה את השני ישן בשקט.
   // metro.config.js כבר עוקב אחרי כל המונוריפו דרך watchFolders.
   const [fontsLoaded, fontError] = useFonts({
-    'OedooPro-Regular': require('@yevul/assets/fonts/OedooPro-Regular.ttf'),
-    'OedooPro-Medium': require('@yevul/assets/fonts/OedooPro-Medium.ttf'),
-    'OedooPro-Bold': require('@yevul/assets/fonts/OedooPro-Bold.ttf'),
-    // Black (900) נטען בשלב 4 בשביל Live P&L Hero Card. design.md מגדיר
-    // את מספר הרווח כ-display/900 ומכנה אותו "the single largest element
-    // in the product", ו-Bold (700) הרנדר אותו קל מדי בדיוק במקום שבו
-    // המשקל נושא את כל ההיררכיה של המסך.
-    'OedooPro-Black': require('@yevul/assets/fonts/OedooPro-Black.ttf'),
+    // **Alef ולא OedooPro**, בהחלטת היזם 2026-08-31. שני משקלים בלבד,
+    // כי אלה כל מה שלמשפחה יש. ראה packages/shared/src/tokens.ts.
+    //
+    // הקבצים יושבים ב-packages/assets כמקור משותף עם הווב, בדיוק כמו
+    // שהפונט הקודם ישב. ב-RN אין טעינה מ-CDN, הקובץ חייב להיות מקומי.
+    'Alef-Regular': require('@yevul/assets/fonts/Alef-Regular.ttf'),
+    'Alef-Bold': require('@yevul/assets/fonts/Alef-Bold.ttf'),
   });
 
   // כשל בטעינת פונט מוצג ולא נבלע. קודם השגיאה נזרקה לפח והמסך פשוט

@@ -29,7 +29,7 @@
   gap: var(--spacing-8);
   margin: 0 0 var(--spacing-4);
   font-size: var(--text-heading);
-  font-weight: var(--font-weight-black);
+  font-weight: var(--font-weight-bold);
   white-space: nowrap;
 }
 
@@ -61,7 +61,7 @@
 .plot-profit__caveat {
   margin: var(--spacing-4) 0 0;
   font-size: var(--text-caption);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-bold);
   color: var(--color-wheat-800);
 }
 
@@ -166,7 +166,7 @@
   background: var(--color-field-700);
   color: var(--color-paper);
   font-size: var(--text-caption);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-bold);
 }
 
 /* תצוגה מקדימה חיה בזמן עריכת הצפי. מופרדת בקו שיער כמו אזור הכסף
@@ -222,7 +222,7 @@
 .plot-detail__income {
   margin: 0 0 var(--spacing-12);
   font-size: var(--text-heading-lg);
-  font-weight: var(--font-weight-black);
+  font-weight: var(--font-weight-bold);
   /* Ink-900 ולא Profit-600. מאז שצפי הרווח קיים בכותרת, הירוק שמור לו
      בלבד: הכנסה ברוטו אינה רווח, ושני מספרים ירוקים על אותו מסך היו
      מרוקנים את הצבע ממשמעות. design.md: Profit-600 ל-P&L בלבד. */
@@ -284,5 +284,5 @@
   background: var(--color-field-100);
   color: var(--color-field-700);
   font-size: var(--text-body-sm);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-bold);
 }

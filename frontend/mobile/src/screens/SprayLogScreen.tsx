@@ -87,7 +87,9 @@ export function SprayLogScreen() {
               key={entry.id}
               entry={entry}
               plotName={
-                selectedPlotId === null ? (entriesState.plotNames.get(entry.plotId ?? '') ?? null) : null
+                selectedPlotId === null
+                  ? (entriesState.plotNames.get(entry.plotId ?? '') ?? null)
+                  : null
               }
               sprayDetailed
               onPress={() => {

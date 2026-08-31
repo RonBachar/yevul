@@ -42,7 +42,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--text-body-lg);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-bold);
   color: var(--color-ink-900);
 }
 
@@ -51,7 +51,7 @@
   padding: 2px var(--spacing-8);
   border-radius: var(--radius-pill);
   font-size: var(--text-caption);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-bold);
 }
 
 .log-row__tag--spray {
@@ -77,6 +77,6 @@
    רגועה לתכנון, לא הכרזת רווח. */
 .log-row__safe-harvest {
   font-size: var(--text-caption);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-bold);
   color: var(--color-field-700);
 }

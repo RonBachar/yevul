@@ -244,7 +244,11 @@ export function CompletionPromptSheet({
               </View>
 
               <Pressable
-                style={[formStyles.save, sheetGap, expenseStatus === 'saving' && formStyles.saveDisabled]}
+                style={[
+                  formStyles.save,
+                  sheetGap,
+                  expenseStatus === 'saving' && formStyles.saveDisabled,
+                ]}
                 onPress={onExpenseConfirm}
                 disabled={expenseStatus === 'saving'}
               >
@@ -296,7 +300,7 @@ const styles = StyleSheet.create({
     gap: spacing.s8,
   },
   questionText: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.body,
     color: colors.ink900,
     writingDirection: 'rtl',

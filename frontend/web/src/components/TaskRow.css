@@ -33,7 +33,7 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: var(--text-body-lg);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-bold);
   color: var(--color-ink-900);
 }
 
@@ -47,7 +47,7 @@
 }
 
 .task-row__meta--overdue {
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-bold);
   color: var(--color-wheat-800);
 }
 

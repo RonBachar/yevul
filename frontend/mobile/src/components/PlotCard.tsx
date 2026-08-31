@@ -99,7 +99,7 @@ const styles = StyleSheet.create({
   // heading-lg/900, אותו טיפול כמו ה-Hero, design.md.
   value: {
     flexShrink: 1,
-    fontFamily: fonts.black,
+    fontFamily: fonts.bold,
     writingDirection: 'ltr',
   },
   breakdown: {

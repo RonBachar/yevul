@@ -3,7 +3,6 @@ import Receipt from 'lucide-react-native/icons/receipt';
 import { formatAmount, t, type Currency, type Expense } from '@yevul/shared';
 import { colors, fonts, fontSize, radius, spacing } from '../theme/tokens';
 
-
 // אטום ההוצאות. אייקון ניטרלי אחד לכל השורות (בלי מיפוי קטגוריה→
 // צבע, שהוסר לפי בקשת היזם לפשט את הטופס וכל מה שסביבו). כותרת
 // השורה היא שם ההוצאה שהוקלד, ובלעדיו תווית גנרית.
@@ -79,7 +78,7 @@ const styles = StyleSheet.create({
     gap: spacing.s4,
   },
   title: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.bodyLg,
     color: colors.ink900,
     writingDirection: 'rtl',

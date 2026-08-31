@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border200,
   },
   signoutError: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.caption,
     color: colors.loss600,
     textAlign: 'center',

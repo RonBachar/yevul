@@ -47,7 +47,7 @@
 .screen__title {
   margin: 0 0 var(--spacing-24);
   font-size: var(--text-heading);
-  font-weight: var(--font-weight-black);
+  font-weight: var(--font-weight-bold);
   line-height: 1.15;
   color: var(--color-ink-900);
 }

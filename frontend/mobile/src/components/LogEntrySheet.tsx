@@ -419,7 +419,7 @@ const sheetGap = { marginTop: 16 };
 // Field-700, לא Profit-600: design.md מפרט את שורת "בטוח לקטיף" בצבע
 // הזה במפורש (Spray Log Screen), זו תזכורת רגועה ולא הכרזת רווח.
 const safeHarvestText = {
-  fontFamily: fonts.medium,
+  fontFamily: fonts.bold,
   fontSize: fontSize.bodySm,
   color: colors.field700,
   writingDirection: 'rtl' as const,

@@ -78,16 +78,20 @@ describe('formatSignedAmount', () => {
     expect(formatSignedAmount(312000, 'ILS')).toContain('+');
   });
 
-  it('marks a loss with a typographic minus, not a hyphen', () => {
+  // **מקף ASCII ולא מינוס טיפוגרפי, והבדיקה נועלת בדיוק את זה.**
+  // הגרסה הקודמת דרשה U+2212, וזה היה נכון כל עוד הפונט היה OedooPro.
+  // ל-Alef, שהחליפה אותה, אין את הגליף הזה כלל, ולכן כל מספר שלילי
+  // היה מרונדר עם תו שנלקח מפונט מערכת אחר בתוך סכום כספי.
+  it('marks a loss with a sign the font actually has', () => {
     const formatted = formatSignedAmount(-45000, 'ILS');
-    expect(formatted).toContain('−');
-    expect(formatted).not.toContain('-');
+    expect(formatted).toContain('-');
+    expect(formatted).not.toContain('−');
   });
 
   it('leaves zero unsigned, since zero is neither gain nor loss', () => {
     const formatted = formatSignedAmount(0, 'ILS');
     expect(formatted).not.toContain('+');
-    expect(formatted).not.toContain('−');
+    expect(formatted).not.toContain('-');
   });
 
   it('never renders a doubled sign from the formatter itself', () => {

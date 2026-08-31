@@ -45,7 +45,11 @@ export function ConfirmDialog({
             >
               <Text style={styles.confirmText}>{confirmLabel}</Text>
             </Pressable>
-            <Pressable style={[styles.button, styles.cancelButton]} onPress={onCancel} accessibilityRole="button">
+            <Pressable
+              style={[styles.button, styles.cancelButton]}
+              onPress={onCancel}
+              accessibilityRole="button"
+            >
               <Text style={styles.cancelText}>{cancelLabel}</Text>
             </Pressable>
           </View>

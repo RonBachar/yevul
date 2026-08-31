@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     gap: spacing.s4,
   },
   title: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.bodyLg,
     color: colors.ink900,
     writingDirection: 'rtl',
@@ -241,7 +241,7 @@ const styles = StyleSheet.create({
     writingDirection: 'rtl',
   },
   metaOverdue: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     color: colors.wheat800,
   },
   buttons: {

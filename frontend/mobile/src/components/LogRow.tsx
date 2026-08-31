@@ -130,7 +130,7 @@ const styles = StyleSheet.create({
   },
   title: {
     flexShrink: 1,
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.bodyLg,
     color: colors.ink900,
     writingDirection: 'rtl',
@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.field100,
   },
   tagText: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.caption,
   },
   tagTextSpray: {
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   // Field-700, לא Profit-600, אותה הבחנה כמו ב-LogEntrySheet: תזכורת
   // רגועה לתכנון, לא הכרזת רווח.
   safeHarvest: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.caption,
     color: colors.field700,
     writingDirection: 'rtl',

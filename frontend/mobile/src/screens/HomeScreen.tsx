@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 import { colors, fonts, fontSize, spacing } from '../theme/tokens';
 import { TaskBoard } from '../components/TaskBoard';
 import { ProfitHeroCard } from '../components/ProfitHeroCard';
+import { QuickActions } from '../components/QuickActions';
 
 // מסך הבית. Live P&L Hero Card נבנה בשלב 4 ויושב בראש, לפי design.md,
 // "The first thing the farmer sees on opening the app". לוח המשימות
@@ -24,6 +25,9 @@ export function HomeScreen() {
       <Text style={styles.title}>{t('screen.home')}</Text>
       <View style={styles.body}>
         <ProfitHeroCard farmName={farm?.name ?? null} />
+        {/* שלושה קיצורי דרך, בהחלטת היזם 2026-08-31. רישום הוצאה יורד
+            מלחיצה על כפתור הרישום ובחירה מגיליון, ללחיצה אחת. */}
+        <QuickActions />
         <View style={styles.board}>
           <TaskBoard supabase={supabase} showPlotName />
         </View>

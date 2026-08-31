@@ -36,7 +36,7 @@
 .login__title {
   margin: 0;
   font-size: var(--text-heading);
-  font-weight: var(--font-weight-black);
+  font-weight: var(--font-weight-bold);
   color: var(--color-field-700);
   line-height: 1.15;
 }
@@ -63,7 +63,7 @@
   padding: 0 var(--spacing-24);
   border-radius: var(--radius-pill);
   border: 1px solid transparent;
-  font-family: var(--font-oedoopro);
+  font-family: var(--font-sans);
   font-size: var(--text-body);
   font-weight: var(--font-weight-bold);
   cursor: pointer;
@@ -100,7 +100,7 @@
   color: var(--color-slate-600);
   border: 1px dashed var(--color-border-200);
   font-size: var(--text-body-sm);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-bold);
 }
 
 .login__icon {

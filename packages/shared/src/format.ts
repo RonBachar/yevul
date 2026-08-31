@@ -56,11 +56,18 @@ export function scaledAmountFontSize(formatted: string, base: number, min: numbe
 // design.md, Accessibility: "Pair every profit/loss color with an explicit
 // +/− sign and a directional glyph. Color reinforces; it never carries
 // meaning alone." הסימן הוא חלק מהפורמט ולא קישוט, ולכן הוא חי כאן ולא
-// במסך. מינוס טיפוגרפי (U+2212) ולא מקף, כדי שייקרא כסימן חשבוני.
+// במסך.
+//
+// **מקף ASCII (U+002D) ולא מינוס טיפוגרפי (U+2212).** הגרסה הקודמת
+// בחרה ב-U+2212 כדי שייקרא כסימן חשבוני, וזה היה נכון ל-OedooPro.
+// **ל-Alef, שהחליפה אותה, פשוט אין את הגליף הזה** (אומת מול טבלת
+// ה-cmap של הקובץ), ולכן כל מספר שלילי במוצר היה מרונדר עם מינוס
+// שנלקח מפונט מערכת אחר, כלומר תו זר בתוך מספר כספי. סימן שנראה נכון
+// ובאותו פונט עדיף על סימן נכון טיפוגרפית שנשבר בפועל.
 export function formatSignedAmount(value: number, currency: Currency): string {
   const formatted = formatAmount(Math.abs(value), currency);
   if (value > 0) return `+${formatted}`;
-  if (value < 0) return `−${formatted}`;
+  if (value < 0) return `-${formatted}`;
   return formatted;
 }
 

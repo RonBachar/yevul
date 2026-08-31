@@ -105,7 +105,7 @@ const styles = StyleSheet.create({
     gap: spacing.s4,
   },
   tabLabel: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.caption,
     writingDirection: 'rtl',
   },

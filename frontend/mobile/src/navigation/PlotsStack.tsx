@@ -34,7 +34,13 @@ export function PlotsStack() {
       <Stack.Screen
         name="SprayLog"
         component={SprayLogScreen}
-        options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal', title: '', headerStyle: { backgroundColor: colors.paper }, headerTintColor: colors.field700 }}
+        options={{
+          headerShown: true,
+          headerBackButtonDisplayMode: 'minimal',
+          title: '',
+          headerStyle: { backgroundColor: colors.paper },
+          headerTintColor: colors.field700,
+        }}
       />
     </Stack.Navigator>
   );

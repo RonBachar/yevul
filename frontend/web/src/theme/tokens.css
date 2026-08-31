@@ -4,34 +4,52 @@
   רקע הדף לבן טהור #FFFFFF בכוונה, ראה design.md, לעולם לא גוון קרם.
 */
 
-/* OedooPro, המשפחה היחידה במערכת. קבצי woff2 מ-packages/assets. */
+/* Alef, בהחלטת היזם 2026-08-31, במקום OedooPro.
+   שני משקלים בלבד כי אלה כל מה שלמשפחה יש, ראה tokens.ts.
+
+   **אחסון עצמי ולא CDN של גוגל.** מהיר יותר, לא תלוי בשרת שלישי,
+   ולא שולח את המשתמשים שלנו לגוגל. אותם קבצים בדיוק שהנייד טוען
+   מ-packages/assets, שם הם חייבים להיות מקומיים ממילא.
+
+   **שתי תת-קבוצות לכל משקל, עברית ולטינית בנפרד**, בדיוק כפי
+   שגוגל עצמה מגישה. הדפדפן מוריד רק את מה שהעמוד באמת משתמש בו,
+   ו-unicode-range הוא מה שמאפשר לו לדעת. הספרות יושבות בתת-הקבוצה
+   הלטינית, ולכן היא נדרשת גם בממשק עברי לחלוטין. */
 @font-face {
-  font-family: 'OedooPro';
-  src: url('../../../../packages/assets/fonts/OedooPro-Regular.woff2') format('woff2');
+  font-family: 'Alef';
+  src: url('../../../../packages/assets/fonts/Alef-Regular-hebrew.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0307-0308, U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F;
 }
 @font-face {
-  font-family: 'OedooPro';
-  src: url('../../../../packages/assets/fonts/OedooPro-Medium.woff2') format('woff2');
-  font-weight: 500;
+  font-family: 'Alef';
+  src: url('../../../../packages/assets/fonts/Alef-Regular-latin.woff2') format('woff2');
+  font-weight: 400;
   font-style: normal;
   font-display: swap;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: 'OedooPro';
-  src: url('../../../../packages/assets/fonts/OedooPro-Bold.woff2') format('woff2');
+  font-family: 'Alef';
+  src: url('../../../../packages/assets/fonts/Alef-Bold-hebrew.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
+  unicode-range: U+0307-0308, U+0590-05FF, U+200C-2010, U+20AA, U+25CC, U+FB1D-FB4F;
 }
 @font-face {
-  font-family: 'OedooPro';
-  src: url('../../../../packages/assets/fonts/OedooPro-Black.woff2') format('woff2');
-  font-weight: 900;
+  font-family: 'Alef';
+  src: url('../../../../packages/assets/fonts/Alef-Bold-latin.woff2') format('woff2');
+  font-weight: 700;
   font-style: normal;
   font-display: swap;
+  unicode-range:
+    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
 :root {
@@ -45,9 +63,10 @@
 
      מה שכן נשאר כאן הוא מה שקיים רק בווב, משפחת הפונט וטעינתה. */
 
-  /* הפולבק נושא משקל אמיתי: ל-OedooPro אין גליף ₪, והסימן נלקח מפונט
-     המערכת per-character. ראה design.md. */
-  --font-oedoopro: 'OedooPro', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  /* ל-Alef יש גליף ₪ משלה (אומת מול ה-cmap של הקובץ), בניגוד
+     ל-OedooPro שנזקקה לפולבק per-character עבורו. הפולבק כאן הוא
+     רשת ביטחון לטעינה שנכשלה, לא חלק מהתצוגה הרגילה. */
+  --font-sans: 'Alef', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
 
 * {
@@ -63,7 +82,7 @@ body {
 body {
   background: var(--color-paper);
   color: var(--color-ink-900);
-  font-family: var(--font-oedoopro);
+  font-family: var(--font-sans);
   font-size: var(--text-body);
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;

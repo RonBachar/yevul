@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import CameraIcon from 'lucide-react-native/icons/camera';
 import CircleCheckBig from 'lucide-react-native/icons/circle-check-big';
 import { attachReceipt, createExpense, t, updateExpense, type Expense } from '@yevul/shared';
-import { colors } from '../theme/tokens';
+import { colors, fonts, fontSize } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from './BottomSheet';
 
@@ -217,7 +217,9 @@ export function ExpenseSheet({
         ) : (
           <CameraIcon size={18} strokeWidth={2} color={colors.slate600} />
         )}
-        <Text style={[receiptButtonText, (pickedUri || expense?.receiptPath) && receiptButtonTextDone]}>
+        <Text
+          style={[receiptButtonText, (pickedUri || expense?.receiptPath) && receiptButtonTextDone]}
+        >
           {pickedUri
             ? t('expense.form.receiptAttached')
             : expense?.receiptPath
@@ -263,8 +265,11 @@ const receiptButton = {
   backgroundColor: colors.mist100,
 };
 const receiptButtonText = {
-  fontFamily: 'OedooPro-Regular',
-  fontSize: 15,
+  // דרך הטוקנים ולא מחרוזת קשיחה. הגרסה הקודמת כתבה כאן את שם
+  // המשפחה ישירות, ולכן שרדה את החלפת הפונט כולה בלי להישבר
+  // בטייפצ'ק, והכפתור היה נשאר עם פונט שאינו נטען יותר.
+  fontFamily: fonts.regular,
+  fontSize: fontSize.bodySm,
   color: colors.slate600,
 };
 const receiptButtonTextDone = { color: colors.field700 };

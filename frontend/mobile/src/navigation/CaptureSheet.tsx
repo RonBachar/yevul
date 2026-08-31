@@ -22,11 +22,13 @@ export function CaptureSheet({
   onClose,
   onJournalPress,
   onExpensePress,
+  onTaskPress,
 }: {
   visible: boolean;
   onClose: () => void;
   onJournalPress: () => void;
   onExpensePress: () => void;
+  onTaskPress: () => void;
 }) {
   const options = [
     { key: 'expense', Icon: Wallet, title: t('capture.expense'), hint: t('capture.expenseHint') },
@@ -42,6 +44,7 @@ export function CaptureSheet({
   function onOptionPress(key: string) {
     if (key === 'journal') return onJournalPress();
     if (key === 'expense') return onExpensePress();
+    if (key === 'task') return onTaskPress();
     return onClose();
   }
 
@@ -92,7 +95,7 @@ const styles = StyleSheet.create({
     writingDirection: 'rtl',
   },
   micHint: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.caption,
     color: colors.slate600,
     textAlign: 'center',

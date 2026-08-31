@@ -1,3 +1,30 @@
+> ## ⚠️ עדכון מחייב, 2026-08-31, גרסה שנייה של הנחת היסוד
+>
+> **המשפט הפותח של המסמך הזה בוטל בהחלטת היזם.** הוא קבע שהמוצר מיועד לקריאה "ממרחק זרוע, בשמש ישירה, בלי משקפיים", וממנו נגזרו סולם טיפוגרפיה ענק (כותרת מסך 44px, מספר רווח 84px), פלטה כמעט חד-גונית (כי "גוונים חיוורים נשטפים בשמש"), ורצפת מגע של 56px.
+>
+> היישום היה נאמן להנחה, וההנחה הייתה שגויה. הערכת היזם על התוצאה: **"לא נוח, לא ברור, גדול מדי, לא מרגיש אפליקטיבי, אין מספיק משחק עם צבעים"**. חקלאי מחזיק את הטלפון ביד במרחק קריאה רגיל, כמו כל אחד אחר, והרבה פעמים ברכב או בבית בערב.
+>
+> **מה שהשתנה בפועל, והקוד הוא מקור האמת:**
+>
+> |            | היה               | עכשיו              |
+> | ---------- | ----------------- | ------------------ |
+> | כותרת מסך  | 44px              | 28px               |
+> | מספר רווח  | 84px              | 44px               |
+> | טקסט גוף   | 19px              | 16px               |
+> | רצפת מגע   | 56px              | 48px               |
+> | משקלי גופן | 5 (400-900)       | 2 (400, 700)       |
+> | משפחת גופן | OedooPro (בתשלום) | Alef (Google, OFL) |
+>
+> **הגופן הוחלף ל-Alef**, ולה שני משקלים בלבד. המשמעות אינה טכנית: **ההיררכיה עוברת ממשקל לגודל ולצבע**. מספר הרווח מקבל בולטות מרקע צבעוני ולא מעובי הגופן. שני ממצאים שאומתו מול קובץ הפונט עצמו: ל-Alef **יש** גליף ₪ (בניגוד ל-OedooPro שנזקקה לפולבק), ו**אין** לה מינוס טיפוגרפי U+2212, ולכן `formatSignedAmount` עבר למקף ASCII.
+>
+> **הצבע מקודד תחום מעכשיו.** הפלטה הישנה הייתה ארבעה ירוקים, חום אחד, וכחול אחד שמעולם לא נעשה בו שימוש. ארבעת חלקי המוצר מקבלים זהות: כסף ירוק (Field), משימות כחול (Sky), יומן וריסוס סגול (Journal 600, חדש), חלקות אדמה (Earth 600, חדש). צבעי Profit ו-Loss נשארים סמנטיים ובלתי נגועים, וממשיכים לשאת סימן וחץ ולא רק צבע.
+>
+> **קיצורי דרך במסך הבית**, בנייד בלבד: שלושה כפתורים מתחת לכרטיס הרווח שמורידים רישום הוצאה מלחיצה־בחירה־מילוי ללחיצה אחת. בווב אין להם מקבילה במכוון, כי סרגל הצד גלוי תמיד.
+>
+> **מה שעדיין פתוח:** "יותר מדי לחיצות" היא בעיית ארכיטקטורת מידע ולא טיפוגרפיה, והיא לא נפתרה כאן. גם הרספונסיביות בווב (שאילתת מדיה אחת בכל האפליקציה) עדיין פתוחה. שניהם ב-`docs/open-items.md`.
+>
+> כל מספר במסמך שלמטה שסותר את הטבלה הזו הוא היסטוריה. מקור האמת הוא `packages/shared/src/tokens.ts` ו-`colors.ts`.
+
 # חקלאי רווחי, Style Reference
 
 > Field green on white, a live profit number a tired farmer can read from an arm's length away, in direct sun, without his glasses.
@@ -318,7 +345,7 @@ Below the summary, four tabs in the same segmented-control shape used elsewhere 
 - **משימות** is a Task Board (see _Components: Tasks_) filtered to this plot, identical row and swipe behavior, just a narrower query.
 - **יומן** is a Journal list (see _Components: Journal_) filtered to this plot.
 
-> **Why the old unified רווחיות tab was split.** It held the P&L figure *and* an expenses breakdown, while a separate הוצאות tab held the expense ledger, so two tabs spoke about expenses and the bottom line was buried one tap deep. Lifting the summary out of the tabs resolves both at once: what remains of רווחיות is exactly the income side, and each side of the money gets one home. Field note from the farmer this product is built with.
+> **Why the old unified רווחיות tab was split.** It held the P&L figure _and_ an expenses breakdown, while a separate הוצאות tab held the expense ledger, so two tabs spoke about expenses and the bottom line was buried one tap deep. Lifting the summary out of the tabs resolves both at once: what remains of רווחיות is exactly the income side, and each side of the money gets one home. Field note from the farmer this product is built with.
 
 No tab introduces a new visual language. A farmer who has learned any one of these four already knows how to read the other three, that consistency is the point of scoping instead of building four separate screens.
 
@@ -424,10 +451,10 @@ Single row, 72px minimum height. Mist-100 fill, no border, 16px vertical rhythm 
 
 **Structure, reading right-to-left:**
 
-| Zone            | Content                                                                                                            |
-| ---------------- | --------------------------------------------------------------------------------------------------------------- |
-| Body (right)     | Task title in `body-lg`/600 Ink-900. Second line in `body-sm`/Slate-600: plot name · due date, separated by `·`  |
-| Trailing (left)  | Two 48px round icon buttons, side by side: `check` on Field-500 (`בוצע`), `trash-2` on Loss-600 (`מחיקה`), one tap each |
+| Zone            | Content                                                                                                                 |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| Body (right)    | Task title in `body-lg`/600 Ink-900. Second line in `body-sm`/Slate-600: plot name · due date, separated by `·`         |
+| Trailing (left) | Two 48px round icon buttons, side by side: `check` on Field-500 (`בוצע`), `trash-2` on Loss-600 (`מחיקה`), one tap each |
 
 Both actions are also reachable by swipe on mobile (see below), the buttons are the platform-independent fallback, web has no gesture equivalent so the buttons are its only path.
 
@@ -452,7 +479,7 @@ Relative language until it stops being useful, "מחר" is instantly actionable,
 - **`בוצע`:** marks the task done, `completed_at`. Fires immediately and surfaces an undo toast for 5 seconds (`tasks.completedToast` + `ביטול`), replacing the row in place for that window. `completed_at` is a one-way write (no `UPDATE` un-completes a row), so the 5-second undo defers the actual write rather than reversing it after the fact. This matches the flow's founding rule (see "A task is captured in under five seconds" above): no confirmation dialog interrupts marking a task done, low-stakes and instantly reversible.
 - **`מחיקה`:** removes the task, a soft delete (`deleted_at`), not a completion. For a task that's simply no longer relevant, there's no reason to record it as done just to get it off the list. **Deliberately a different safety mechanism, not the same undo toast**: tapping it opens a centered `ConfirmDialog` (Loss-600 confirm button, farmer-requested, "an undo toast that fires silently after a swipe isn't enough warning for something that feels final"), and the delete only writes on explicit confirmation, no 5-second window afterward. `בוצע` stays low-friction because being wrong about it costs nothing; `מחיקה` gets a real question because being wrong about it costs the record.
 
-**Mobile also carries both as a swipe on the row itself**, `PanResponder`/`Animated`, no new dependency. Swipe right-to-left → `בוצע` (Field-500 revealed, `check` glyph), swipe left-to-right → `מחיקה` (Loss-600 revealed, `trash-2` glyph). Right-to-left for the primary action, not left-to-right: matches the direction the eye and hand already move in Hebrew. Confirmed on device with the farmer this product is built for, not assumed from an LTR default — an earlier attempt at this row shipped the swipe with the reveal colors and the committed action out of sync (a symptom of RN mirroring `left`/`right` styles under RTL while leaving raw gesture deltas untouched), so if this ever needs touching again, verify the color that's *visually* revealed mid-drag matches the action that actually fires on release, on a real device, not in the simulator. Threshold is 40% of row width, deliberately forgiving, since this audience is often wearing gloves or operating one-handed in a vehicle.
+**Mobile also carries both as a swipe on the row itself**, `PanResponder`/`Animated`, no new dependency. Swipe right-to-left → `בוצע` (Field-500 revealed, `check` glyph), swipe left-to-right → `מחיקה` (Loss-600 revealed, `trash-2` glyph). Right-to-left for the primary action, not left-to-right: matches the direction the eye and hand already move in Hebrew. Confirmed on device with the farmer this product is built for, not assumed from an LTR default — an earlier attempt at this row shipped the swipe with the reveal colors and the committed action out of sync (a symptom of RN mirroring `left`/`right` styles under RTL while leaving raw gesture deltas untouched), so if this ever needs touching again, verify the color that's _visually_ revealed mid-drag matches the action that actually fires on release, on a real device, not in the simulator. Threshold is 40% of row width, deliberately forgiving, since this audience is often wearing gloves or operating one-handed in a vehicle.
 
 > **An earlier version of this row also had `דחה שבוע` (snooze) as a swipe action.** Dropped per direct farmer feedback: three competing gestures on one row read as clutter, and delete already covers "get this off my list" for a task that isn't going to happen. `snoozeTask` remains in `packages/shared`, tested, unused by any screen right now, see `open-items.md`.
 
@@ -476,7 +503,7 @@ Vertical order, and this order is the spec:
 4. **Actions:** `camera` and `mic` as 56px icon buttons in a row: attach a photo of the problem, or a voice note. Both optional, both one tap.
 5. **Save:** full-width Field-700 pill, 56px+.
 
-**No cost field here.** An earlier version asked for an estimated cost at creation time, pre-filled from `TaskCostMemory`. Removed: this audience found a money question on a form meant to take five seconds actively unwelcome, and it duplicates a better-placed question. Cost belongs to *completion*, not authoring, ask "add this to expenses?" when the task is marked `בוצע`, see Completion Prompts, not before the work has even happened.
+**No cost field here.** An earlier version asked for an estimated cost at creation time, pre-filled from `TaskCostMemory`. Removed: this audience found a money question on a form meant to take five seconds actively unwelcome, and it duplicates a better-placed question. Cost belongs to _completion_, not authoring, ask "add this to expenses?" when the task is marked `בוצע`, see Completion Prompts, not before the work has even happened.
 
 **Nothing below the fold.** If the sheet needs to scroll to reach Save on a small phone, cut a field.
 

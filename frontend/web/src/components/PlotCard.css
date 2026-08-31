@@ -39,7 +39,7 @@
   gap: var(--spacing-8);
   margin-top: var(--spacing-8);
   font-size: clamp(var(--text-heading-sm), 7vw, var(--text-heading-lg));
-  font-weight: var(--font-weight-black);
+  font-weight: var(--font-weight-bold);
   line-height: 1.05;
   white-space: nowrap;
   /* ספרות LTR בתוך משפט RTL, prd.md נספח א.6. */

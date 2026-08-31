@@ -11,11 +11,13 @@ import { t, useCurrentFarm } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { LogEntrySheet } from '../components/LogEntrySheet';
 import { ExpenseSheet } from '../components/ExpenseSheet';
+import { TaskSheet } from '../components/TaskSheet';
 import { HomeScreen } from '../screens/HomeScreen';
 import { MoneyScreen } from '../screens/MoneyScreen';
 import { MoreStack } from './MoreStack';
 import { PlotsStack } from './PlotsStack';
 import { CaptureSheet } from './CaptureSheet';
+import { CaptureActionsProvider, type CaptureActions } from './CaptureActions';
 import { TabBar } from './TabBar';
 
 // הניווט הראשי של הלקוח המאומת. ארבעה יעדים בלבד, וכפתור הרישום
@@ -34,6 +36,7 @@ export function RootTabs() {
   const [captureOpen, setCaptureOpen] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
+  const [taskOpen, setTaskOpen] = useState(false);
 
   // פתיחת הגיליון משנה state שיושב מעל הנאוויגייטור, ולכן בלי הייצוב
   // הזה כל לחיצה על כפתור הרישום הייתה בונה מחדש את פונקציית שורת
@@ -55,6 +58,20 @@ export function RootTabs() {
     setExpenseOpen(true);
   }, []);
   const closeExpense = useCallback(() => setExpenseOpen(false), []);
+  // משימה קיבלה גיליון משלה כאן בשלב הליטוש. עד אז בחירת "משימה"
+  // בגיליון הרישום רק סגרה אותו, כלומר כפתור שלא עשה דבר.
+  const openTask = useCallback(() => {
+    setCaptureOpen(false);
+    setTaskOpen(true);
+  }, []);
+  const closeTask = useCallback(() => setTaskOpen(false), []);
+
+  // ממוזכר, אחרת כל רינדור של הנאוויגייטור היה מחליף את ערך הקונטקסט
+  // ומרנדר מחדש כל מסך שצורך אותו.
+  const captureActions = useMemo<CaptureActions>(
+    () => ({ openExpense, openTask, openJournal }),
+    [openExpense, openTask, openJournal],
+  );
   const renderTabBar = useCallback(
     (props: BottomTabBarProps) => <TabBar {...props} onCapturePress={openCapture} />,
     [openCapture],
@@ -62,7 +79,7 @@ export function RootTabs() {
   const screenOptions = useMemo(() => ({ headerShown: false }) as const, []);
 
   return (
-    <>
+    <CaptureActionsProvider value={captureActions}>
       <Tab.Navigator screenOptions={screenOptions} tabBar={renderTabBar}>
         <Tab.Screen
           name="Home"
@@ -104,6 +121,7 @@ export function RootTabs() {
         onClose={closeCapture}
         onJournalPress={openJournal}
         onExpensePress={openExpense}
+        onTaskPress={openTask}
       />
       <LogEntrySheet
         supabase={supabase}
@@ -123,6 +141,15 @@ export function RootTabs() {
         farmId={farmState.farm?.id ?? null}
         onSaved={closeExpense}
       />
-    </>
+      <TaskSheet
+        supabase={supabase}
+        visible={taskOpen}
+        onClose={closeTask}
+        task={null}
+        defaultPlotId={null}
+        farmId={farmState.farm?.id ?? null}
+        onSaved={closeTask}
+      />
+    </CaptureActionsProvider>
   );
 }

@@ -47,7 +47,7 @@ export const formStyles = StyleSheet.create({
     backgroundColor: colors.field100,
   },
   chipText: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.bodySm,
     color: colors.slate600,
   },
@@ -71,13 +71,13 @@ export const formStyles = StyleSheet.create({
     color: colors.paper,
   },
   good: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.bodySm,
     color: colors.profit600,
     writingDirection: 'rtl',
   },
   bad: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.bodySm,
     color: colors.loss600,
     writingDirection: 'rtl',

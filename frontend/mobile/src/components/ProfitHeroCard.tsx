@@ -191,7 +191,7 @@ const styles = StyleSheet.create({
   // display/900, "the single largest element in the product", design.md.
   value: {
     flexShrink: 1,
-    fontFamily: fonts.black,
+    fontFamily: fonts.bold,
     writingDirection: 'ltr',
   },
   breakdown: {

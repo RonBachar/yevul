@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
     gap: spacing.s8,
   },
   sectionHeader: {
-    fontFamily: fonts.medium,
+    fontFamily: fonts.bold,
     fontSize: fontSize.caption,
     color: colors.slate600,
     writingDirection: 'rtl',
