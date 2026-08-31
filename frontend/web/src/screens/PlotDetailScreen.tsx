@@ -91,7 +91,18 @@ export function PlotDetailScreen() {
 
   return (
     <div className="screen">
-      <div className="plot-detail__header">
+      {/* prose-width מ-shell.css, ולא רוחב מלא. הכותרת וכפתור העריכה הם
+          טקסט ובקרה, לא רשימת נתונים, ולכן הם לא מועמדים לרוחב. נמדד
+          בפועל על 1536: הכותרת ישבה 1018..1208 והכפתור 64..259, כלומר
+          759 פיקסל ריקים בין הכפתור לכותרת שהוא שייך לה. עם 640 הפער
+          יורד לכ-255, וב-640 ומטה זו כבר לא הגבלה בכלל.
+
+          המחיר, וההכרעה מודעת לו: בשלושה מארבעת הטאבים הרשימה שמתחת
+          רחבה 1144, ולכן כפתור העריכה כבר לא מיושר לקצה השמאלי שלה.
+          כל מה שיושב במסך מיושר לקצה **הימני**, שהוא קצה ההתחלה
+          ב-RTL, וזה הקצה שהעין קוראת ממנו. יישור הכפתור לקצה של
+          רשימה שמשתנה מטאב לטאב היה שובר את הכותרת בכל לחיצה. */}
+      <div className="plot-detail__header prose-width">
         <div>
           <h1 className="screen__title plot-detail__title">{plot.name}</h1>
           <p className="screen__note">{plotSummaryLine(plot, cropCycle)}</p>
