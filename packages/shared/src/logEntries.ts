@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { currentFarmQuery } from './currentFarm';
 import { writeOutcome } from './postgrest';
@@ -149,12 +149,29 @@ export function useLogEntries(
   const [plotNames, setPlotNames] = useState<Map<string, string>>(new Map());
   const [tick, setTick] = useState(0);
 
+  // זהות השאילתה, בלי ה-tick במכוון: ריענון מבקש את אותם נתונים בדיוק,
+  // החלפת חלקה או סוג מבקשת נתונים אחרים. ההבחנה הזו קובעת מתי מותר
+  // להמשיך להציג את מה שכבר יש ומתי זה שקר, ראה ההערה בתוך load.
+  const queryKey = `${plotId ?? ''}|${type ?? ''}`;
+  const appliedQueryKey = useRef<string | null>(null);
+
   const refresh = useCallback(() => setTick((value) => value + 1), []);
 
   useEffect(() => {
     let active = true;
 
     async function load() {
+      // **רק כשהסינון עצמו השתנה, לא בכל הרצה.** loading אותחל ל-true
+      // פעם אחת ב-useState ולא הוחזר לעולם, ולכן בין לחיצה על חלקה
+      // בבורר של יומן הריסוס לבין חזרת התשובה הוא היה false בעוד
+      // entries עדיין מחזיק את השורות של החלקה הקודמת. במסך ההוא שני
+      // אלה נכנסים ישר ל-ExportBar, כלומר כפתור "ייצוא לרגולטור" היה
+      // פעיל ומייצא את החלקה הלא נכונה.
+      //
+      // ההבחנה מול refresh() אינה קוסמטית: כשרק ה-tick עלה הסינון לא
+      // זז, השורות הישנות עדיין שייכות למה שמוצג, והן רק ישנות בשנייה.
+      // איפוס גורף היה מהבהב "טוען" אחרי כל שמירה בגיליון.
+      if (appliedQueryKey.current !== queryKey) setLoading(true);
       const { data: farmRows, error: farmError } = await currentFarmQuery(supabase);
       const farm = (farmRows as { id: string }[] | null)?.[0];
       if (!active) return;
@@ -189,6 +206,10 @@ export function useLogEntries(
       const plotRows = (plotsResult.data ?? []) as { id: string; name: string }[];
       setPlotNames(new Map(plotRows.map((row) => [row.id, row.name])));
       setEntries(rows.map(mapLogEntry));
+      // רק אחרי ש-entries באמת מחזיק את השורות של הסינון הזה. סימון
+      // מוקדם יותר היה גורם ללחיצה חוזרת על אותה חלקה, אחרי כשלון,
+      // להיחשב כאילו היא כבר מוצגת.
+      appliedQueryKey.current = queryKey;
       setFailed(false);
       setLoading(false);
     }
@@ -197,7 +218,7 @@ export function useLogEntries(
     return () => {
       active = false;
     };
-  }, [supabase, plotId, type, tick]);
+  }, [supabase, plotId, type, tick, queryKey]);
 
   return { loading, failed, farmId, entries, plotNames, refresh };
 }

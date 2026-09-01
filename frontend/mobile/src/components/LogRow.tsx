@@ -78,8 +78,14 @@ export function LogRow({
             </View>
           )}
         </View>
+        {/* שורה אחת ביומן, כמה שצריך ביומן הריסוס. התנאי הוא sprayDetailed
+            ולא המסך, כי הוא זה שמוסיף לשורה את ימי ההמתנה כמה שורות מעל,
+            ולכן הוא גם התנאי המדויק שבו השורה מתארכת ואסור לה להיחתך.
+            בווב נמדד בפועל שהזנב שנחתך הוא בדיוק "7 ימי המתנה", ובנייד
+            אותו טקסט נבנה מאותו קוד. נתון בטיחות שנעלם בלי שום רמז, במסך
+            שכל קיומו הוא להיות מוצג למפקח, גרוע משורה שנשברת לשתיים. */}
         {metaParts.length > 0 && (
-          <Text style={styles.meta} numberOfLines={1}>
+          <Text style={styles.meta} numberOfLines={sprayDetailed ? undefined : 1}>
             {metaParts.join(' · ')}
           </Text>
         )}
