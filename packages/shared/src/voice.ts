@@ -1,4 +1,8 @@
-import { LOG_ENTRY_TYPES, type LogEntryType } from './logEntries';
+// **מ-logEntryTypes ולא מ-logEntries, וזה לא סגנון.** הקובץ הזה נטען
+// גם ב-Cloudflare Worker, ו-logEntries.ts מייבא react ו-supabase-js
+// בשתי שורותיו הראשונות. LOG_ENTRY_TYPES הוא ערך ריצה ולא טיפוס,
+// כלומר הוא לא נמחק בקומפילציה והיה גורר את שניהם לבאנדל של השרת.
+import { LOG_ENTRY_TYPES, type LogEntryType } from './logEntryTypes';
 import { isCalendarDate } from './safeHarvestDate';
 
 // שלוש סכמות החילוץ מקול, שלב 5, prd.md נספח א.5.

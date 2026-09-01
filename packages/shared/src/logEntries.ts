@@ -1,7 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { currentFarmQuery } from './currentFarm';
+import { LOG_ENTRY_TYPES, type LogEntryType } from './logEntryTypes';
 import { writeOutcome } from './postgrest';
+
+// הסוגים עצמם חיים ב-logEntryTypes.ts, מודול טהור בלי ייבוא, כי
+// ה-Worker זקוק להם דרך voice.ts ואין לו צורך ב-react ולא ב-supabase-js
+// ששתי השורות הראשונות כאן גוררות. מיוצאים מחדש מכאן כדי ששום צרכן
+// קיים לא ישבר.
+export { LOG_ENTRY_TYPES };
+export type { LogEntryType };
 
 // היומן, שלב 3. עצמאי לגמרי מ-tasks, prd.md סעיף 8: "אם מחר נחליט
 // למחוק את פיצ'ר המשימות לגמרי, היומן ימשיך לעבוד בדיוק אותו דבר".
@@ -12,33 +20,6 @@ import { writeOutcome } from './postgrest';
 // log_entries לא עבר REVOKE גורף כמו crop_cycles ו-tasks: הוא טבלה
 // תפעולית ולא כסף, ה-worker הוא זה שמרסס וקוטף בפועל, ולכן מקבל
 // SELECT/INSERT/UPDATE מלאים כבר ב-core_schema.sql, בלי view ממסך.
-
-export type LogEntryType =
-  | 'till'
-  | 'sow'
-  | 'fertilize'
-  | 'spray'
-  | 'irrigate'
-  | 'prune'
-  | 'thin'
-  | 'harvest'
-  | 'repair'
-  | 'other';
-
-// הסדר כאן הוא סדר התצוגה בשורת הצ'יפים של הגיליון, prd.md סעיף 8:
-// "חריש, זריעה, דישון, ריסוס, השקיה, גיזום, דילול, קטיף, תיקון ואחר".
-export const LOG_ENTRY_TYPES: readonly LogEntryType[] = [
-  'till',
-  'sow',
-  'fertilize',
-  'spray',
-  'irrigate',
-  'prune',
-  'thin',
-  'harvest',
-  'repair',
-  'other',
-];
 
 const LOG_ENTRY_TYPE_LABEL_KEY: Record<LogEntryType, string> = {
   till: 'log.type.till',
