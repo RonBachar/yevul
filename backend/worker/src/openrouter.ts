@@ -48,6 +48,10 @@ export type FetchInit = {
 
 export type FetchLike = (url: string, init: FetchInit) => Promise<Response>;
 
+// הפורמטים ש-OpenRouter מקבל בשדה input_audio. רשימה סגורה ולא string,
+// כדי שפורמט שגוי ייפול בקומפילציה ולא ב-400 מהספק.
+export type AudioFormat = 'm4a' | 'mp3' | 'wav' | 'ogg' | 'flac' | 'webm' | 'aac';
+
 export type OpenRouterConfig = {
   apiKey: string;
   // מזהי המודלים מגיעים מ-[vars] ב-wrangler.toml ואינם קבועים בקוד. ראה
@@ -68,6 +72,11 @@ export type VoiceRequest = {
   // להיות מאומת כתאריך לפני שהוא מגיע לכאן. אימות שייך לשכבת החיווט,
   // שם יושבת קריאת הגוף של הבקשה, ולא כאן.
   today: string;
+  // ברירת המחדל היא m4a, כי RecordingPresets.HIGH_QUALITY ב-expo-audio
+  // מפיק m4a בשתי הפלטפורמות ואין המרה בשום מקום בצינור. הפרמטר קיים
+  // כי **מי שמחזיק את הקובץ הוא זה שיודע מה הפורמט שלו**, ולא שכבת
+  // התעבורה. סקריפט ה-probe שולח wav, ובעתיד גם קבלות בווב לא יהיו m4a.
+  format?: AudioFormat;
 };
 
 export type VoiceUsage = {
@@ -168,7 +177,10 @@ function requestBody(config: OpenRouterConfig, request: VoiceRequest, audioBase6
           // ההנחיה לפני האודיו. מודל שקורא קודם מה מבקשים ממנו מקשיב
           // להקלטה כשהמשימה כבר ידועה לו.
           { type: 'text', text: instructionText(request.kind, request.today) },
-          { type: 'input_audio', input_audio: { data: audioBase64, format: 'm4a' } },
+          {
+            type: 'input_audio',
+            input_audio: { data: audioBase64, format: request.format ?? 'm4a' },
+          },
         ],
       },
     ],

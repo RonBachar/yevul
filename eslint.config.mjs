@@ -65,6 +65,18 @@ export default [
       globals: { ...globals.serviceworker },
     },
   },
+  // סקריפטים של ה-Worker רצים ב-Node ולא ב-workerd, ולכן הגלובלים שלהם
+  // אחרים. הבלוק הזה חייב לבוא **אחרי** הבלוק של backend/worker כדי
+  // לדרוס אותו. הוא מצומצם ל-scripts בכוונה: קוד המוצר עצמו לא אמור
+  // לראות את process, וברגע שהוא יראה אותו הלינט יפסיק להתריע.
+  {
+    files: ['backend/worker/scripts/**/*.ts'],
+    ...tsBase,
+    languageOptions: {
+      ...tsBase.languageOptions,
+      globals: { ...globals.node },
+    },
+  },
   {
     files: ['packages/**/*.ts'],
     ...tsBase,

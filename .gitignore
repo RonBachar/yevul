@@ -58,3 +58,6 @@ backend/supabase/snippets/
 /supabase/
 .dev.vars
 .wrangler/
+
+# תוצר בילד של סקריפט ה-probe, נבנה מחדש בכל הרצה
+backend/worker/scripts/*.mjs
