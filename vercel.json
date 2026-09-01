@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "installCommand": "npm install --include-workspace-root --workspace=@yevul/web --workspace=@yevul/shared",
+  "buildCommand": "npm run build --workspace=@yevul/web",
+  "outputDirectory": "frontend/web/dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}

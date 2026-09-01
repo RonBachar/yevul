@@ -4,11 +4,13 @@ import { t } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import './LoginScreen.css';
 
-// משתמש הבדיקה מ-backend/supabase/seed.sql, קיים רק ב-DB המקומי.
-// כפתור הכניסה איתו מוצג רק ב-import.meta.env.DEV, נעלם מבילד
-// production, בדיוק כמו window.supabase שנחשף רק ב-DEV ב-lib/supabase.ts.
-const DEV_DEMO_EMAIL = 'demo-owner@yevul.app';
-const DEV_DEMO_PASSWORD = 'password123';
+// משתמש הבדיקה מ-backend/supabase/seed.sql, קיים ב-DB המקומי.
+// כפתור הכניסה איתו מוצג ב-import.meta.env.DEV, וגם בבילד תצוגה
+// (סטייג'ינג) כאשר VITE_DEMO_LOGIN=true. בבילד production רגיל, בלי
+// הדגל, הוא נעלם לגמרי מהבאנדל, בדיוק כמו window.supabase ב-lib/supabase.ts.
+const DEMO_EMAIL = import.meta.env.VITE_DEMO_EMAIL || 'demo-owner@yevul.app';
+const DEMO_PASSWORD = import.meta.env.VITE_DEMO_PASSWORD || 'password123';
+const SHOW_DEMO_LOGIN = import.meta.env.DEV || import.meta.env.VITE_DEMO_LOGIN === 'true';
 
 // מסך התחברות. שני נתיבי כניסה, גוגל ואפל. הלקוח רק פותח את זרימת
 // ה-OAuth של Supabase, כל האימות קורה בשרת. אחרי חזרה מוצלחת, הטריגר
@@ -21,8 +23,8 @@ export function LoginScreen() {
     setError(null);
     setPending('dev');
     const { error: authError } = await supabase.auth.signInWithPassword({
-      email: DEV_DEMO_EMAIL,
-      password: DEV_DEMO_PASSWORD,
+      email: DEMO_EMAIL,
+      password: DEMO_PASSWORD,
     });
     if (authError) setError(t('auth.error'));
     setPending(null);
@@ -79,7 +81,7 @@ export function LoginScreen() {
             <span>{t('auth.continueWithApple')}</span>
           </button>
 
-          {import.meta.env.DEV && (
+          {SHOW_DEMO_LOGIN && (
             <button
               type="button"
               className="login__btn login__btn--dev"
