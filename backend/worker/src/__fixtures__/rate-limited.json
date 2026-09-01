@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": 429,
+    "message": "Rate limit exceeded: provider google is temporarily rate limited",
+    "metadata": {
+      "provider_name": "Google"
+    }
+  }
+}

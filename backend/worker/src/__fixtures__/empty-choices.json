@@ -1,0 +1,14 @@
+{
+  "id": "gen-2026090100000004",
+  "provider": "Google",
+  "model": "google/gemini-3.7-flash",
+  "object": "chat.completion",
+  "created": 1788221100,
+  "choices": [],
+  "usage": {
+    "prompt_tokens": 1842,
+    "completion_tokens": 0,
+    "total_tokens": 1842,
+    "cost": 0.00019
+  }
+}

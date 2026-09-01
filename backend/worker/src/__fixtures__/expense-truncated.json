@@ -1,0 +1,25 @@
+{
+  "id": "gen-2026090100000003",
+  "provider": "Google",
+  "model": "google/gemini-3.7-flash",
+  "object": "chat.completion",
+  "created": 1788221000,
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "length",
+      "native_finish_reason": "MAX_TOKENS",
+      "message": {
+        "role": "assistant",
+        "refusal": null,
+        "content": "{\"transcript\":\"קניתי היום דשן בחמש מאות שקל לחלקה הדרומית ואחר כך נסעתי לחלקה המזרחית ורססתי שם נגד כנימה עם מובנטו ארבעים סמק לדונם ואחרי זה עצרתי בתחנה ומילאתי סולר במאתיים ושמונים שקל ואז חזרתי הביתה\",\"amount\":500,\"name\":\"ד"
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1842,
+    "completion_tokens": 400,
+    "total_tokens": 2242,
+    "cost": 0.00118
+  }
+}

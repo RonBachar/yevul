@@ -4,3 +4,13 @@ compatibility_date = "2024-12-30"
 
 [vars]
 # secrets like OPENROUTER_API_KEY are set via `wrangler secret put`, never here
+
+# מזהי המודלים לחילוץ מקול. **אין כאן סוד**, ולכן זה vars ולא secret.
+# הם קונפיגורציה ולא קבוע בקוד כי לא ידוע בוודאות אילו מזהים קיימים היום
+# אצל הספק: שני חוקרים החזירו רשימות מודלים שונות מאותו API, וצעד נפרד
+# בתוכנית יוודא זאת מול המציאות. מזהה קבוע בקוד היה מחייב PR כדי להחליף
+# מודל שנעלם.
+#
+# הראשי ראשון והגיבוי אחריו, בסדר הזה, כי כך הם נשלחים במערך models.
+OPENROUTER_MODEL = "google/gemini-3.7-flash"
+OPENROUTER_MODEL_FALLBACK = "google/gemini-2.5-flash"

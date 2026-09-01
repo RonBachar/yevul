@@ -1,0 +1,25 @@
+{
+  "id": "gen-2026090100000005",
+  "provider": "Google AI Studio",
+  "model": "google/gemini-2.5-flash",
+  "object": "chat.completion",
+  "created": 1788221200,
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "native_finish_reason": "STOP",
+      "message": {
+        "role": "assistant",
+        "refusal": null,
+        "content": "{\"transcript\":\"צריך לגזום את החלקה הצפונית עד סוף החודש, בערך אלף שקל\",\"title\":\"גיזום החלקה הצפונית\",\"plotName\":\"הצפונית\",\"dueDate\":\"2026-09-30\",\"estimatedCost\":1000,\"confidence\":0.78}"
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1611,
+    "completion_tokens": 88,
+    "total_tokens": 1699,
+    "cost": 0.00026
+  }
+}

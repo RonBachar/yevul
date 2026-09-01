@@ -1,0 +1,25 @@
+{
+  "id": "gen-2026090100000002",
+  "provider": "Google",
+  "model": "google/gemini-3.7-flash",
+  "object": "chat.completion",
+  "created": 1788220900,
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "native_finish_reason": "STOP",
+      "message": {
+        "role": "assistant",
+        "refusal": null,
+        "content": "```json\n{\"transcript\":\"אתמול רססתי את החלקה המזרחית נגד כנימה עם מובנטו ארבעים סמק לדונם, ארבעה עשר יום המתנה\",\"date\":\"2026-08-31\",\"plotName\":\"המזרחית\",\"type\":\"spray\",\"note\":null,\"sprayPest\":\"כנימה\",\"sprayMaterial\":\"מובנטו\",\"sprayDose\":\"40 סמק לדונם\",\"sprayPhiDays\":14,\"confidence\":0.87}\n```"
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 2104,
+    "completion_tokens": 178,
+    "total_tokens": 2282,
+    "cost": 0.00071
+  }
+}
