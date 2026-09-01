@@ -383,3 +383,123 @@ export function voiceJsonSchema(kind: VoiceKind): object {
   if (kind === 'task') return VOICE_TASK_JSON_SCHEMA;
   return VOICE_JOURNAL_JSON_SCHEMA;
 }
+
+// ============================================================
+// גרסת החוט של הסכמות, כלומר מה שבאמת נשלח בגוף הבקשה בתוך
+// response_format: { type: 'json_schema', json_schema: { strict: true } }.
+//
+// הסכמות שלמעלה נשארות החוזה הקנוני והן היחידות שמסונכרנות מול
+// הוולידטורים. כאן יושבים שני הבדלים, ושניהם נובעים מהעולם האמיתי
+// של הספקים ולא מהחוזה עצמו.
+//
+// **1. מילות המפתח המספריות יורדות.** minimum, maximum
+// ו-exclusiveMinimum אינן נתמכות ב-structured outputs, וספק שמקבל
+// אותן דוחה את **כל** הבקשה ב-400. הבקשה נשלחת עם מערך models, ראשי
+// וגיבוי, כלומר יש מסלול אמיתי שבו ספק אחר מקבל את הסכמה הזו, ותקלה
+// כזו הייתה מתגלה רק ביום שבו הספק הראשי למטה, שהוא היום הכי גרוע.
+//
+// **המידע לא נעלם, הוא עובר ל-description.** האילוץ הפורמלי הופך
+// לבקשה בשפה טבעית שהמודל קורא, ו**האכיפה עצמה נשארת בקוד**:
+// clampConfidence ו-finitePositive למעלה אוכפים בדיוק את אותם גבולות
+// על מה שבאמת חזר. זו הסיבה שההסרה בטוחה. strict: true אינו תחליף,
+// כי מידת האכיפה שלו משתנה בין ספק לספק.
+//
+// **2. נוסף שדה transcript.** יש קריאה אחת בלבד, אודיו נכנס ו-JSON
+// יוצא, ואין מסלול טקסט ביניים שאפשר להציג ממנו. בלי השדה הזה, חילוץ
+// שנכשל משאיר את החקלאי מול מסך ריק במקום מול "זה מה ששמענו".
+// **הוא אינו נכנס לטיפוסים ואינו נכנס לוולידטורים**, כי הוא נתון
+// תצוגה ולא שדה של הרשומה. הוולידטורים קוראים רק את המפתחות שלהם
+// ומתעלמים משאר, וה-Worker קורא את transcript מהאובייקט הגולמי לפני
+// הוולידציה.
+// ============================================================
+
+// exclusiveMaximum אינו מופיע היום באף סכמה, והוא ברשימה כי הוא באותה
+// משפחת מילות מפתח נדחות. עריכה עתידית שתוסיף אותו לא תחזיר את ה-400
+// בשקט.
+const NUMERIC_BOUND_KEYWORDS: readonly string[] = [
+  'minimum',
+  'maximum',
+  'exclusiveMinimum',
+  'exclusiveMaximum',
+];
+
+// התרגום מאילוץ לתיאור. "מספר חיובי" ולא "גדול מ-0", כי זו הצורה
+// שחקלאי ומודל קוראים באותו אופן.
+function boundsHint(node: Record<string, unknown>): string | null {
+  const parts: string[] = [];
+
+  const min = node.minimum;
+  const max = node.maximum;
+  if (typeof min === 'number' && typeof max === 'number') {
+    parts.push(`בין ${min} ל-${max}`);
+  } else if (typeof min === 'number') {
+    parts.push(`לפחות ${min}`);
+  } else if (typeof max === 'number') {
+    parts.push(`לכל היותר ${max}`);
+  }
+
+  const exclusiveMin = node.exclusiveMinimum;
+  if (typeof exclusiveMin === 'number') {
+    parts.push(exclusiveMin === 0 ? 'מספר חיובי' : `גדול מ-${exclusiveMin}`);
+  }
+
+  const exclusiveMax = node.exclusiveMaximum;
+  if (typeof exclusiveMax === 'number') parts.push(`קטן מ-${exclusiveMax}`);
+
+  return parts.length === 0 ? null : parts.join(', ');
+}
+
+// מעתיק לעומק ומסיר תוך כדי. **מחזיר עותק חדש ולעולם אינו נוגע בקלט**,
+// כי הסכמות המקוריות הן as const ומשותפות בין הקריאות: PLOT_NAME_FIELD
+// ו-CONFIDENCE_FIELD הם אותו אובייקט בשלוש הסכמות, ומוטציה אחת הייתה
+// מזהמת את כולן.
+function withoutNumericBounds(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(withoutNumericBounds);
+  if (typeof node !== 'object' || node === null) return node;
+
+  const source = node as Record<string, unknown>;
+  const hint = boundsHint(source);
+  const copy: Record<string, unknown> = {};
+
+  for (const [key, value] of Object.entries(source)) {
+    if (NUMERIC_BOUND_KEYWORDS.includes(key)) continue;
+    copy[key] = withoutNumericBounds(value);
+  }
+
+  if (hint !== null) {
+    const existing = typeof copy.description === 'string' ? copy.description : '';
+    // תיאור שכבר אומר את זה במילים לא מקבל את זה פעמיים.
+    // CONFIDENCE_FIELD כבר כתוב "בין 0 ל-1", וכפילות רק מבלבלת את המודל.
+    if (existing === '') copy.description = hint;
+    else if (!existing.includes(hint)) copy.description = `${existing}, ${hint}`;
+  }
+
+  return copy;
+}
+
+// **transcript ראשון ב-properties, וזה מכוון.** ב-structured outputs
+// המודל מייצר את השדות לפי סדר הופעתם, ולכן תמלול תחילה פירושו שהחילוץ
+// מותנה בטקסט שכבר נכתב, במקום להיכתב במקביל לו.
+const TRANSCRIPT_FIELD = {
+  type: 'string',
+  description: 'התמלול המלא של ההקלטה, מילה במילה, בלי פרשנות ובלי תיקון',
+} as const;
+
+type WireSchema = {
+  required: readonly string[];
+  properties: Record<string, unknown>;
+  [key: string]: unknown;
+};
+
+export function voiceWireJsonSchema(kind: VoiceKind): object {
+  const base = withoutNumericBounds(voiceJsonSchema(kind)) as WireSchema;
+
+  return {
+    ...base,
+    // transcript ב-required כמו כל שדה אחר. הסכמה הזו נשלחת עם
+    // additionalProperties: false, ושדה שאינו required בסכמה סגורה הוא
+    // בדיוק המצב שספקי structured outputs דוחים.
+    required: ['transcript', ...base.required],
+    properties: { transcript: { ...TRANSCRIPT_FIELD }, ...base.properties },
+  };
+}

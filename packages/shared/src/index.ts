@@ -112,6 +112,7 @@ export {
   parseVoiceResult,
   resolvePlotName,
   voiceJsonSchema,
+  voiceWireJsonSchema,
   VOICE_KINDS,
   VOICE_EXPENSE_JSON_SCHEMA,
   VOICE_TASK_JSON_SCHEMA,

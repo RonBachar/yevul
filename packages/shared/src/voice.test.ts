@@ -5,6 +5,8 @@ import {
   parseVoiceTask,
   resolvePlotName,
   voiceJsonSchema,
+  voiceWireJsonSchema,
+  VOICE_EXPENSE_JSON_SCHEMA,
   VOICE_KINDS,
 } from './voice';
 
@@ -247,6 +249,159 @@ describe('voiceJsonSchema', () => {
         properties: Record<string, unknown>;
       };
       expect([...schema.required].sort()).toEqual(Object.keys(schema.properties).sort());
+    }
+  });
+});
+
+// ============================================================
+// גרסת החוט, כלומר מה שבאמת נשלח לספק.
+//
+// **שתי בעיות בשליחת הסכמות הקנוניות כמו שהן.** מילות המפתח המספריות
+// אינן נתמכות ב-structured outputs וספק שמקבל אותן דוחה ב-400, והבקשה
+// נשלחת עם מערך models, כלומר יש מסלול אמיתי שבו ספק אחר מקבל אותן.
+// ובנוסף חסר transcript, ובלעדיו חילוץ שנכשל משאיר את החקלאי מול מסך
+// ריק במקום מול "זה מה ששמענו".
+// ============================================================
+
+// צילום של שלוש הסכמות הקנוניות ברגע טעינת המודול, לפני שאיזו בדיקה
+// הספיקה לקרוא ל-voiceWireJsonSchema. JSON.stringify שומר גם את סדר
+// המפתחות, ולכן הוא תופס גם הוספה, גם מחיקה וגם שינוי סדר.
+const CANONICAL_SNAPSHOT = JSON.stringify(VOICE_KINDS.map((kind) => voiceJsonSchema(kind)));
+
+// אוסף כל שם מפתח בעץ, בכל עומק, כדי שהבדיקה לא תסתמך על היכרות עם
+// המבנה. סכמה מקוננת עתידית תיבדק אוטומטית.
+function allKeys(node: unknown, found: string[] = []): string[] {
+  if (Array.isArray(node)) {
+    for (const item of node) allKeys(item, found);
+    return found;
+  }
+  if (typeof node !== 'object' || node === null) return found;
+  for (const [key, value] of Object.entries(node)) {
+    found.push(key);
+    allKeys(value, found);
+  }
+  return found;
+}
+
+type SchemaShape = {
+  additionalProperties: boolean;
+  required: readonly string[];
+  properties: Record<string, { type?: unknown; description?: string }>;
+};
+
+function occurrences(haystack: string, needle: string): number {
+  return haystack.split(needle).length - 1;
+}
+
+describe('voiceWireJsonSchema', () => {
+  // ספק שמקבל את מילות המפתח האלה דוחה את כל הבקשה ב-400.
+  it('drops every numeric constraint keyword, at any depth, in all three kinds', () => {
+    for (const kind of VOICE_KINDS) {
+      const keys = allKeys(voiceWireJsonSchema(kind));
+      expect(keys).not.toContain('minimum');
+      expect(keys).not.toContain('maximum');
+      expect(keys).not.toContain('exclusiveMinimum');
+      expect(keys).not.toContain('exclusiveMaximum');
+    }
+  });
+
+  // **האילוץ יורד, המידע לא.** הוא עובר מאילוץ פורמלי לתיאור בשפה
+  // טבעית שהמודל קורא, והאכיפה עצמה נשארת ב-finitePositive
+  // וב-clampConfidence שרצים על מה שחזר.
+  it('moves the bounds into the description instead of losing them', () => {
+    const expense = voiceWireJsonSchema('expense') as SchemaShape;
+
+    const amount = expense.properties.amount!.description!;
+    expect(amount).toContain('הסכום ששולם, מספר בלבד');
+    expect(amount).toContain('מספר חיובי');
+
+    // **התיאור של confidence כבר אמר את הטווח במילים**, ולכן הוא נשאר
+    // בדיוק כפי שהיה ולא מקבל את אותו משפט פעמיים. ההשוואה היא מול
+    // המקור עצמו ולא מול מחרוזת שהודפסה כאן, כדי שהבדיקה לא תעבור
+    // בטעות על טקסט דומה אבל לא זהה.
+    const canonicalConfidence = VOICE_EXPENSE_JSON_SCHEMA.properties.confidence.description;
+    const confidence = expense.properties.confidence!.description!;
+    expect(confidence).toBe(canonicalConfidence);
+    expect(occurrences(confidence, 'בין 0 ל-1')).toBe(1);
+  });
+
+  it('adds transcript to properties and to required, in all three kinds', () => {
+    for (const kind of VOICE_KINDS) {
+      const schema = voiceWireJsonSchema(kind) as SchemaShape;
+      expect(schema.properties.transcript).toBeDefined();
+      expect(schema.properties.transcript!.type).toBe('string');
+      expect(schema.required).toContain('transcript');
+    }
+  });
+
+  // הסכמה נשלחת סגורה, ושדה שאינו required בסכמה סגורה הוא בדיוק המצב
+  // שספקי structured outputs דוחים.
+  it('stays closed and fully required after the rewrite', () => {
+    for (const kind of VOICE_KINDS) {
+      const schema = voiceWireJsonSchema(kind) as SchemaShape;
+      expect(schema.additionalProperties).toBe(false);
+      expect([...schema.required].sort()).toEqual(Object.keys(schema.properties).sort());
+    }
+  });
+
+  // **הבדיקה שתופסת מוטציה בטעות.** הסכמות הקנוניות הן as const,
+  // ו-CONFIDENCE_FIELD ו-PLOT_NAME_FIELD הם אותו אובייקט בשלוש הסכמות,
+  // כלומר עריכה במקום הייתה מזהמת את שלושתן בבת אחת ובשקט.
+  it('leaves the canonical schemas byte for byte as they were', () => {
+    for (const kind of VOICE_KINDS) voiceWireJsonSchema(kind);
+
+    expect(JSON.stringify(VOICE_KINDS.map((kind) => voiceJsonSchema(kind)))).toBe(
+      CANONICAL_SNAPSHOT,
+    );
+
+    const canonical = VOICE_EXPENSE_JSON_SCHEMA;
+    expect(canonical.properties.amount.exclusiveMinimum).toBe(0);
+    expect(canonical.properties.confidence.minimum).toBe(0);
+    expect(canonical.properties.confidence.maximum).toBe(1);
+    expect([...canonical.required]).not.toContain('transcript');
+    expect(Object.keys(canonical.properties)).not.toContain('transcript');
+  });
+
+  // **transcript אינו חלק מהחוזה של הרשומה.** הוא נתון תצוגה למקרה
+  // שהחילוץ נכשל, ה-Worker קורא אותו מהאובייקט הגולמי לפני הוולידציה,
+  // והוולידטורים אמורים פשוט להתעלם ממנו ולא להיחנק עליו.
+  it('leaves the validators unbothered by an extra transcript key', () => {
+    const spoken = 'קניתי סולר בחלקה הדרומית באלף וחמש מאות שקל';
+
+    const expense = parseVoiceExpense({ ...validExpense, transcript: spoken });
+    expect(expense.ok).toBe(true);
+    if (expense.ok) {
+      expect(expense.value.amount).toBe(1500);
+      expect('transcript' in expense.value).toBe(false);
+    }
+
+    const task = parseVoiceTask({
+      title: 'לדלל את המטע',
+      plotName: null,
+      dueDate: null,
+      estimatedCost: null,
+      confidence: 0.8,
+      transcript: spoken,
+    });
+    expect(task.ok).toBe(true);
+    if (task.ok) expect('transcript' in task.value).toBe(false);
+
+    const journal = parseVoiceJournal({
+      date: '2026-08-24',
+      plotName: 'צפונית',
+      type: 'spray',
+      note: null,
+      sprayPest: 'כנימת עלה',
+      sprayMaterial: 'קונפידור',
+      sprayDose: '0.5%',
+      sprayPhiDays: 7,
+      confidence: 0.85,
+      transcript: spoken,
+    });
+    expect(journal.ok).toBe(true);
+    if (journal.ok) {
+      expect(journal.value.sprayPhiDays).toBe(7);
+      expect('transcript' in journal.value).toBe(false);
     }
   });
 });
