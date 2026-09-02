@@ -1,4 +1,5 @@
 import { gate, type Env } from './gate';
+import { handleVoice } from './voice';
 
 export type { Env };
 
@@ -11,6 +12,16 @@ export type { Env };
 // דרך אותו gate שכל נקודת קצה של AI תרוץ דרכו, ולכן הוא מאמת את
 // האכיפה עצמה ולא הדמיה שלה. הוא **כן צורך מכסה**, כי הוא בודק את
 // הצריכה, ולכן אינו נשאר בפרודקשן אחרי שנקודות הקצה האמיתיות קיימות.
+//
+// It stays for now even though /ai/voice exists, because it is still the only
+// way to exercise the gate without paying, and the Worker has never been
+// deployed (there is no Cloudflare account yet). It is removed once /ai/voice
+// has been verified against a deployed Worker.
+//
+// This file stays a router and nothing else. The wiring that connects gate to
+// OpenRouter to the validators lives in voice.ts, so that adding the receipt
+// OCR endpoint later means another line here and not a second nest of
+// validation inside the dispatcher.
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
@@ -32,6 +43,13 @@ export default {
         return json({ error: result.reason }, result.status);
       }
       return json({ farmId: result.farmId, entitled: result.entitled });
+    }
+
+    if (url.pathname === '/ai/voice' && request.method === 'POST') {
+      // The global fetch is injected here, at the edge of the system, and
+      // nowhere below. That is what makes it impossible for a test to reach
+      // the network by forgetting a mock.
+      return handleVoice(request, env, fetch);
     }
 
     return new Response('not found', { status: 404 });

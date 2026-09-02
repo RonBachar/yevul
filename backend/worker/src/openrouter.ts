@@ -50,7 +50,14 @@ export type FetchLike = (url: string, init: FetchInit) => Promise<Response>;
 
 // הפורמטים ש-OpenRouter מקבל בשדה input_audio. רשימה סגורה ולא string,
 // כדי שפורמט שגוי ייפול בקומפילציה ולא ב-400 מהספק.
-export type AudioFormat = 'm4a' | 'mp3' | 'wav' | 'ogg' | 'flac' | 'webm' | 'aac';
+//
+// The list is a runtime value and the type is derived from it, rather than the
+// other way round. The wiring layer has to check a client-supplied string
+// against this same closed set, and a hand-written second copy of the list
+// there would drift silently the day a format is added here.
+export const AUDIO_FORMATS = ['m4a', 'mp3', 'wav', 'ogg', 'flac', 'webm', 'aac'] as const;
+
+export type AudioFormat = (typeof AUDIO_FORMATS)[number];
 
 export type OpenRouterConfig = {
   apiKey: string;
