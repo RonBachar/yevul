@@ -379,6 +379,14 @@ const strings: Record<string, string> = {
   'expense.form.notePlaceholder': 'הערה קצרה, לא חובה',
   'expense.form.forbidden': 'אין לכם הרשאה ליצור או לערוך הוצאות',
   'expense.form.saveError': 'לא הצלחנו לשמור, נסו שוב',
+
+  // Deleting an expense. Founder's report 2026-09-02: a mistyped expense has to
+  // be removable. Same two words the task row already uses, because it is the
+  // same button in the same place, and the same confirmation question with the
+  // noun swapped.
+  'expense.action.delete': 'מחיקה',
+  'expense.action.cancel': 'ביטול',
+  'expense.deleteConfirmTitle': 'למחוק את ההוצאה?',
   'expense.save': 'שמירה',
   'expense.saving': 'שומר',
   'expense.form.receipt': 'קבלה',

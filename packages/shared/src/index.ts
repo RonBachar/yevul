@@ -105,6 +105,7 @@ export {
   useExpenses,
   createExpense,
   updateExpense,
+  deleteExpense,
   attachReceipt,
   type Expense,
   type ExpenseSource,

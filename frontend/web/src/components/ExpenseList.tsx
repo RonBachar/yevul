@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { t, useExpenses, useFarmSettings, type Expense } from '@yevul/shared';
+import { deleteExpense, t, useExpenses, useFarmSettings, type Expense } from '@yevul/shared';
 import { ExpenseRow } from './ExpenseRow';
 import { ExpenseSheet } from './ExpenseSheet';
 import './ExpenseList.css';
@@ -43,6 +43,13 @@ export function ExpenseList({
     setSheetOpen(true);
   }
 
+  // Exactly TaskBoard's handleDelete: write, then reload. The row confirmed
+  // with the farmer before calling this, so there is nothing left to ask.
+  async function handleDelete(expenseId: string) {
+    await deleteExpense(supabase, expenseId);
+    expensesState.refresh();
+  }
+
   const list = (
     <div className="expense-list">
       <button type="button" className="form__submit expense-list__new" onClick={openCreate}>
@@ -70,6 +77,7 @@ export function ExpenseList({
               }
               currency={currency}
               onEdit={() => openEdit(expense)}
+              onDeleteCommit={() => handleDelete(expense.id)}
             />
           ))}
         </div>

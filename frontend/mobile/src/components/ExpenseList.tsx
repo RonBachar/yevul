@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import Plus from 'lucide-react-native/icons/plus';
-import { t, useExpenses, useFarmSettings, type Expense } from '@yevul/shared';
+import { deleteExpense, t, useExpenses, useFarmSettings, type Expense } from '@yevul/shared';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { ExpenseRow } from './ExpenseRow';
@@ -43,6 +43,13 @@ export function ExpenseList({
     setSheetOpen(true);
   }
 
+  // Exactly TaskBoard's handleDelete: write, then reload. The row confirmed
+  // with the farmer before calling this, so there is nothing left to ask.
+  async function handleDelete(expenseId: string) {
+    await deleteExpense(supabase, expenseId);
+    expensesState.refresh();
+  }
+
   return (
     <View style={styles.wrap}>
       <Pressable style={styles.newButton} onPress={openCreate} accessibilityRole="button">
@@ -68,6 +75,7 @@ export function ExpenseList({
             }
             currency={currency}
             onPress={() => openEdit(item)}
+            onDeleteCommit={() => handleDelete(item.id)}
           />
         )}
         // Wrapped in a View because FlatList clones this element to attach

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { currentFarmQuery } from './currentFarm';
-import { writeOutcome } from './postgrest';
+import { writeOutcome, type WriteOutcome } from './postgrest';
 import { useLoadCount } from './refresh';
 
 // הוצאות, שלב 3, docs/roadmap.md. **הקוד הראשון כאן ניסה טופס עם
@@ -336,4 +336,54 @@ export async function updateExpense(
   await clearAllocations(supabase, expenseId);
   await writeAllocation(supabase, farmId, expenseId, input);
   return { ok: true, id: expenseId };
+}
+
+// ============================================================
+// Deleting an expense. Founder's report 2026-09-02: "if someone enters an
+// expense by mistake I want to delete it". A task could already be deleted and
+// an expense could not, so this is deleteTask's shape on the money table, not a
+// new mechanism: one soft delete, `deleted_at`, no DELETE anywhere (the schema
+// grants none — see core_schema.sql, "מחיקה היא תמיד UPDATE על deleted_at").
+//
+// **One row is touched, and the three things hanging off the expense are
+// deliberately left alone.**
+//
+// `expense_allocations`: not cleared, and the reason is that it never carries
+// the money. Its `amount` column is written by writeAllocation and read by
+// nobody — EXPENSE_COLUMNS embeds only `plot_id` off it — so every figure the
+// product shows is summed from `expenses.amount` (profit.ts, reports.ts), and a
+// leftover allocation cannot inflate a total. It cannot even be seen: the only
+// reads of that table are child joins under a query on `expenses` that already
+// filters `deleted_at is null`, so a soft-deleted expense takes its allocations
+// out of every list, every plot total and every export along with it. Clearing
+// them is in fact the one move here that could corrupt the record — it is what
+// updateExpense's clearAllocations does, and an expense restored afterwards
+// would come back as a general farm expense instead of the plot's, silently
+// moving money off a plot. The row stays whole so the undo that design.md asks
+// for can be one write.
+//
+// The `receipts` row and the object in the bucket: also untouched, and the
+// storage bytes especially. `receipts_storage_delete` exists in the policy, so
+// a client *could* erase them, and nothing else in this product ever does —
+// deleting bytes is the only irreversible act available on this path, and a
+// mistyped amount is not a reason to burn an accountant's document. The row and
+// the file are reachable only through the expense (loadReceiptDocument is
+// keyed by expense_id), which is now gone from every screen, so this creates no
+// orphan beyond the one docs/open-items.md already records for receipt replacement.
+//
+// **No undo, and that is inherited rather than chosen.** design.md asks for a
+// five-second undo wherever deletion exists and the roadmap schedules it for
+// stage 8; deleteTask does not have one either, and both clients guard deletion
+// with a confirmation dialog before the write instead. Expenses match that
+// exactly rather than growing a one-off.
+export async function deleteExpense(
+  supabase: SupabaseClient,
+  expenseId: string,
+): Promise<WriteOutcome> {
+  const write = await supabase
+    .from('expenses')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', expenseId)
+    .select('id');
+  return writeOutcome(write);
 }

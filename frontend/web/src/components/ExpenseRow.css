@@ -1,13 +1,25 @@
 .expense-row {
   display: flex;
   align-items: center;
-  width: 100%;
-  gap: var(--spacing-12);
+  gap: var(--spacing-8);
   min-height: 64px;
   padding: var(--spacing-12) var(--spacing-16);
-  border: none;
   border-radius: var(--radius-card);
   background: var(--color-mist-100);
+}
+
+/* The tap area that opens the sheet. It carries the row's own padding no
+   longer — the container does — so the delete button sits inside the same
+   inset as everything else. */
+.expense-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-12);
+  padding: 0;
+  border: none;
+  background: transparent;
   text-align: right;
   cursor: pointer;
 }
@@ -35,7 +47,7 @@
   background: var(--color-field-700);
 }
 
-.expense-row__body {
+.expense-row__text {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -67,4 +79,24 @@
   font-size: var(--text-body);
   font-weight: var(--font-weight-bold);
   color: var(--color-ink-900);
+}
+
+/* Identical to .task-row__icon-button--delete, because it is the same button
+   doing the same thing one list over. */
+.expense-row__delete {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-pill);
+  color: var(--color-paper);
+  background: var(--color-loss-600);
+  cursor: pointer;
+}
+
+.expense-row__delete:hover {
+  opacity: 0.85;
 }
