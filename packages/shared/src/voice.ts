@@ -264,7 +264,14 @@ export function parseVoiceResult(kind: VoiceKind, raw: unknown): VoiceParseResul
 export type PlotMatch =
   { status: 'matched'; plotId: string } | { status: 'ambiguous' } | { status: 'none' };
 
-function normalizePlotName(value: string): string {
+// Exported so the confirmation sheet can ask the *same* question this file
+// asks, rather than a second one that looks like it. It needs to tell "he named
+// no plot" apart from "he named one and it matched nothing", and the only
+// honest test for the first is the one used here: a spoken string that
+// normalises to nothing is not a name. A second implementation of that rule
+// would eventually disagree with this one, and the disagreement would show up
+// as a sentence about a plot the resolver never considered.
+export function normalizePlotName(value: string): string {
   return value
     .replace(/["'׳״]/g, '')
     .split(/\s+/)
@@ -275,16 +282,36 @@ function normalizePlotName(value: string): string {
     .toLowerCase();
 }
 
+// **The plots a spoken name could mean, and the reason this exists separately
+// from resolvePlotName.** `ambiguous` is deliberately a verdict without a list,
+// which is the right shape for a caller that only wants a plot id. It is the
+// wrong shape for the confirmation sheet, which has to *show* the candidates
+// and make the farmer pick one, and cannot ask about plots it was never told.
+//
+// resolvePlotName is defined in terms of this rather than the other way round,
+// so there is exactly one normalisation and exactly one equality rule. Two
+// filters, each written out, is how the verdict and the list eventually
+// disagree.
+//
+// Generic on the plot, so the caller gets back its own objects with whatever
+// else it needs to render them, not a stripped copy.
+export function resolvePlotCandidates<T extends { id: string; name: string }>(
+  spoken: string | null,
+  plots: readonly T[],
+): T[] {
+  if (spoken === null) return [];
+
+  const target = normalizePlotName(spoken);
+  if (target === '') return [];
+
+  return plots.filter((plot) => normalizePlotName(plot.name) === target);
+}
+
 export function resolvePlotName(
   spoken: string | null,
   plots: { id: string; name: string }[],
 ): PlotMatch {
-  if (spoken === null) return { status: 'none' };
-
-  const target = normalizePlotName(spoken);
-  if (target === '') return { status: 'none' };
-
-  const matches = plots.filter((plot) => normalizePlotName(plot.name) === target);
+  const matches = resolvePlotCandidates(spoken, plots);
   if (matches.length === 1) return { status: 'matched', plotId: matches[0]!.id };
   if (matches.length > 1) return { status: 'ambiguous' };
   return { status: 'none' };

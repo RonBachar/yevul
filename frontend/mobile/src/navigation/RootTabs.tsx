@@ -117,6 +117,8 @@ export function RootTabs() {
         />
       </Tab.Navigator>
       <CaptureSheet
+        supabase={supabase}
+        farmId={farmState.farm?.id ?? null}
         visible={captureOpen}
         onClose={closeCapture}
         onJournalPress={openJournal}

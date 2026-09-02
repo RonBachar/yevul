@@ -436,6 +436,46 @@ const strings: Record<string, string> = {
   // explanation: the recording was sent, and he needs to know why it ended
   // without him letting go.
   'voice.stoppedAtLimit': 'עצרנו את ההקלטה אחרי שתי דקות, ושלחנו מה שהוקלט.',
+
+  // The confirmation checkpoint, stage 5 step 9. design.md, Voice / OCR
+  // Confirmation Sheet: prd.md section 3, "always confirm, never guess".
+  //
+  // **The heading says what the screen is, and it is not "success".** The
+  // recording worked; whether the record is right is the question being asked,
+  // and a farmer who reads "saved" here will stop reading the fields.
+  'voice.confirm.heading': 'זה מה שהבנו',
+  // design.md names this button word for word.
+  'voice.confirm.confirm': 'אישור',
+  'voice.confirm.saving': 'שומר...',
+  'voice.confirm.plot': 'חלקה',
+  // Two plots normalise to the same spoken name, so the sheet asks instead of
+  // picking. prd.md section 8: no guessing which figure belongs to which plot.
+  'voice.confirm.plotAsk': 'לא ברור לאיזו חלקה. בחרו אחת:',
+  // He named a plot and no plot has that name. Said out loud rather than
+  // swallowed, because the alternative is a name that disappears between what
+  // he said and what he confirmed.
+  'voice.confirm.plotUnknown': 'לא מצאנו חלקה בשם שאמרתם. הרישום יישמר בלי חלקה.',
+  // The "there are more expenses" flag, prd.md section 8: one recording, one
+  // expense. Shown on the confirmation screen, before he confirms, so the item
+  // in front of him is understood to be the first of several and not all of
+  // them.
+  'voice.confirm.moreItems': 'שמענו עוד הוצאות. רושמים אחת בכל פעם.',
+  'voice.confirm.saved': 'נשמר',
+  // The one-at-a-time affordance, after the first one is in.
+  'voice.confirm.savedMore': 'נשמר. אפשר להקליט עכשיו את ההוצאה הבאה.',
+  // **"what you recorded is still here" is the whole point of the sentence.**
+  // He has just spent one of ten monthly recordings, and a failed save that
+  // reads like a dead end would send him back to the microphone to spend a
+  // second one on the same expense.
+  'voice.confirm.saveError': 'לא הצלחנו לשמור. מה שהקלטתם נשאר כאן, אפשר לאשר שוב.',
+  'voice.confirm.forbidden': 'אין לכם הרשאה לשמור את הרישום הזה.',
+  'voice.confirm.dateInvalid': 'יש להזין יום וחודש',
+  'voice.confirm.phiInvalid': 'ימי ההמתנה צריכים להיות מספר',
+  // A spray with no pest or no material cannot be written at all (see
+  // sprayValidationError in logEntries.ts), and the sheet holds a ceiling of
+  // two edit boxes, so the way out is to say the missing half again.
+  'voice.confirm.sprayPestMissing': 'לא הבנו נגד איזה מזיק ריססתם. הקליטו שוב ואמרו את שם המזיק.',
+  'voice.confirm.sprayMaterialMissing': 'לא הבנו באיזה חומר ריססתם. הקליטו שוב ואמרו את שם החומר.',
 };
 
 // מחזיר את המחרוזת לפי המפתח, ואם אין, מחזיר את המפתח עצמו כדי

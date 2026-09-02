@@ -4,6 +4,7 @@ import Wallet from 'lucide-react-native/icons/wallet';
 import ListChecks from 'lucide-react-native/icons/list-checks';
 import NotebookPen from 'lucide-react-native/icons/notebook-pen';
 import Mic from 'lucide-react-native/icons/mic';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { t, type VoiceKind } from '@yevul/shared';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 import { BottomSheet } from '../components/BottomSheet';
@@ -39,12 +40,20 @@ import { workerUrl } from '../lib/voiceTransport';
 // opening a second sheet.** One layer, one back link, and the recording panel
 // unmounts the moment he leaves it, which is what tears the recorder down.
 export function CaptureSheet({
+  supabase,
+  farmId,
   visible,
   onClose,
   onJournalPress,
   onExpensePress,
   onTaskPress,
 }: {
+  // Only the voice path needs these, and only from its confirmation step: a
+  // recording that is never confirmed writes nothing. They are threaded through
+  // rather than read from a module here because every other sheet in this app
+  // is handed the same two by the same parent.
+  supabase: SupabaseClient;
+  farmId: string | null;
   visible: boolean;
   onClose: () => void;
   onJournalPress: () => void;
@@ -106,6 +115,8 @@ export function CaptureSheet({
           title={selected.title}
           workerUrl={workerUrl}
           accessToken={session?.access_token ?? null}
+          supabase={supabase}
+          farmId={farmId}
           onBack={() => setVoiceKind(null)}
         />
       ) : (

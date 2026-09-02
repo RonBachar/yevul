@@ -167,7 +167,8 @@ export type ExpenseInput = {
   note: string | null;
 };
 
-export type ExpenseWriteResult = { ok: true; id: string } | { ok: false; reason: 'forbidden' | 'error' };
+export type ExpenseWriteResult =
+  { ok: true; id: string } | { ok: false; reason: 'forbidden' | 'error' };
 
 async function writeAllocation(
   supabase: SupabaseClient,
@@ -184,10 +185,18 @@ async function writeAllocation(
   });
 }
 
+// **`source` is a parameter with a default, exactly like createLogEntry's.**
+// The column has been in the schema since day one with a 'manual' default, and
+// every caller until stage 5 was a hand-typed form, so nothing wrote it and the
+// default carried it. Voice makes that untrue: a spoken expense and a typed one
+// have to be tellable apart afterwards, and the default would have labelled
+// every recording as something the farmer typed. Defaulted rather than
+// required so no existing call site changes meaning.
 export async function createExpense(
   supabase: SupabaseClient,
   farmId: string,
   input: ExpenseInput,
+  source: ExpenseSource = 'manual',
 ): Promise<ExpenseWriteResult> {
   const write = await supabase
     .from('expenses')
@@ -197,6 +206,7 @@ export async function createExpense(
       category: input.name?.trim() ? input.name.trim() : null,
       date: input.date,
       note: input.note?.trim() ? input.note.trim() : null,
+      source,
     })
     .select('id');
   const outcome = writeOutcome(write);

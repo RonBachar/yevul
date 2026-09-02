@@ -1,19 +1,12 @@
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import Mic from 'lucide-react-native/icons/mic';
 import MicOff from 'lucide-react-native/icons/mic-off';
-import CircleCheckBig from 'lucide-react-native/icons/circle-check-big';
 import { formatRecordingElapsed, t, voicePromptKey, type VoiceKind } from '@yevul/shared';
-import {
-  colors,
-  fonts,
-  fontSize,
-  radius,
-  shadowFloat,
-  spacing,
-  touchTarget,
-} from '../theme/tokens';
+import { colors, fonts, fontSize, shadowFloat, spacing, touchTarget } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { useVoiceRecording } from '../hooks/useVoiceRecording';
+import { VoiceConfirmPanel } from './VoiceConfirmPanel';
 
 // The listening screen, design.md, Mic Capture Button.
 //
@@ -23,11 +16,11 @@ import { useVoiceRecording } from '../hooks/useVoiceRecording';
 // file saw it. What is left here is which sentence and which shape belong to
 // which state, which is the only part that genuinely has to be a component.
 //
-// **This is where step 8 ends.** A result arriving means the model understood
-// the farmer and handed back a parsed record; showing him that record on a
-// confirmation sheet and writing it to Supabase is the next step. Until then
-// the success screen shows the transcript, which is the honest thing to show:
-// "this is what we heard", not "this is what we saved".
+// **A result now hands straight over to VoiceConfirmPanel.** Step 8 ended here,
+// with the transcript on screen and nothing written; step 9 is the checkpoint
+// that turns it into a record. The handover is deliberately a component swap
+// and not a second sheet: the farmer stays in the same layer he pressed the
+// microphone in, and this file keeps knowing only about recording.
 //
 // **No spinner-only state anywhere in here**, per design.md's Loading State
 // spec and for a plain reason: a spinner tells this audience that the phone is
@@ -54,6 +47,8 @@ export function VoiceCapturePanel({
   title,
   workerUrl,
   accessToken,
+  supabase,
+  farmId,
   onBack,
 }: {
   kind: VoiceKind;
@@ -62,6 +57,10 @@ export function VoiceCapturePanel({
   title: string;
   workerUrl: string;
   accessToken: string | null;
+  // Passed through untouched to the confirmation panel. Recording itself needs
+  // neither, and this file goes on knowing nothing about the database.
+  supabase: SupabaseClient;
+  farmId: string | null;
   onBack: () => void;
 }) {
   const { state, pressIn, pressOut, reset } = useVoiceRecording({ kind, workerUrl, accessToken });
@@ -111,22 +110,21 @@ export function VoiceCapturePanel({
   if (state.status === 'done') {
     return (
       <View style={styles.root}>
-        <CircleCheckBig size={32} strokeWidth={2} color={colors.field700} />
+        {/* Kept above the confirmation, not folded into it: it explains why the
+            recording ended without him letting go of the button, which is a
+            fact about the recording rather than about the record. */}
         {state.stoppedAtLimit && <Text style={styles.note}>{t('voice.stoppedAtLimit')}</Text>}
-        {state.success.transcript !== null && (
-          <View style={styles.transcript}>
-            <Text style={styles.transcriptLabel}>{t('voice.heard')}</Text>
-            <Text style={styles.transcriptText}>{state.success.transcript}</Text>
-          </View>
-        )}
-        <Pressable
-          style={[formStyles.save, styles.action]}
-          onPress={reset}
-          accessibilityRole="button"
-        >
-          <Text style={formStyles.saveText}>{t('voice.again')}</Text>
-        </Pressable>
-        <BackLink onPress={onBack} />
+        <VoiceConfirmPanel
+          supabase={supabase}
+          farmId={farmId}
+          parsed={state.success.parsed}
+          transcript={state.success.transcript}
+          // Straight back to the microphone with the same kind still selected,
+          // which is also the one-at-a-time affordance for "there are more
+          // expenses". reset() tears the recorder down first.
+          onRecordAgain={reset}
+          onBack={onBack}
+        />
       </View>
     );
   }
@@ -289,25 +287,6 @@ const styles = StyleSheet.create({
     fontSize: fontSize.bodySm,
     color: colors.ink900,
     textAlign: 'center',
-    writingDirection: 'rtl',
-  },
-  transcript: {
-    alignSelf: 'stretch',
-    gap: spacing.s4,
-    padding: spacing.s16,
-    borderRadius: radius.card,
-    backgroundColor: colors.mist100,
-  },
-  transcriptLabel: {
-    fontFamily: fonts.bold,
-    fontSize: fontSize.caption,
-    color: colors.slate600,
-    writingDirection: 'rtl',
-  },
-  transcriptText: {
-    fontFamily: fonts.regular,
-    fontSize: fontSize.body,
-    color: colors.ink900,
     writingDirection: 'rtl',
   },
   action: {
