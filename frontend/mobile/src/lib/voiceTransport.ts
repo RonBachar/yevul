@@ -28,7 +28,22 @@ import type { VoiceFetch } from '@yevul/shared';
 // the rest of the app never notices.
 // ============================================================
 
-export const workerUrl: string | null = process.env.EXPO_PUBLIC_WORKER_URL ?? null;
+// **An empty value counts as absent, and `?? null` alone does not do that.**
+// A `.env` carrying a bare `EXPO_PUBLIC_WORKER_URL=` is the normal state of a
+// checkout that has not been configured yet, and it inlines as `""`, which is
+// neither null nor undefined. Left as-is it would pass the `!== null` check
+// that gates the microphone, so every recording would be offered, paid for
+// with the farmer's time, and then posted to `/ai/voice` with no host at all.
+// Absent and blank are the same fact and are treated the same.
+//
+// The member expression stays written out in full because Expo's Babel plugin
+// substitutes the literal at build time and cannot follow a destructure.
+const configuredWorkerUrl = process.env.EXPO_PUBLIC_WORKER_URL;
+
+export const workerUrl: string | null =
+  configuredWorkerUrl !== undefined && configuredWorkerUrl.trim() !== ''
+    ? configuredWorkerUrl.trim()
+    : null;
 
 // ============================================================
 // The fetch that carries the audio.
