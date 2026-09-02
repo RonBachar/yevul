@@ -113,6 +113,21 @@ export {
   type ExpenseWriteResult,
   type ExpensesListState,
 } from './expenses';
+// Opening a receipt that is already filed. **The half of the attachment feature
+// that was missing**: the bucket is private, so the only way to the bytes is a
+// signed URL, and nothing in either client could produce one. See the header of
+// receiptView.ts for the expiry and for why "no receipt" and "we could not fetch
+// it" are two different answers.
+export {
+  loadReceiptDocument,
+  pickLiveReceipt,
+  receiptKind,
+  RECEIPT_SIGNED_URL_SECONDS,
+  type ReceiptDocument,
+  type ReceiptKind,
+  type ReceiptRow,
+  type ReceiptViewResult,
+} from './receiptView';
 // Whether the farm is on a paid plan, stage 5 step 11. **Courtesy and never
 // enforcement** — gate.ts refuses an unentitled scan with 403 whatever this
 // says, and `entitled` is null when we do not know. See entitlement.ts.

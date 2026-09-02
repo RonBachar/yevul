@@ -6,13 +6,18 @@ import './Modal.css';
 // (מוקד על שדה אחד או שניים, בלי ניווט למסך חדש), פריסה אחרת. משמש
 // כרגע רק ב-TaskSheet, ולכן חי כרכיב כללי כדי שהמשימות הבאות שיזדקקו
 // לדיאלוג מרכזי לא יבנו אותו שוב.
+// wide מרחיב את הדיאלוג מעבר לרוחב של טופס. קיים בשביל מסמך: קבלה
+// ברוחב 480px היא קבלה שאי אפשר לקרוא, וזה בדיוק מה שרואה החשבון בא
+// לעשות כאן. טפסים לא נוגעים בזה ונשארים צרים.
 export function Modal({
   open,
   onClose,
+  wide = false,
   children,
 }: {
   open: boolean;
   onClose: () => void;
+  wide?: boolean;
   children: ReactNode;
 }) {
   useEffect(() => {
@@ -29,7 +34,7 @@ export function Modal({
   return (
     <div className="modal__scrim" onClick={onClose}>
       <div
-        className="modal__dialog"
+        className={wide ? 'modal__dialog modal__dialog--wide' : 'modal__dialog'}
         role="dialog"
         aria-modal="true"
         onClick={(event) => event.stopPropagation()}

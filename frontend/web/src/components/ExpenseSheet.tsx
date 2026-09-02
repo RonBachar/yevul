@@ -9,6 +9,7 @@ import {
   type Expense,
 } from '@yevul/shared';
 import { Modal } from './Modal';
+import { ReceiptViewer } from './ReceiptViewer';
 
 // The browser's calendar day, never the UTC one. toISOString() is right for
 // most of the day and wrong from local midnight until 02:00 or 03:00, when
@@ -47,6 +48,10 @@ export function ExpenseSheet({
   const [date, setDate] = useState(today());
   const [note, setNote] = useState('');
   const [pickedFile, setPickedFile] = useState<File | null>(null);
+  // The viewer replaces the form's dialog rather than stacking a second one over
+  // it. Two open Modals would both be listening for Escape, and one key press
+  // would close the document *and* the half-filled form behind it.
+  const [viewing, setViewing] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<
     'idle' | 'saving' | 'amountRequired' | 'forbidden' | 'error'
@@ -69,6 +74,7 @@ export function ExpenseSheet({
       setNote('');
     }
     setPickedFile(null);
+    setViewing(false);
     setStatus('idle');
   }, [open, expense, defaultPlotId]);
 
@@ -102,6 +108,22 @@ export function ExpenseSheet({
     }
 
     onSaved();
+  }
+
+  // **The document takes the dialog over, and gets a wider one.** A receipt
+  // rendered inside a 480px form column is a receipt nobody can read, and the
+  // browser is where the accountant does this work. This component stays
+  // mounted throughout, so the form is exactly where he left it on the way back.
+  if (viewing && expense) {
+    return (
+      <Modal open={open} onClose={onClose} wide>
+        <ReceiptViewer
+          supabase={supabase}
+          expenseId={expense.id}
+          onBack={() => setViewing(false)}
+        />
+      </Modal>
+    );
   }
 
   return (
@@ -186,6 +208,23 @@ export function ExpenseSheet({
           />
           {!pickedFile && expense?.receiptPath && (
             <p className="form__message form__message--good">{t('expense.form.receiptAttached')}</p>
+          )}
+          {/* **Driven by expense.receiptPath, which useExpenses already
+              selected**, so the button costs no request and the dialog asks
+              storage for nothing until he clicks it. Offered even when a
+              replacement file has been chosen: what it opens is what is
+              actually filed, and the chosen file is not filed until he saves. */}
+          {expense?.receiptPath && (
+            <div className="form__actions">
+              <button
+                type="button"
+                className="form__cancel"
+                onClick={() => setViewing(true)}
+                disabled={busy}
+              >
+                {t('expense.form.receiptView')}
+              </button>
+            </div>
           )}
         </div>
 

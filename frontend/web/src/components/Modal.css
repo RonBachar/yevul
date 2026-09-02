@@ -28,3 +28,9 @@
   background: var(--color-paper);
   box-shadow: var(--shadow-float);
 }
+
+/* מסמך ולא טופס. max-width נשאר, כדי שעל מסך רחב מאוד הקבלה לא
+   תימתח לרוחב שאי אפשר לסרוק בעין. */
+.modal__dialog--wide {
+  max-width: 900px;
+}

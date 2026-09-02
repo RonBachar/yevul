@@ -388,6 +388,32 @@ const strings: Record<string, string> = {
   'expense.form.receiptUploading': 'מעלה קבלה',
   'expense.form.receiptError': 'העלאת הקבלה נכשלה',
 
+  // Opening a filed receipt. **The sheet could offer to replace a document it
+  // would never show**, and prd.md section 9 is that the document itself is the
+  // point: "רואה החשבון צריך את המסמך עצמו, לא רק את המספר".
+  'expense.form.receiptView': 'צפייה בקבלה',
+  'expense.receipt.title': 'הקבלה',
+  'expense.receipt.loading': 'טוען את הקבלה',
+  // **Separate from the sentence below, because they are separate facts.** This
+  // one means the document may be sitting safely in storage and we could not
+  // reach it, so trying again is worth something.
+  'expense.receipt.loadError': 'לא הצלחנו להציג את הקבלה',
+  // And this one means there is nothing to show. Telling a farmer his receipt is
+  // gone when it is not would be worse than any error message.
+  'expense.receipt.missing': 'אין קבלה מצורפת להוצאה הזו',
+  'expense.receipt.retry': 'נסו שוב',
+  'expense.receipt.back': 'חזרה להוצאה',
+  // A PDF invoice, which arrives from the web upload and cannot be drawn by an
+  // image view. On the phone it opens in the browser, which does know how.
+  'expense.receipt.pdf': 'הקבלה שמורה כקובץ PDF',
+  'expense.receipt.openFile': 'פתיחת הקובץ',
+  'expense.receipt.openTab': 'פתיחה בחלון חדש',
+  'expense.receipt.openFailed': 'לא הצלחנו לפתוח את הקובץ',
+  // The image reached the device and the device could not draw it — a HEIC out
+  // of an iPhone gallery is the realistic case. The file is fine; this viewer is
+  // not the thing that can show it.
+  'expense.receipt.imageFailed': 'לא הצלחנו להציג את הקובץ הזה כאן',
+
   // Voice capture, stage 5. **One sentence per next step in VoiceNextStep**
   // (packages/shared/src/voiceClient.ts), not one per reason code the endpoint
   // can send. The farmer does not need to know whether the model answered

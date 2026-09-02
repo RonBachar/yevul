@@ -1,0 +1,74 @@
+/* The receipt viewer inside the wide Modal. The document gets the height the
+   dialog can spare and nothing competes with it. */
+.receipt-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+}
+
+/* A tinted ground behind the document, so a white receipt scanned on white
+   paper still has an edge. min-height keeps the box from collapsing while the
+   image is on its way, which would make the dialog jump once it lands. */
+.receipt-viewer__canvas {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 240px;
+  border-radius: var(--radius-card);
+  background: var(--color-mist-100);
+  overflow: hidden;
+}
+
+.receipt-viewer__image {
+  display: block;
+  max-width: 100%;
+  /* dvh rather than vh, for the reason Modal.css already gives: a mobile
+     browser's visual viewport is not its window. */
+  max-height: 70vh;
+  max-height: 70dvh;
+  object-fit: contain;
+}
+
+.receipt-viewer__pdf {
+  width: 100%;
+  height: 70vh;
+  height: 70dvh;
+  border: none;
+}
+
+.receipt-viewer__fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-12);
+  padding: var(--spacing-24);
+  color: var(--color-slate-600);
+}
+
+.receipt-viewer__overlay {
+  position: absolute;
+  top: var(--spacing-16);
+}
+
+.receipt-viewer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-12);
+}
+
+.receipt-viewer__open {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-8);
+  min-height: var(--touch-min);
+  padding: 0 var(--spacing-20);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-pill);
+  background: var(--color-paper);
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-field-700);
+  text-decoration: none;
+}

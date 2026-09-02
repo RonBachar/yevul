@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import * as ImagePicker from 'expo-image-picker';
 import CameraIcon from 'lucide-react-native/icons/camera';
 import CircleCheckBig from 'lucide-react-native/icons/circle-check-big';
+import Eye from 'lucide-react-native/icons/eye';
 import {
   attachReceipt,
   createExpense,
@@ -12,9 +13,10 @@ import {
   updateExpense,
   type Expense,
 } from '@yevul/shared';
-import { colors, fonts, fontSize } from '../theme/tokens';
+import { colors, fonts, fontSize, radius } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from './BottomSheet';
+import { ReceiptViewer } from './ReceiptViewer';
 
 function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -67,6 +69,15 @@ export function ExpenseSheet({
   const [note, setNote] = useState('');
   const [pickedUri, setPickedUri] = useState<string | null>(null);
   const [pickedMime, setPickedMime] = useState<string>('image/jpeg');
+  // The viewer takes over the sheet rather than opening a second one. The form
+  // state above stays exactly as he left it, because this component never
+  // unmounts while he is looking at the document.
+  const [viewing, setViewing] = useState(false);
+  // **Only here to stop the keyboard jumping back up.** The name field is
+  // autoFocus, and coming back from the viewer remounts the form, so without
+  // this the reward for looking at your own receipt is a keyboard over half the
+  // sheet. Nobody who never opens the viewer is affected.
+  const [viewedReceipt, setViewedReceipt] = useState(false);
   const [status, setStatus] = useState<
     'idle' | 'saving' | 'amountRequired' | 'forbidden' | 'error'
   >('idle');
@@ -92,6 +103,8 @@ export function ExpenseSheet({
       setNote('');
     }
     setPickedUri(null);
+    setViewing(false);
+    setViewedReceipt(false);
     setStatus('idle');
   }, [visible, expense, defaultPlotId]);
 
@@ -145,6 +158,23 @@ export function ExpenseSheet({
     onSaved();
   }
 
+  // **The viewer takes the sheet over instead of opening a second one.** Both
+  // branches return the same BottomSheet element in the same position, so React
+  // swaps its children in place rather than tearing down and re-presenting a
+  // native Modal, and the half-filled form above survives the trip because none
+  // of its state lives in the inputs.
+  if (viewing && expense) {
+    return (
+      <BottomSheet visible={visible} onClose={onClose} closeLabel={t('capture.close')}>
+        <ReceiptViewer
+          supabase={supabase}
+          expenseId={expense.id}
+          onBack={() => setViewing(false)}
+        />
+      </BottomSheet>
+    );
+  }
+
   return (
     <BottomSheet visible={visible} onClose={onClose} closeLabel={t('capture.close')}>
       <View style={formStyles.field}>
@@ -157,7 +187,7 @@ export function ExpenseSheet({
           placeholder={t('expense.form.namePlaceholder')}
           placeholderTextColor={colors.slate600}
           textAlign="right"
-          autoFocus
+          autoFocus={!viewedReceipt}
         />
       </View>
 
@@ -240,6 +270,27 @@ export function ExpenseSheet({
         </Text>
       </Pressable>
 
+      {/* **Driven by expense.receiptPath, which the list query already
+          selected**, so the button appears without a single extra request and
+          the sheet never has to ask storage anything just to decide whether to
+          offer the document. Shown even when a replacement has been picked: what
+          it opens is what is actually filed, and the replacement is not filed
+          until he saves. */}
+      {expense?.receiptPath && (
+        <Pressable
+          style={[viewReceiptButton, sheetGap]}
+          onPress={() => {
+            setViewedReceipt(true);
+            setViewing(true);
+          }}
+          disabled={busy}
+          accessibilityRole="button"
+        >
+          <Eye size={18} strokeWidth={2} color={colors.field700} />
+          <Text style={viewReceiptButtonText}>{t('expense.form.receiptView')}</Text>
+        </Pressable>
+      )}
+
       <Pressable
         style={[formStyles.save, sheetGap, busy && formStyles.saveDisabled]}
         onPress={onSave}
@@ -285,3 +336,22 @@ const receiptButtonText = {
   color: colors.slate600,
 };
 const receiptButtonTextDone = { color: colors.field700 };
+// Solid border where the attach button's is dashed: attaching is an empty slot
+// asking to be filled, viewing is a document that is already there.
+const viewReceiptButton = {
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  justifyContent: 'center' as const,
+  gap: 8,
+  paddingVertical: 12,
+  paddingHorizontal: 16,
+  borderRadius: radius.pill,
+  borderWidth: 1,
+  borderColor: colors.border200,
+  backgroundColor: colors.paper,
+};
+const viewReceiptButtonText = {
+  fontFamily: fonts.bold,
+  fontSize: fontSize.bodySm,
+  color: colors.field700,
+};
