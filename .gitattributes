@@ -1,0 +1,30 @@
+# Line endings are LF everywhere, in the repository and in the working tree.
+#
+# Without this, git on Windows (core.autocrlf=true here) checks every text file
+# out with CRLF, while prettier's own rule is LF. The two disagree silently and
+# the result is a file that fails `prettier --check` the moment git rewrites it
+# -- a `git checkout`, a stash pop, a branch switch -- with an empty `git diff`,
+# because git normalizes the line endings back out again when it compares. That
+# combination cost real debugging time twice: once on docs/prd.md, and once
+# during a stash probe in the stage 5 work.
+#
+# LF in the working tree is safe for this toolchain. Node, prettier, eslint,
+# vitest and expo all read LF natively on Windows, and every editor in use here
+# writes it back unchanged.
+* text=auto eol=lf
+
+# Binary files git must never touch. Fonts and images have no line endings, and
+# a well-meaning conversion inside one corrupts it.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+*.m4a binary
+*.mp3 binary
+*.wav binary
