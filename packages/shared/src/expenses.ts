@@ -262,14 +262,32 @@ async function clearAllocations(supabase: SupabaseClient, expenseId: string) {
 // a third spelling out of it.
 export type ReceiptSource = 'manual' | 'ocr';
 
+// **`Blob | ArrayBuffer`, and the union is the whole point of this signature.**
+// The web hands over a real `File` from an `<input>`, which uploads fine. React
+// Native's `Blob` is a different object: a handle to bytes held on the native
+// side, with nothing readable from JavaScript. supabase-js cannot read it, so
+// `upload()` silently sends nothing and the file never arrives — no throw, no
+// error, just an empty bucket. That is exactly what happened here: every
+// receipt attached from the phone since the feature was built went nowhere, in
+// both the manual attach and the scan, and it surfaced only when someone
+// checked the bucket. React Native must therefore pass an `ArrayBuffer`, which
+// is what Supabase's own React Native guidance says and what
+// `Response.arrayBuffer()` produces.
+export type ReceiptUpload = Blob | ArrayBuffer;
+
 export async function attachReceipt(
   supabase: SupabaseClient,
   farmId: string,
   expenseId: string,
-  file: Blob,
+  file: ReceiptUpload,
   mimeType: string,
   source: ReceiptSource = 'manual',
 ): Promise<{ ok: boolean }> {
+  // An empty upload is a failure, not an attachment. Without this an
+  // unreadable file would still create a receipts row pointing at a zero-byte
+  // object, and the farmer would be told his document was filed when the
+  // accountant will find nothing there.
+  if (file instanceof ArrayBuffer && file.byteLength === 0) return { ok: false };
   const ext = mimeType === 'application/pdf' ? 'pdf' : (mimeType.split('/')[1] ?? 'jpg');
   const storagePath = `${farmId}/${expenseId}.${ext}`;
 

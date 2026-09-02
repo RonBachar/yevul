@@ -68,8 +68,12 @@ export function ReceiptCapturePanel({
     if (state.status !== 'done' || farmId === null) return false;
     const { uri, mimeType } = state.image;
     try {
-      const blob = await fetch(uri).then((response) => response.blob());
-      const result = await attachReceipt(supabase, farmId, expenseId, blob, mimeType, 'ocr');
+      // **arrayBuffer() and not blob().** React Native's Blob is a handle to
+      // bytes held on the native side, and supabase-js cannot read it: the
+      // upload sends nothing, returns no error, and the bucket stays empty.
+      // See the comment on attachReceipt.
+      const bytes = await fetch(uri).then((response) => response.arrayBuffer());
+      const result = await attachReceipt(supabase, farmId, expenseId, bytes, mimeType, 'ocr');
       return result.ok;
     } catch {
       // The file went away, or storage refused it. Either way the expense is

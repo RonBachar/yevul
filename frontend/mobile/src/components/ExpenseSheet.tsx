@@ -135,8 +135,11 @@ export function ExpenseSheet({
     }
 
     if (pickedUri) {
-      const blob = await fetch(pickedUri).then((r) => r.blob());
-      await attachReceipt(supabase, farmId, result.id, blob, pickedMime);
+      // **arrayBuffer() and not blob().** React Native's Blob is a handle to
+      // bytes held natively, which supabase-js cannot read, so uploading one
+      // sends nothing at all and fails silently. See attachReceipt.
+      const bytes = await fetch(pickedUri).then((r) => r.arrayBuffer());
+      await attachReceipt(supabase, farmId, result.id, bytes, pickedMime);
     }
 
     onSaved();
