@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { currentFarmQuery } from './currentFarm';
 import { LOG_ENTRY_TYPES, type LogEntryType } from './logEntryTypes';
 import { writeOutcome } from './postgrest';
+import { useLoadCount } from './refresh';
 
 // הסוגים עצמם חיים ב-logEntryTypes.ts, מודול טהור בלי ייבוא, כי
 // ה-Worker זקוק להם דרך voice.ts ואין לו צורך ב-react ולא ב-supabase-js
@@ -116,6 +117,8 @@ export type LogEntriesListState = {
   entries: LogEntry[];
   plotNames: Map<string, string>;
   refresh: () => void;
+  // Completed loads, for pull-to-refresh. See refresh.ts.
+  loadCount: number;
 };
 
 export function useLogEntries(
@@ -129,6 +132,7 @@ export function useLogEntries(
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [plotNames, setPlotNames] = useState<Map<string, string>>(new Map());
   const [tick, setTick] = useState(0);
+  const { loadCount, settle } = useLoadCount();
 
   // זהות השאילתה, בלי ה-tick במכוון: ריענון מבקש את אותם נתונים בדיוק,
   // החלפת חלקה או סוג מבקשת נתונים אחרים. ההבחנה הזו קובעת מתי מותר
@@ -159,6 +163,7 @@ export function useLogEntries(
       if (farmError || !farm) {
         setFailed(true);
         setLoading(false);
+        settle();
         return;
       }
       setFarmId(farm.id);
@@ -180,6 +185,7 @@ export function useLogEntries(
       if (entriesResult.error || plotsResult.error) {
         setFailed(true);
         setLoading(false);
+        settle();
         return;
       }
 
@@ -193,15 +199,16 @@ export function useLogEntries(
       appliedQueryKey.current = queryKey;
       setFailed(false);
       setLoading(false);
+      settle();
     }
 
     void load();
     return () => {
       active = false;
     };
-  }, [supabase, plotId, type, tick, queryKey]);
+  }, [supabase, plotId, type, tick, queryKey, settle]);
 
-  return { loading, failed, farmId, entries, plotNames, refresh };
+  return { loading, failed, farmId, entries, plotNames, refresh, loadCount };
 }
 
 // ============================================================

@@ -102,6 +102,13 @@ export type FarmProfitState = {
   // כן דורש כרטיס עם ₪0 ב-Ink-900. שני המצבים נבדלים כאן ב-plots.length.
   renderable: boolean;
   refresh: () => void;
+  // Completed loads, for pull-to-refresh. **The minimum of the two hooks this
+  // one composes, not their sum.** Both counters start at zero and every
+  // refresh() here bumps both, so they move in step; taking the minimum means
+  // the number only advances once the slower of the two queries has come back,
+  // which is exactly when the spinner should stop. A sum would advance on the
+  // first answer and pull the wheel away while half the card was still stale.
+  loadCount: number;
 };
 
 // סכום ההוצאות של חלקה אחת, לכותרת צפי הרווח בפרטי חלקה. עוטף את
@@ -122,8 +129,11 @@ export type FarmProfitState = {
 export function usePlotExpensesTotal(
   supabase: SupabaseClient,
   plotId: string | null,
-): { total: number | null; loading: boolean; refresh: () => void } {
-  const { loading, failed, expenses, refresh } = useExpenses(supabase, plotId ?? undefined);
+): { total: number | null; loading: boolean; refresh: () => void; loadCount: number } {
+  const { loading, failed, expenses, refresh, loadCount } = useExpenses(
+    supabase,
+    plotId ?? undefined,
+  );
   const total = useMemo(
     () =>
       plotId == null || loading || failed
@@ -134,7 +144,10 @@ export function usePlotExpensesTotal(
   // ממוזכר, ולא אובייקט literal חדש בכל רינדור, מאותו נימוק שמפורט
   // ב-useFarmProfit: קורא שישים את התוצאה בתלויות של אפקט יקבל זהות
   // חדשה בכל רינדור ויסתובב בלולאה.
-  return useMemo(() => ({ total, loading, refresh }), [total, loading, refresh]);
+  return useMemo(
+    () => ({ total, loading, refresh, loadCount }),
+    [total, loading, refresh, loadCount],
+  );
 }
 
 export function useFarmProfit(supabase: SupabaseClient): FarmProfitState {
@@ -156,6 +169,7 @@ export function useFarmProfit(supabase: SupabaseClient): FarmProfitState {
   const { expenses, loading: expensesLoading, failed: expensesFailed } = expensesState;
   const refreshPlots = plotsState.refresh;
   const refreshExpenses = expensesState.refresh;
+  const loadCount = Math.min(plotsState.loadCount, expensesState.loadCount);
 
   const refresh = useCallback(() => {
     refreshPlots();
@@ -202,6 +216,7 @@ export function useFarmProfit(supabase: SupabaseClient): FarmProfitState {
       plots,
       renderable: plots.length === 0 || forecast.plotsWithForecast > 0,
       refresh,
+      loadCount,
     };
   }, [
     rawPlots,
@@ -212,5 +227,6 @@ export function useFarmProfit(supabase: SupabaseClient): FarmProfitState {
     expensesFailed,
     farmId,
     refresh,
+    loadCount,
   ]);
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { currentFarmQuery } from './currentFarm';
 import { writeOutcome } from './postgrest';
+import { useLoadCount } from './refresh';
 
 // הוצאות, שלב 3, docs/roadmap.md. **הקוד הראשון כאן ניסה טופס עם
 // קטגוריה (רשימה סגורה) ובחירת חלקה כשדה נפרד, לפי design.md.
@@ -81,6 +82,9 @@ export type ExpensesListState = {
   expenses: Expense[];
   plotNames: Map<string, string>;
   refresh: () => void;
+  // Completed loads, for pull-to-refresh. See refresh.ts for why the spinner
+  // cannot be driven by `loading` or by watching the rows.
+  loadCount: number;
 };
 
 export function useExpenses(supabase: SupabaseClient, plotId?: string): ExpensesListState {
@@ -90,6 +94,7 @@ export function useExpenses(supabase: SupabaseClient, plotId?: string): Expenses
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [plotNames, setPlotNames] = useState<Map<string, string>>(new Map());
   const [tick, setTick] = useState(0);
+  const { loadCount, settle } = useLoadCount();
 
   const refresh = useCallback(() => setTick((value) => value + 1), []);
 
@@ -103,6 +108,7 @@ export function useExpenses(supabase: SupabaseClient, plotId?: string): Expenses
       if (farmError || !farm) {
         setFailed(true);
         setLoading(false);
+        settle();
         return;
       }
       setFarmId(farm.id);
@@ -133,6 +139,7 @@ export function useExpenses(supabase: SupabaseClient, plotId?: string): Expenses
       if (expensesResult.error || plotsResult.error) {
         setFailed(true);
         setLoading(false);
+        settle();
         return;
       }
 
@@ -142,15 +149,16 @@ export function useExpenses(supabase: SupabaseClient, plotId?: string): Expenses
       setExpenses(rows.map(mapExpense));
       setFailed(false);
       setLoading(false);
+      settle();
     }
 
     void load();
     return () => {
       active = false;
     };
-  }, [supabase, plotId, tick]);
+  }, [supabase, plotId, tick, settle]);
 
-  return { loading, failed, farmId, expenses, plotNames, refresh };
+  return { loading, failed, farmId, expenses, plotNames, refresh, loadCount };
 }
 
 // ============================================================

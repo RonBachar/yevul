@@ -7,7 +7,8 @@ import Plus from 'lucide-react-native/icons/plus';
 import { t, useFarmProfit, useFarmSettings, type PlotProfitRow } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
-import { formStyles } from '../theme/formStyles';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
+import { ListStateNote } from '../components/ListStateNote';
 import { PlotCard } from '../components/PlotCard';
 import type { PlotsStackParamList } from '../navigation/PlotsStack';
 
@@ -19,8 +20,10 @@ export function PlotsScreen() {
   const navigation = useNavigation<Nav>();
   // useFarmProfit ולא usePlots: הכרטיס מציג מספר רווח משלב 4, וההוק
   // הזה מחזיר את אותן חלקות בדיוק עם התחזית כבר מחושבת מולן.
-  const { loading, failed, plots, refresh } = useFarmProfit(supabase);
+  const profit = useFarmProfit(supabase);
+  const { loading, failed, plots, refresh } = profit;
   const settings = useFarmSettings(supabase);
+  const refreshControl = usePullToRefresh([profit]);
 
   // useFocusEffect ולא useEffect בלבד: בניווט מבוסס Stack המסך לא
   // נבנה מחדש כשחוזרים אליו מ-PlotForm אחרי יצירה, הוא רק חוזר
@@ -49,40 +52,43 @@ export function PlotsScreen() {
         </Pressable>
       </View>
 
-      {loading && (
-        <View style={styles.center}>
-          <Text style={styles.note}>{t('common.loading')}</Text>
-        </View>
-      )}
-
-      {!loading && failed && (
-        <View style={styles.center}>
-          <Text style={formStyles.bad}>{t('plots.loadError')}</Text>
-        </View>
-      )}
-
-      {!loading && !failed && plots.length === 0 && (
-        <View style={styles.center}>
-          <Text style={styles.note}>{t('plots.empty')}</Text>
-        </View>
-      )}
-
-      {!loading && !failed && plots.length > 0 && (
-        <FlatList<PlotProfitRow>
-          data={plots}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <PlotCard
-              plot={item}
-              currency={settings.form?.currency ?? 'ILS'}
-              onPress={() => openPlot(item.id)}
+      {/* הרשימה מרונדרת תמיד, גם בלי שורות. שלושת המצבים שהיו כאן
+          כשלושה בלוקים נפרדים ירדו ל-ListEmptyComponent, וזה מה שמשאיר
+          את המסך נגיש למשיכה כשהטעינה נכשלה — בדיוק המצב שממנו החקלאי
+          צריך לנסות שוב. */}
+      <FlatList<PlotProfitRow>
+        data={loading || failed ? [] : plots}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.list}
+        refreshControl={refreshControl}
+        ItemSeparatorComponent={CardGap}
+        renderItem={({ item }) => (
+          <PlotCard
+            plot={item}
+            currency={settings.form?.currency ?? 'ILS'}
+            onPress={() => openPlot(item.id)}
+          />
+        )}
+        ListEmptyComponent={
+          <View style={styles.center}>
+            <ListStateNote
+              loading={loading}
+              failed={failed}
+              errorKey="plots.loadError"
+              emptyKey="plots.empty"
+              align="center"
             />
-          )}
-        />
-      )}
+          </View>
+        }
+      />
     </SafeAreaView>
   );
+}
+
+// A separator and not `gap` on the content container. Virtualization swaps
+// off-screen rows for spacer views, and a gap would be added around those too.
+function CardGap() {
+  return <View style={styles.cardGap} />;
 }
 
 const styles = StyleSheet.create({
@@ -118,21 +124,18 @@ const styles = StyleSheet.create({
     fontSize: fontSize.bodySm,
     color: colors.paper,
   },
+  // flexGrow so the empty state fills the space left over. Without it a list
+  // with no rows has no height, and on Android there is nothing to pull.
   list: {
+    flexGrow: 1,
     padding: spacing.s24,
-    gap: spacing.s16,
+  },
+  cardGap: {
+    height: spacing.s16,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: spacing.s24,
-  },
-  note: {
-    fontFamily: fonts.regular,
-    fontSize: fontSize.bodySm,
-    color: colors.slate600,
-    textAlign: 'center',
-    writingDirection: 'rtl',
   },
 });

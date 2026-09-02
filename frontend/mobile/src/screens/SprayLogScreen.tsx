@@ -1,11 +1,13 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import { useState } from 'react';
-import { t, useLogEntries, usePlots } from '@yevul/shared';
+import { t, useLogEntries, usePlots, type LogEntry } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { colors, fonts, fontSize, spacing } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
+import { ListStateNote } from '../components/ListStateNote';
 import { LogRow } from '../components/LogRow';
 import { LogEntrySheet } from '../components/LogEntrySheet';
 
@@ -28,6 +30,10 @@ export function SprayLogScreen() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const editingEntry = entriesState.entries.find((entry) => entry.id === editingEntryId) ?? null;
+  // המשיכה מרעננת גם את בורר החלקות, ולא רק את הרשומות: שתי השאילתות
+  // מזינות את אותו מסך, וחלקה חדשה שלא הופיעה בצ'יפים היא בדיוק אחת
+  // הסיבות למשוך.
+  const refreshControl = usePullToRefresh([entriesState, plotsState]);
 
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
@@ -72,34 +78,50 @@ export function SprayLogScreen() {
         </View>
       </ScrollView>
 
-      {entriesState.loading && <Text style={styles.note}>{t('common.loading')}</Text>}
-      {!entriesState.loading && entriesState.failed && (
-        <Text style={formStyles.bad}>{t('sprayLog.loadError')}</Text>
-      )}
-      {!entriesState.loading && !entriesState.failed && entriesState.entries.length === 0 && (
-        <Text style={styles.note}>{t('sprayLog.empty')}</Text>
-      )}
-
-      {!entriesState.loading && !entriesState.failed && entriesState.entries.length > 0 && (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.rows}>
-          {entriesState.entries.map((entry) => (
-            <LogRow
-              key={entry.id}
-              entry={entry}
-              plotName={
-                selectedPlotId === null
-                  ? (entriesState.plotNames.get(entry.plotId ?? '') ?? null)
-                  : null
-              }
-              sprayDetailed
-              onPress={() => {
-                setEditingEntryId(entry.id);
-                setSheetOpen(true);
-              }}
+      {/* הרשימה מרונדרת תמיד, גם בלי שורות, כדי שגם מצב ריק וגם כשל
+          טעינה יישארו נגישים למשיכה. */}
+      <FlatList<LogEntry>
+        // **loading נשאר בתנאי, וזה לא קישוט.** useLogEntries מחזיר
+        // אותו ל-true כשהסינון עצמו משתנה, ובאותו רגע entries עדיין
+        // מחזיק את השורות של החלקה הקודמת. בלי התנאי הזה לחיצה על חלקה
+        // אחרת בבורר הייתה מציגה לרגע את הריסוסים של החלקה הקודמת תחת
+        // השם החדש. failed מסתיר משום שהצגת שורות מתחת להודעת שגיאה
+        // מצהירה שהן עדכניות.
+        data={entriesState.loading || entriesState.failed ? [] : entriesState.entries}
+        keyExtractor={(item) => item.id}
+        style={styles.scroll}
+        contentContainerStyle={styles.rows}
+        refreshControl={refreshControl}
+        ItemSeparatorComponent={RowGap}
+        renderItem={({ item }) => (
+          <LogRow
+            entry={item}
+            plotName={
+              selectedPlotId === null
+                ? (entriesState.plotNames.get(item.plotId ?? '') ?? null)
+                : null
+            }
+            sprayDetailed
+            onPress={() => {
+              setEditingEntryId(item.id);
+              setSheetOpen(true);
+            }}
+          />
+        )}
+        // Wrapped in a View because FlatList clones this element to attach
+        // style and onLayout, and both need a host component to land on.
+        ListEmptyComponent={
+          <View>
+            <ListStateNote
+              loading={entriesState.loading}
+              failed={entriesState.failed}
+              errorKey="sprayLog.loadError"
+              emptyKey="sprayLog.empty"
+              align="center"
             />
-          ))}
-        </ScrollView>
-      )}
+          </View>
+        }
+      />
 
       <LogEntrySheet
         supabase={supabase}
@@ -115,6 +137,12 @@ export function SprayLogScreen() {
       />
     </SafeAreaView>
   );
+}
+
+// A separator and not `gap` on the content container. Virtualization swaps
+// off-screen rows for spacer views, and a gap would be added around those too.
+function RowGap() {
+  return <View style={styles.rowGap} />;
 }
 
 const styles = StyleSheet.create({
@@ -148,18 +176,16 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flex: 1,
-    paddingHorizontal: spacing.s24,
   },
+  // הריפוד האופקי עבר לכאן מ-scroll, כדי שגם השורות וגם משפט המצב
+  // הריק יקבלו אותו 24 בדיוק. flexGrow כדי שרשימה בלי שורות עדיין
+  // תמלא את השטח, אחרת אין באנדרואיד מה למשוך.
   rows: {
-    gap: spacing.s8,
+    flexGrow: 1,
+    paddingHorizontal: spacing.s24,
     paddingBottom: spacing.s24,
   },
-  note: {
-    fontFamily: fonts.regular,
-    fontSize: fontSize.bodySm,
-    color: colors.slate600,
-    textAlign: 'center',
-    writingDirection: 'rtl',
-    paddingHorizontal: spacing.s24,
+  rowGap: {
+    height: spacing.s8,
   },
 });

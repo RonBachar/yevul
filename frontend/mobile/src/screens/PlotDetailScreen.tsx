@@ -43,6 +43,7 @@ import {
   touchTarget,
 } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { BottomSheet } from '../components/BottomSheet';
 import { ExpenseList } from '../components/ExpenseList';
 import { JournalList } from '../components/JournalList';
@@ -87,6 +88,12 @@ export function PlotDetailScreen() {
   const [forecastOpen, setForecastOpen] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
 
+  // שלוש השאילתות שמזינות את כותרת המסך ואת טאב ההכנסה, כולן במשיכה
+  // אחת. **נקרא לפני היציאה המוקדמת שמתחת**, כי הוק לא נקרא בתנאי;
+  // וזה גם מה שמאפשר למשוך את מסך הכשל עצמו ולנסות שוב, במקום לצאת
+  // מהמסך ולחזור אליו.
+  const refreshControl = usePullToRefresh([detail, plotExpenses, sprays]);
+
   useFocusEffect(
     useCallback(() => {
       detail.refresh();
@@ -96,11 +103,13 @@ export function PlotDetailScreen() {
   if (detail.loading || detail.failed || !detail.plot) {
     return (
       <SafeAreaView style={styles.screen} edges={['top']}>
-        <View style={styles.center}>
-          <Text style={detail.failed ? formStyles.bad : styles.note}>
-            {detail.failed ? t('plots.detail.loadError') : t('common.loading')}
-          </Text>
-        </View>
+        <ScrollView contentContainerStyle={styles.centerFill} refreshControl={refreshControl}>
+          <View style={styles.center}>
+            <Text style={detail.failed ? formStyles.bad : styles.note}>
+              {detail.failed ? t('plots.detail.loadError') : t('common.loading')}
+            </Text>
+          </View>
+        </ScrollView>
       </SafeAreaView>
     );
   }
@@ -170,8 +179,15 @@ export function PlotDetailScreen() {
         })}
       </View>
 
+      {/* טאב ההכנסה נשאר ScrollView ולא הופך לרשימה: זה כרטיס אחד
+          וכפתור, מספר קבוע של ילדים, ולא רשימה שגדלה עם הנתונים. רק
+          המשיכה נוספה. */}
       {tab === 'income' && (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.body}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.body}
+          refreshControl={refreshControl}
+        >
           <View style={styles.card}>
             <View style={styles.identityRow}>
               {cropCycle ? (
@@ -920,6 +936,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: spacing.s24,
+  },
+  // Lets the loading and error state fill the screen inside a scroll view, so
+  // there is something to pull on when the plot failed to load.
+  centerFill: {
+    flexGrow: 1,
   },
   note: {
     fontFamily: fonts.regular,

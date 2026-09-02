@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import Plus from 'lucide-react-native/icons/plus';
 import {
@@ -10,11 +10,14 @@ import {
   t,
   useFarmSettings,
   useTasks,
+  type RefreshSource,
   type Task,
+  type UrgencyGroupKey,
 } from '@yevul/shared';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
-import { formStyles } from '../theme/formStyles';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { CompletionPromptSheet } from './CompletionPromptSheet';
+import { ListStateNote } from './ListStateNote';
 import { TaskRow } from './TaskRow';
 import { TaskSheet } from './TaskSheet';
 
@@ -29,18 +32,39 @@ import { TaskSheet } from './TaskSheet';
 // הגדרות רק כדי להעביר שדה אחד ממנו הלאה. HomeScreen לא צריך יותר
 // useFarmSettings משלו בכלל, ו-PlotDetailScreen ממשיך לקרוא לו בעצמו
 // כי הוא זקוק לו גם לסיכום הרווח.
+//
+// **SectionList and not ScrollView.** The urgency groups are real sections
+// with real headers, so this is the list component that already means what the
+// board means; flattening the groups into one array to use a FlatList would
+// have thrown that away. Headers are explicitly not sticky, because they were
+// not sticky before.
+type TaskSection = {
+  key: UrgencyGroupKey;
+  labelKey: string;
+  // Only the first section skips the gap that separates one group from the
+  // next; SectionList has no notion of "first", so it is carried here.
+  first: boolean;
+  data: Task[];
+};
+
 export function TaskBoard({
   supabase,
   plotId,
   showPlotName,
+  alsoRefresh = [],
 }: {
   supabase: SupabaseClient;
   plotId?: string;
   showPlotName: boolean;
+  // Server data the host screen pins above the board and wants the same pull
+  // to reload — the profit card on Home is the one case. The spinner waits for
+  // these too, so it does not come down while half the screen is still stale.
+  alsoRefresh?: RefreshSource[];
 }) {
   const settings = useFarmSettings(supabase);
   const currency = settings.form?.currency ?? 'ILS';
   const tasksState = useTasks(supabase, plotId);
+  const refreshControl = usePullToRefresh([tasksState, ...alsoRefresh]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [completingTask, setCompletingTask] = useState<Task | null>(null);
@@ -76,7 +100,20 @@ export function TaskBoard({
     tasksState.refresh();
   }
 
-  const groups = groupTasksByUrgency(tasksState.tasks);
+  // Exactly the condition the groups were rendered under before the
+  // conversion: a failed load keeps the tasks it had, and showing them under
+  // an error message would claim they are current. groupTasksByUrgency drops
+  // empty groups, so an empty array here means an empty board — which is what
+  // makes ListEmptyComponent the right place for all three notes.
+  const sections: TaskSection[] =
+    tasksState.loading || tasksState.failed
+      ? []
+      : groupTasksByUrgency(tasksState.tasks).map((group, index) => ({
+          key: group.key,
+          labelKey: group.labelKey,
+          first: index === 0,
+          data: group.tasks,
+        }));
 
   return (
     <View style={styles.wrap}>
@@ -85,38 +122,42 @@ export function TaskBoard({
         <Text style={styles.newButtonText}>{t('tasks.new')}</Text>
       </Pressable>
 
-      {tasksState.loading && <Text style={styles.note}>{t('common.loading')}</Text>}
-      {!tasksState.loading && tasksState.failed && (
-        <Text style={formStyles.bad}>{t('tasks.loadError')}</Text>
-      )}
-      {!tasksState.loading && !tasksState.failed && groups.length === 0 && (
-        <Text style={styles.note}>{t('tasks.empty')}</Text>
-      )}
-
-      {!tasksState.loading && !tasksState.failed && groups.length > 0 && (
-        <ScrollView style={styles.scroll} contentContainerStyle={styles.groups}>
-          {groups.map((group) => (
-            <View key={group.key} style={styles.group}>
-              <Text style={styles.sectionHeader}>{t(group.labelKey)}</Text>
-              <View style={styles.rows}>
-                {group.tasks.map((task) => (
-                  <TaskRow
-                    key={task.id}
-                    task={task}
-                    plotName={
-                      showPlotName ? (tasksState.plotNames.get(task.plotId ?? '') ?? null) : null
-                    }
-                    currency={currency}
-                    onPress={() => openEdit(task)}
-                    onCompleteCommit={() => handleComplete(task.id)}
-                    onDeleteCommit={() => handleDelete(task.id)}
-                  />
-                ))}
-              </View>
-            </View>
-          ))}
-        </ScrollView>
-      )}
+      <SectionList<Task, TaskSection>
+        sections={sections}
+        keyExtractor={(item) => item.id}
+        style={styles.scroll}
+        contentContainerStyle={styles.groups}
+        refreshControl={refreshControl}
+        stickySectionHeadersEnabled={false}
+        ItemSeparatorComponent={RowGap}
+        renderSectionHeader={({ section }) => (
+          <Text style={[styles.sectionHeader, !section.first && styles.sectionHeaderGap]}>
+            {t(section.labelKey)}
+          </Text>
+        )}
+        renderItem={({ item }) => (
+          <TaskRow
+            task={item}
+            plotName={showPlotName ? (tasksState.plotNames.get(item.plotId ?? '') ?? null) : null}
+            currency={currency}
+            onPress={() => openEdit(item)}
+            onCompleteCommit={() => handleComplete(item.id)}
+            onDeleteCommit={() => handleDelete(item.id)}
+          />
+        )}
+        // Wrapped in a View because the list clones this element to attach
+        // style and onLayout, and both need a host component to land on.
+        ListEmptyComponent={
+          <View>
+            <ListStateNote
+              loading={tasksState.loading}
+              failed={tasksState.failed}
+              errorKey="tasks.loadError"
+              emptyKey="tasks.empty"
+            />
+          </View>
+        }
+      />
 
       <TaskSheet
         supabase={supabase}
@@ -145,6 +186,12 @@ export function TaskBoard({
   );
 }
 
+// A separator and not `gap` on the content container. Virtualization swaps
+// off-screen rows for spacer views, and a gap would be added around those too.
+function RowGap() {
+  return <View style={styles.rowGap} />;
+}
+
 const styles = StyleSheet.create({
   wrap: {
     flex: 1,
@@ -165,33 +212,32 @@ const styles = StyleSheet.create({
     fontSize: fontSize.bodySm,
     color: colors.paper,
   },
-  // flex על ה-ScrollView עצמו, ולא רק contentContainerStyle. בלעדיו
+  // flex על הרשימה עצמה, ולא רק contentContainerStyle. בלעדיו
   // הגלילה מקבלת את גובה התוכן שלה במקום את השטח שנשאר, וברגע שנוצרות
   // מספיק משימות הרשימה דוחפת את הפריסה מעבר לגובה המסך במקום לגלול
   // בתוכו. זה היה הבאג של "המסך נהיה גבוה מדי" אחרי יצירת משימה.
   scroll: {
     flex: 1,
   },
+  // flexGrow so the empty state fills the space left over. Without it a list
+  // with no rows has no height, and on Android there is nothing to pull.
   groups: {
-    gap: spacing.s24,
+    flexGrow: 1,
     paddingBottom: spacing.s24,
-  },
-  group: {
-    gap: spacing.s8,
   },
   sectionHeader: {
     fontFamily: fonts.bold,
     fontSize: fontSize.caption,
     color: colors.slate600,
     writingDirection: 'rtl',
+    // The 8 that used to sit between a group's header and its first row.
+    paddingBottom: spacing.s8,
   },
-  rows: {
-    gap: spacing.s8,
+  // And the 24 that used to sit between one group and the next.
+  sectionHeaderGap: {
+    marginTop: spacing.s24,
   },
-  note: {
-    fontFamily: fonts.regular,
-    fontSize: fontSize.bodySm,
-    color: colors.slate600,
-    writingDirection: 'rtl',
+  rowGap: {
+    height: spacing.s8,
   },
 });

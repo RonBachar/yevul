@@ -4,6 +4,7 @@ import { currentFarmQuery } from './currentFarm';
 import { formatAmount, formatArea, formatNumber, yieldRateUnitLabel } from './format';
 import { t } from './i18n';
 import { writeOutcome } from './postgrest';
+import { useLoadCount } from './refresh';
 import type { AreaUnit, Currency } from './settings';
 
 // חלקות ו-CropCycle, שלב 3 משימה ראשונה. שני הלקוחות טוענים וכותבים
@@ -257,6 +258,8 @@ export type PlotsListState = {
   farmId: string | null;
   plots: PlotWithCropCycle[];
   refresh: () => void;
+  // Completed loads, for pull-to-refresh. See refresh.ts.
+  loadCount: number;
 };
 
 export function usePlots(supabase: SupabaseClient): PlotsListState {
@@ -265,6 +268,7 @@ export function usePlots(supabase: SupabaseClient): PlotsListState {
   const [farmId, setFarmId] = useState<string | null>(null);
   const [plots, setPlots] = useState<PlotWithCropCycle[]>([]);
   const [tick, setTick] = useState(0);
+  const { loadCount, settle } = useLoadCount();
 
   const refresh = useCallback(() => setTick((value) => value + 1), []);
 
@@ -278,6 +282,7 @@ export function usePlots(supabase: SupabaseClient): PlotsListState {
       if (farmError || !farm) {
         setFailed(true);
         setLoading(false);
+        settle();
         return;
       }
       setFarmId(farm.id);
@@ -303,6 +308,7 @@ export function usePlots(supabase: SupabaseClient): PlotsListState {
       if (plotsResult.error || cyclesResult.error) {
         setFailed(true);
         setLoading(false);
+        settle();
         return;
       }
 
@@ -325,15 +331,16 @@ export function usePlots(supabase: SupabaseClient): PlotsListState {
       );
       setFailed(false);
       setLoading(false);
+      settle();
     }
 
     void load();
     return () => {
       active = false;
     };
-  }, [supabase, tick]);
+  }, [supabase, tick, settle]);
 
-  return { loading, failed, farmId, plots, refresh };
+  return { loading, failed, farmId, plots, refresh, loadCount };
 }
 
 // ============================================================
@@ -398,6 +405,8 @@ export type PlotDetailState = {
   plot: Plot | null;
   cropCycle: CropCycle | null;
   refresh: () => void;
+  // Completed loads, for pull-to-refresh. See refresh.ts.
+  loadCount: number;
 };
 
 // plotId מקבל null במסך יצירה, שמשתמש באותו טופס כמו עריכה אבל אין
@@ -409,12 +418,16 @@ export function usePlotDetail(supabase: SupabaseClient, plotId: string | null): 
   const [plot, setPlot] = useState<Plot | null>(null);
   const [cropCycle, setCropCycle] = useState<CropCycle | null>(null);
   const [tick, setTick] = useState(0);
+  const { loadCount, settle } = useLoadCount();
 
   const refresh = useCallback(() => setTick((value) => value + 1), []);
 
   useEffect(() => {
+    // The form screen has no plot to load yet, and counts as settled the
+    // moment it asks: a pull that fires no query still has to end its spinner.
     if (plotId == null) {
       setLoading(false);
+      settle();
       return;
     }
 
@@ -442,6 +455,7 @@ export function usePlotDetail(supabase: SupabaseClient, plotId: string | null): 
       if (plotResult.error || !plotResult.data) {
         setFailed(true);
         setLoading(false);
+        settle();
         return;
       }
 
@@ -449,15 +463,16 @@ export function usePlotDetail(supabase: SupabaseClient, plotId: string | null): 
       setCropCycle(cycleResult.data ? mapCropCycle(cycleResult.data as CropCycleRow) : null);
       setFailed(false);
       setLoading(false);
+      settle();
     }
 
     void load();
     return () => {
       active = false;
     };
-  }, [supabase, plotId, tick]);
+  }, [supabase, plotId, tick, settle]);
 
-  return { loading, failed, plot, cropCycle, refresh };
+  return { loading, failed, plot, cropCycle, refresh, loadCount };
 }
 
 // ============================================================

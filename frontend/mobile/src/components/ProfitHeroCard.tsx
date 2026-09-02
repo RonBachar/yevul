@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { AccessibilityInfo, Animated, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from '@react-navigation/native';
 import TrendingUp from 'lucide-react-native/icons/trending-up';
 import TrendingDown from 'lucide-react-native/icons/trending-down';
 import {
@@ -9,9 +8,9 @@ import {
   profitTone,
   scaledAmountFontSize,
   t,
-  useFarmProfit,
   useFarmSettings,
   type Currency,
+  type FarmProfitState,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { colors, fonts, fontSize, profitToneColor, radius, spacing } from '../theme/tokens';
@@ -30,23 +29,20 @@ import { colors, fonts, fontSize, profitToneColor, radius, spacing } from '../th
 // false. משק חדש בלי חלקות בכלל הוא מצב אחר, ושם design.md דורש דווקא
 // כן להציג ₪0 ב-Ink-900.
 
-export function ProfitHeroCard({ farmName }: { farmName: string | null }) {
-  const { loading, failed, forecast, renderable, refresh } = useFarmProfit(supabase);
+// **The profit query itself now lives in HomeScreen.** The card is pinned
+// above a task board the farmer can pull down to refresh, and that pull has to
+// reload the big number too — so the screen owns the data it shows and hands
+// it here. The refresh-on-focus that used to sit in this file moved up with
+// it, word for word.
+export function ProfitHeroCard({
+  farmName,
+  state,
+}: {
+  farmName: string | null;
+  state: FarmProfitState;
+}) {
+  const { loading, failed, forecast, renderable } = state;
   const settings = useFarmSettings(supabase);
-
-  // רענון בכל חזרה למסך, בדיוק כמו PlotsScreen ו-PlotDetailScreen.
-  // בלעדיו מספר הרווח נטען פעם אחת ונשאר תקוע: בניווט טאבים המסך
-  // נשאר מעוגן ואינו נבנה מחדש, כך שהוספת הוצאה בטאב הכסף לא הייתה
-  // משתקפת כאן עד סגירת האפליקציה.
-  //
-  // **זהו גם התחליף לצ'יפ הטריות שהיה כאן.** הצ'יפ דיווח על תסמין
-  // ("המספר הזה בן שעה") בלי לתת לחקלאי מה לעשות איתו, בעוד שהסיבה
-  // האמיתית הייתה חוסר הרענון הזה. נמחק בהחלטת היזם 2026-08-29.
-  useFocusEffect(
-    useCallback(() => {
-      refresh();
-    }, [refresh]),
-  );
 
   if (loading || failed || !renderable) return null;
 

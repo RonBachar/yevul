@@ -29,6 +29,11 @@ export {
   type CurrentFarmState,
 } from './currentFarm';
 export { writeOutcome, type WriteOutcome } from './postgrest';
+// Pull-to-refresh. The rule lives here, away from React, because the mobile
+// app has no test runner; only the wiring stays on the device. useLoadCount is
+// not exported: it is how the list hooks in this package feed the rule, not
+// something a screen calls.
+export { pullSpinnerVisible, type RefreshSource } from './refresh';
 export {
   formatNumber,
   formatArea,
@@ -199,6 +204,7 @@ export {
   useFarmProfit,
   usePlotExpensesTotal,
   type FarmProfitForecast,
+  type FarmProfitState,
   type PlotProfitRow,
 } from './profit';
 export {

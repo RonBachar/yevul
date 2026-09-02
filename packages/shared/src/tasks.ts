@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { currentFarmQuery } from './currentFarm';
 import { t } from './i18n';
 import { writeOutcome, type WriteOutcome } from './postgrest';
+import { useLoadCount } from './refresh';
 import { formatLocalDateOnly } from './safeHarvestDate';
 
 // משימות, שלב 3 משימה שנייה. אותה גישה כמו plots.ts, שני הלקוחות
@@ -171,6 +172,8 @@ export type TasksListState = {
   tasks: Task[];
   plotNames: Map<string, string>;
   refresh: () => void;
+  // Completed loads, for pull-to-refresh. See refresh.ts.
+  loadCount: number;
 };
 
 export function useTasks(supabase: SupabaseClient, plotId?: string): TasksListState {
@@ -180,6 +183,7 @@ export function useTasks(supabase: SupabaseClient, plotId?: string): TasksListSt
   const [tasks, setTasks] = useState<Task[]>([]);
   const [plotNames, setPlotNames] = useState<Map<string, string>>(new Map());
   const [tick, setTick] = useState(0);
+  const { loadCount, settle } = useLoadCount();
 
   const refresh = useCallback(() => setTick((value) => value + 1), []);
 
@@ -193,6 +197,7 @@ export function useTasks(supabase: SupabaseClient, plotId?: string): TasksListSt
       if (farmError || !farm) {
         setFailed(true);
         setLoading(false);
+        settle();
         return;
       }
       setFarmId(farm.id);
@@ -214,6 +219,7 @@ export function useTasks(supabase: SupabaseClient, plotId?: string): TasksListSt
       if (tasksResult.error || plotsResult.error) {
         setFailed(true);
         setLoading(false);
+        settle();
         return;
       }
 
@@ -236,15 +242,16 @@ export function useTasks(supabase: SupabaseClient, plotId?: string): TasksListSt
       setTasks(visible);
       setFailed(false);
       setLoading(false);
+      settle();
     }
 
     void load();
     return () => {
       active = false;
     };
-  }, [supabase, plotId, tick]);
+  }, [supabase, plotId, tick, settle]);
 
-  return { loading, failed, farmId, tasks, plotNames, refresh };
+  return { loading, failed, farmId, tasks, plotNames, refresh, loadCount };
 }
 
 // ============================================================
