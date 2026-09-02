@@ -6,9 +6,7 @@
     "scheme": "yevul",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "extra": {
       "supportsRtl": true
     },
@@ -27,7 +25,8 @@
         {
           "photosPermission": "האפליקציה זקוקה לגישה לגלריה כדי לצרף קבלות"
         }
-      ]
+      ],
+      "expo-audio"
     ]
   }
 }
