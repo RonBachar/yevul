@@ -1,0 +1,25 @@
+{
+  "id": "gen-2026090200000003",
+  "provider": "Google",
+  "model": "google/gemini-3.7-flash",
+  "object": "chat.completion",
+  "created": 1788307400,
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "length",
+      "native_finish_reason": "MAX_TOKENS",
+      "message": {
+        "role": "assistant",
+        "refusal": null,
+        "content": "{\"name\":\"אגודה שיתופית חקלאית להספקת מים ושירותים חקלאיים בעמק הירדן בע\\\"מ, סניף צפון, חשבונית מס קבלה מספר 4471\",\"date\":\"2026-08-3"
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1184,
+    "completion_tokens": 400,
+    "total_tokens": 1584,
+    "cost": 0.00104
+  }
+}

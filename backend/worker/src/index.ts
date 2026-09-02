@@ -1,4 +1,5 @@
 import { gate, type Env } from './gate';
+import { handleReceipt } from './receipt';
 import { handleVoice } from './voice';
 
 export type { Env };
@@ -19,9 +20,10 @@ export type { Env };
 // has been verified against a deployed Worker.
 //
 // This file stays a router and nothing else. The wiring that connects gate to
-// OpenRouter to the validators lives in voice.ts, so that adding the receipt
-// OCR endpoint later means another line here and not a second nest of
-// validation inside the dispatcher.
+// OpenRouter to the validators lives in voice.ts and receipt.ts, which is what
+// made adding the second endpoint another line here rather than a second nest of
+// validation inside the dispatcher. That was the bet when voice.ts was written,
+// and it paid: nothing in this file changed except one route.
 
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
@@ -50,6 +52,14 @@ export default {
       // nowhere below. That is what makes it impossible for a test to reach
       // the network by forgetting a mock.
       return handleVoice(request, env, fetch);
+    }
+
+    // Receipt OCR. **The paid-only rule is not enforced here.** It is a property
+    // of the endpoint and it lives inside handleReceipt, which asks gate() for
+    // it — a check in this dispatcher would run before the request shape was
+    // validated and would be one more thing for the next endpoint to remember.
+    if (url.pathname === '/ai/receipt' && request.method === 'POST') {
+      return handleReceipt(request, env, fetch);
     }
 
     return new Response('not found', { status: 404 });

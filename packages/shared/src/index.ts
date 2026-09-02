@@ -137,6 +137,16 @@ export {
   type VoiceParseResult,
   type PlotMatch,
 } from './voice';
+// Receipt OCR, stage 5. **Two of its three parts are the expense schema above,
+// on purpose**: a receipt produces the same record, confirmed on the same sheet
+// and written to the same columns. Only the JSON schema the model is given is
+// receipt-specific. See the header of receipt.ts.
+export {
+  parseReceipt,
+  receiptWireJsonSchema,
+  RECEIPT_JSON_SCHEMA,
+  type ReceiptParsed,
+} from './receipt';
 // The client side of POST /ai/voice, stage 5. Transport only: it takes audio
 // bytes and returns a typed outcome, it records nothing, and it reads no
 // environment. See the header of voiceClient.ts.

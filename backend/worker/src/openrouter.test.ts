@@ -14,10 +14,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   arrayBufferToBase64,
+  detectImageFormat,
+  extractReceipt,
   extractVoice,
+  IMAGE_FORMATS,
   type FetchInit,
   type FetchLike,
+  type ImageFormat,
   type OpenRouterConfig,
+  type ReceiptRequest,
   type VoiceRequest,
 } from './openrouter';
 
@@ -81,6 +86,7 @@ type SentBody = {
       type: string;
       text?: string;
       input_audio?: { data: string; format: string };
+      image_url?: { url: string };
     }[];
   }[];
 };
@@ -563,5 +569,305 @@ describe('openrouter, fetch מוזרק', () => {
   it('החתימה המצומצמת עדיין מקבלת את ה-fetch של הסביבה', () => {
     const injectable: FetchLike = fetch;
     expect(typeof injectable).toBe('function');
+  });
+});
+
+// ============================================================
+// Detecting the image format from the bytes.
+//
+// **The endpoint detects rather than believes, and this is what makes that
+// safe.** A client that mislabels a PNG as a JPEG would otherwise produce a 400
+// from the provider, which the wiring layer maps to a 502 — after the farm's
+// monthly counter has already been incremented for a scan that never happened.
+// ============================================================
+
+function bufferOf(bytes: number[]): ArrayBuffer {
+  return new Uint8Array(bytes).buffer;
+}
+
+// A magic number followed by a recognisable tail that includes both ends of the
+// byte range, so a base64 computed independently in a test would disagree with a
+// buggy encoder rather than happening to match.
+function withTail(magic: number[]): number[] {
+  return [...magic, 0x00, 0x01, 0x7f, 0xfe, 0xff];
+}
+
+const JPEG_BYTES = withTail([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46]);
+const PNG_BYTES = withTail([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x0d]);
+// "RIFF", four bytes of length, "WEBP", then a chunk header.
+const WEBP_BYTES = withTail([
+  0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50, 0x56, 0x50, 0x38,
+]);
+
+describe('openrouter, detectImageFormat', () => {
+  const recognised: [string, number[], ImageFormat][] = [
+    ['a jpeg from a phone camera', JPEG_BYTES, 'jpeg'],
+    ['a png screenshot or scan', PNG_BYTES, 'png'],
+    ['a webp from a browser or gallery', WEBP_BYTES, 'webp'],
+  ];
+
+  for (const [name, bytes, format] of recognised) {
+    it(`recognises ${name}`, () => {
+      expect(detectImageFormat(bufferOf(bytes))).toBe(format);
+    });
+  }
+
+  it('recognises exactly the formats it advertises, and no others', () => {
+    const detected = recognised.map(([, , format]) => format);
+    expect([...detected].sort()).toEqual([...IMAGE_FORMATS].sort());
+  });
+
+  // The two a farmer genuinely holds and this endpoint deliberately does not
+  // read: a PDF goes through a separately priced document parsing plugin, and
+  // HEIC support is uneven across providers. Both are still storable by
+  // attachReceipt; only OCR refuses them, and it refuses them for free.
+  const refused: [string, number[]][] = [
+    ['a pdf invoice', [0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37]],
+    ['an iphone heic', [0x00, 0x00, 0x00, 0x18, 0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63]],
+    ['a gif', [0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x00, 0xff]],
+    ['a tiff', [0x49, 0x49, 0x2a, 0x00, 0x08, 0x00, 0x00, 0x00]],
+    ['plain text', [0x68, 0x65, 0x6c, 0x6c, 0x6f]],
+    ['an empty upload', []],
+  ];
+
+  for (const [name, bytes] of refused) {
+    it(`refuses ${name}`, () => {
+      expect(detectImageFormat(bufferOf(bytes))).toBe(null);
+    });
+  }
+
+  // **"RIFF" alone is not WEBP**, it is also a WAV file — which is a format the
+  // *voice* endpoint accepts, so an upload to the wrong endpoint is a realistic
+  // mistake rather than an invented one.
+  it('refuses a RIFF container whose payload is not WEBP', () => {
+    const wav = [0x52, 0x49, 0x46, 0x46, 0x24, 0x00, 0x00, 0x00, 0x57, 0x41, 0x56, 0x45];
+    expect(detectImageFormat(bufferOf(wav))).toBe(null);
+  });
+
+  // A magic number that is cut short is not a match. Reading past the end of a
+  // three-byte upload would be the classic way to turn a truncated file into a
+  // confident wrong answer.
+  it('refuses a header too short to be conclusive', () => {
+    expect(detectImageFormat(bufferOf([0xff, 0xd8]))).toBe(null);
+    expect(detectImageFormat(bufferOf([0x89, 0x50, 0x4e]))).toBe(null);
+    // "RIFF" and then nothing: the WEBP check reads at offset 8.
+    expect(detectImageFormat(bufferOf([0x52, 0x49, 0x46, 0x46]))).toBe(null);
+  });
+});
+
+// ============================================================
+// The receipt route. Same core, one different content part.
+// ============================================================
+
+const RECEIPT_TODAY = '2026-09-02';
+
+function receiptFor(bytes: number[] = JPEG_BYTES, format: ImageFormat = 'jpeg'): ReceiptRequest {
+  return { image: bufferOf(bytes), format, today: RECEIPT_TODAY };
+}
+
+function imageUrlOf(call: RecordedCall): string {
+  const part = call.body.messages[0]?.content.find((entry) => entry.type === 'image_url');
+  const url = part?.image_url?.url;
+  if (!url) throw new Error('the request carried no image_url content part');
+  return url;
+}
+
+describe('openrouter, extractReceipt', () => {
+  // **An image goes as a data: URI, not as a link.** There is no URL to give —
+  // the photograph is the request body — and handing out a signed Storage URL
+  // would mean publishing a farmer's invoice to a third party to read it.
+  it('sends the image as an image_url content part carrying a data URI', async () => {
+    const { fetchImpl, calls } = stubFetch({ body: expenseSuccess });
+
+    await extractReceipt(config, receiptFor(), fetchImpl);
+
+    expect(imageUrlOf(onlyCall(calls))).toBe(
+      // Computed independently of the code under test. On these few bytes the
+      // naive form is perfectly valid.
+      `data:image/jpeg;base64,${btoa(String.fromCharCode(...JPEG_BYTES))}`,
+    );
+  });
+
+  it('declares the mime type of the format it was given', async () => {
+    const cases: [ImageFormat, number[], string][] = [
+      ['jpeg', JPEG_BYTES, 'data:image/jpeg;base64,'],
+      ['png', PNG_BYTES, 'data:image/png;base64,'],
+      ['webp', WEBP_BYTES, 'data:image/webp;base64,'],
+    ];
+
+    for (const [format, bytes, prefix] of cases) {
+      const { fetchImpl, calls } = stubFetch({ body: expenseSuccess });
+
+      await extractReceipt(config, receiptFor(bytes, format), fetchImpl);
+
+      expect(imageUrlOf(onlyCall(calls)).startsWith(prefix), format).toBe(true);
+    }
+  });
+
+  // A real photograph crosses the 32KB chunk boundary many times, which is the
+  // reason arrayBufferToBase64 has a loop rather than a spread. Decoding it back
+  // here proves the loop is correct on this route too.
+  it('sends a full sized photograph through without losing a byte', async () => {
+    const bytes = new Uint8Array(300_000);
+    bytes.set(JPEG_BYTES);
+    for (let i = JPEG_BYTES.length; i < bytes.length; i += 1) bytes[i] = (i * 31 + 7) % 256;
+    const { fetchImpl, calls } = stubFetch({ body: expenseSuccess });
+
+    await extractReceipt(
+      config,
+      { image: bytes.buffer, format: 'jpeg', today: RECEIPT_TODAY },
+      fetchImpl,
+    );
+
+    const decoded = atob(imageUrlOf(onlyCall(calls)).slice('data:image/jpeg;base64,'.length));
+    expect(decoded).toHaveLength(bytes.length);
+    let firstMismatch = -1;
+    for (let i = 0; i < bytes.length; i += 1) {
+      if (decoded.charCodeAt(i) !== bytes[i]) {
+        firstMismatch = i;
+        break;
+      }
+    }
+    expect(firstMismatch).toBe(-1);
+  });
+
+  // The instruction before the image, for the same reason it comes before the
+  // audio: a model that reads the task first looks at the document already
+  // knowing what it is looking for.
+  it('sends one user message, the instruction and then the image', async () => {
+    const { fetchImpl, calls } = stubFetch({ body: expenseSuccess });
+
+    await extractReceipt(config, receiptFor(), fetchImpl);
+
+    const messages = onlyCall(calls).body.messages;
+    expect(messages).toHaveLength(1);
+    expect(messages[0]?.role).toBe('user');
+    expect(messages[0]?.content.map((part) => part.type)).toEqual(['text', 'image_url']);
+  });
+
+  // The date bounds a two-digit printed year, rules out a receipt dated in the
+  // future, and is the fallback for a date that is genuinely unreadable.
+  it('puts today into the instruction text', async () => {
+    const { fetchImpl, calls } = stubFetch({ body: expenseSuccess });
+
+    await extractReceipt(config, receiptFor(), fetchImpl);
+
+    const content = onlyCall(calls).body.messages[0]?.content ?? [];
+    expect(content.find((part) => part.type === 'text')?.text).toContain(RECEIPT_TODAY);
+  });
+
+  // **The same door voice's test guards.** Without require_parameters,
+  // response_format is only a soft preference and a provider that ignores it
+  // answers 200 with free Hebrew text instead of JSON. Deleting the line
+  // produces no error, only extractions that start failing.
+  it('sends the same provider settings the voice route sends', async () => {
+    const { fetchImpl, calls } = stubFetch({ body: expenseSuccess });
+
+    await extractReceipt(config, receiptFor(), fetchImpl);
+
+    const body = onlyCall(calls).body;
+    expect(body.provider).toEqual({ require_parameters: true });
+    expect(body.models).toEqual(['google/gemini-3.7-flash', 'google/gemini-2.5-flash']);
+    expect(body.temperature).toBe(0);
+    expect(body.max_tokens).toBe(400);
+  });
+
+  it('sends the same headers and the same url', async () => {
+    const { fetchImpl, calls } = stubFetch({ body: expenseSuccess });
+
+    await extractReceipt(config, receiptFor(), fetchImpl);
+
+    const call = onlyCall(calls);
+    expect(call.url).toBe('https://openrouter.ai/api/v1/chat/completions');
+    expect(call.init.method).toBe('POST');
+    expect(call.init.headers).toEqual({
+      Authorization: 'Bearer openrouter-key-for-tests',
+      'Content-Type': 'application/json',
+      'HTTP-Referer': 'https://yevul.app',
+      'X-Title': 'Yevul',
+    });
+  });
+
+  // The wire copy, for the same reason the voice route sends one: the request
+  // goes out with a fallback model behind it, and a provider that sees a numeric
+  // bound keyword rejects the whole request with a 400.
+  it('sends the receipt wire schema, with no numeric bound keywords at any depth', async () => {
+    const { fetchImpl, calls } = stubFetch({ body: expenseSuccess });
+
+    await extractReceipt(config, receiptFor(), fetchImpl);
+
+    const jsonSchema = onlyCall(calls).body.response_format.json_schema;
+    expect(jsonSchema.name).toBe('receipt');
+    expect(jsonSchema.strict).toBe(true);
+
+    const keys = keysDeep(jsonSchema.schema);
+    expect(keys).not.toContain('minimum');
+    expect(keys).not.toContain('maximum');
+    expect(keys).not.toContain('exclusiveMinimum');
+  });
+
+  // The farmer is holding the photograph. Asking the model to also transcribe
+  // the document would spend the 400 token output budget on text he can already
+  // read, and the way that budget runs out is a truncated answer he paid for.
+  it('does not ask for a transcript, and asks for no plot or "more items" flag', async () => {
+    const { fetchImpl, calls } = stubFetch({ body: expenseSuccess });
+
+    await extractReceipt(config, receiptFor(), fetchImpl);
+
+    const schema = onlyCall(calls).body.response_format.json_schema.schema;
+    expect(Object.keys(schema.properties)).toEqual(['name', 'date', 'amount', 'confidence']);
+    expect(schema.required).not.toContain('transcript');
+  });
+
+  // The core is shared, so the four failure shapes are shared too. Spot-checked
+  // rather than re-enumerated: the exhaustive versions are on the voice route
+  // above, and both routes now run through the same callOpenRouter.
+  it('reports upstream failures through the same shape the voice route uses', async () => {
+    const { fetchImpl } = stubFetch({ status: 429, body: rateLimited });
+
+    const result = await extractReceipt(config, receiptFor(), fetchImpl);
+
+    expect(result).toEqual({
+      ok: false,
+      failure: 'upstream',
+      status: 429,
+      reason: 'Rate limit exceeded: provider google is temporarily rate limited',
+    });
+  });
+
+  // Markdown fences come off on this route too, and the validators still do not
+  // run here — the raw object comes back for the layer above to judge.
+  it('strips a markdown fence and returns the raw object without validating it', async () => {
+    const { fetchImpl } = stubFetch({
+      body: {
+        model: 'google/gemini-2.5-flash',
+        choices: [
+          { message: { content: '```json\n{"name":"סונול","amount":-5,"date":"אתמול"}\n```' } },
+        ],
+        usage: { cost: 0.00021 },
+      },
+    });
+
+    const result = await extractReceipt(config, receiptFor(), fetchImpl);
+
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.raw).toEqual({ name: 'סונול', amount: -5, date: 'אתמול' });
+    // No transcript on this route, structurally. It is not an error, there is
+    // simply nothing of the sort to display.
+    expect(result.ok && result.transcript).toBe(null);
+  });
+
+  it('does not touch the global fetch', async () => {
+    const globalFetch = vi.fn(() => {
+      throw new Error('יציאה לרשת');
+    });
+    vi.stubGlobal('fetch', globalFetch);
+    const { fetchImpl, calls } = stubFetch({ body: expenseSuccess });
+
+    const result = await extractReceipt(config, receiptFor(), fetchImpl);
+
+    expect(result.ok).toBe(true);
+    expect(calls).toHaveLength(1);
+    expect(globalFetch).not.toHaveBeenCalled();
   });
 });

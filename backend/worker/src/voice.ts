@@ -33,15 +33,17 @@
 
 import { isCalendarDate } from '@yevul/shared/src/safeHarvestDate';
 import { parseVoiceResult, VOICE_KINDS, type VoiceKind } from '@yevul/shared/src/voice';
-import { gate, type Env } from './gate';
 import {
-  AUDIO_FORMATS,
-  extractVoice,
-  type AudioFormat,
-  type FetchLike,
-  type OpenRouterConfig,
-  type VoiceUsage,
-} from './openrouter';
+  callLogger,
+  fail,
+  json,
+  missingConfigNames,
+  readConfig,
+  usageFields,
+  LOGGED_CONTENT_CHARS,
+} from './aiEndpoint';
+import { gate, type Env } from './gate';
+import { AUDIO_FORMATS, extractVoice, type AudioFormat, type FetchLike } from './openrouter';
 
 // ============================================================
 // Limits.
@@ -66,31 +68,6 @@ const MAX_AUDIO_BYTES = 4 * 1024 * 1024;
 // on both platforms and nothing in the pipeline converts it. The parameter
 // exists because whoever holds the file is who knows its format.
 const DEFAULT_AUDIO_FORMAT: AudioFormat = 'm4a';
-
-// A parse failure returns the model's raw text so this layer can log it, and
-// that text contains the farmer's own words. Only a bounded prefix is written
-// to the log: enough to tell a response truncated at max_tokens from a model
-// that ignored the schema entirely, which are two completely different faults,
-// without retaining a full transcript in Cloudflare's log stream.
-const LOGGED_CONTENT_CHARS = 200;
-
-// ============================================================
-// The response.
-//
-// **Reason codes are machine readable and stable**, because the client picks
-// which Hebrew sentence to show the farmer from them. A human-readable string
-// here would mean the mobile app matching on prose.
-// ============================================================
-
-const JSON_HEADERS = { 'Content-Type': 'application/json' };
-
-function json(body: unknown, status: number): Response {
-  return new Response(JSON.stringify(body), { status, headers: JSON_HEADERS });
-}
-
-function fail(code: string, status: number): Response {
-  return json({ error: code }, status);
-}
 
 // ============================================================
 // Request validation. **Everything here is hostile input**: the query string
@@ -163,58 +140,11 @@ function isRequestError(value: ParsedRequest | RequestError): value is RequestEr
   return 'code' in value;
 }
 
-// ============================================================
-// Environment configuration.
-//
-// The three values are optional on Env because that is the truth about what
-// wrangler injects, and a var deleted from wrangler.toml simply does not exist
-// at runtime. Here is where absence becomes an answer.
-// ============================================================
-
-function readConfig(env: Env): OpenRouterConfig | null {
-  const { OPENROUTER_API_KEY: apiKey, OPENROUTER_MODEL: model } = env;
-  const fallbackModel = env.OPENROUTER_MODEL_FALLBACK;
-
-  if (!apiKey || !model || !fallbackModel) return null;
-  return { apiKey, model, fallbackModel };
-}
-
-// The names of the missing vars go to the log, never to the response. This
-// check runs before gate, so an unauthenticated caller can reach it, and there
-// is no reason to tell that caller how our deploy is wired.
-function missingConfigNames(env: Env): string[] {
-  return [
-    env.OPENROUTER_API_KEY ? null : 'OPENROUTER_API_KEY',
-    env.OPENROUTER_MODEL ? null : 'OPENROUTER_MODEL',
-    env.OPENROUTER_MODEL_FALLBACK ? null : 'OPENROUTER_MODEL_FALLBACK',
-  ].filter((name): name is string => name !== null);
-}
-
-// ============================================================
-// Server side accounting.
-//
-// **The cost and the model id never go to the client.** They are our books,
-// not the farmer's business, and shipping them would also tell anyone holding
-// a token exactly which provider to price against. They go to console.log
-// instead, which is what `wrangler tail` streams, so the cost of a real call
-// is observable the moment it happens.
-//
-// **Nothing on the success path logs the transcript or the audio.** That is the
-// farmer speaking, and it has no place in an operational log. The one exception
-// is a parse failure, where a bounded prefix of the model's raw text is logged
-// because it is the only way to tell the two failure modes apart. See
-// LOGGED_CONTENT_CHARS above.
-// ============================================================
-
-function logCall(fields: Record<string, unknown>): void {
-  // One JSON line per call, so `wrangler tail` output stays greppable and a log
-  // drain can parse it later without a format change.
-  console.log(JSON.stringify({ event: 'ai_voice', ...fields }));
-}
-
-function usageFields(usage: VoiceUsage): Record<string, unknown> {
-  return { model: usage.model, costUsd: usage.costUsd };
-}
+// The deploy check, the error envelope and the cost log all moved to
+// aiEndpoint.ts when receipts became the second /ai endpoint. The reasoning
+// behind each of them moved with it; what stays here is only the order they are
+// used in, which is this file's own subject.
+const logCall = callLogger('ai_voice');
 
 // ============================================================
 // The handler.

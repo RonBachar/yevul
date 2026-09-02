@@ -14,7 +14,7 @@
 // fetch שזורק, כך שטסט ששכח מוק ייפול במקום לצאת החוצה.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { FREE_MONTHLY_AI_LIMIT, gate, type Env } from './gate';
+import { FREE_MONTHLY_AI_LIMIT, gate, PAID_PLAN_REQUIRED, type Env } from './gate';
 
 const env: Env = {
   SUPABASE_URL: 'https://project.supabase.invalid',
@@ -303,5 +303,108 @@ describe('gate, באג מתועד: כשל שרת מוצג כמכסה מוצתה'
     const result = await gate(requestWith('Bearer good-token'), env);
 
     expect(result).toEqual({ ok: false, status: 429, reason: 'monthly quota exhausted' });
+  });
+});
+
+// ============================================================
+// requireEntitlement, i.e. features the free tier may not reach at all rather
+// than may only reach ten times a month.
+//
+// **The counting tests below are the point of this block, not the statuses.**
+// gate() consumes the quota as part of its own work, so an implementation that
+// refused an unentitled farm one line later would return the identical 403
+// having already taken a month of voice recordings from him — and the shared
+// counter means that is a real loss of something he does have, not a
+// bookkeeping detail. Only the RPC call count can tell the two apart.
+// ============================================================
+
+describe('gate, requireEntitlement', () => {
+  it('refuses a farm with no subscription row, with its own reason', async () => {
+    installFetch(passingHandlers({ subscriptions: { body: [] } }));
+
+    const result = await gate(requestWith('Bearer good-token'), env, { requireEntitlement: true });
+
+    expect(result).toEqual({ ok: false, status: 403, reason: PAID_PLAN_REQUIRED });
+    // Distinct from the gate's other 403 on purpose: one is an offer to upgrade,
+    // the other is something broken. A shared code would make the client guess.
+    expect(PAID_PLAN_REQUIRED).not.toBe('no active farm');
+  });
+
+  it('the refusal never reaches the counter', async () => {
+    const calls = installFetch(passingHandlers({ subscriptions: { body: [] } }));
+
+    await gate(requestWith('Bearer good-token'), env, { requireEntitlement: true });
+
+    expect(quotaCalls(calls)).toHaveLength(0);
+  });
+
+  // A flag that is on with a term that has run out is not an entitlement, and
+  // this route must inherit that rather than accept a laxer version of it.
+  it('refuses an expired subscription, and still does not count it', async () => {
+    const expired = new Date(Date.now() - 60_000).toISOString();
+    const calls = installFetch(
+      passingHandlers({
+        subscriptions: { body: [{ entitlement_active: true, expires_at: expired }] },
+      }),
+    );
+
+    const result = await gate(requestWith('Bearer good-token'), env, { requireEntitlement: true });
+
+    expect(result).toEqual({ ok: false, status: 403, reason: PAID_PLAN_REQUIRED });
+    expect(quotaCalls(calls)).toHaveLength(0);
+  });
+
+  it('lets an entitled farm through and counts it with no limit', async () => {
+    const calls = installFetch(
+      passingHandlers({
+        subscriptions: { body: [{ entitlement_active: true, expires_at: null }] },
+      }),
+    );
+
+    const result = await gate(requestWith('Bearer good-token'), env, { requireEntitlement: true });
+
+    expect(result).toEqual({ ok: true, userId: USER_ID, farmId: FARM_ID, entitled: true });
+    // Uncapped but still counted, and against the same counter voice uses.
+    expect(quotaCalls(calls)[0]?.body).toEqual({ p_farm_id: FARM_ID, p_limit: null });
+  });
+
+  // Farm identity is still asked before entitlement. A user with no farm has
+  // nothing to upgrade, so telling him to pay would be the wrong answer.
+  it('a user with no farm is still told he has no farm, not that he must pay', async () => {
+    installFetch(passingHandlers({ members: { body: [] } }));
+
+    const result = await gate(requestWith('Bearer good-token'), env, { requireEntitlement: true });
+
+    expect(result).toEqual({ ok: false, status: 403, reason: 'no active farm' });
+  });
+
+  it('an unauthenticated request is refused before entitlement is ever looked up', async () => {
+    const calls = installFetch(passingHandlers());
+
+    await gate(requestWith(), env, { requireEntitlement: true });
+
+    expect(calls).toHaveLength(0);
+  });
+
+  // **Voice must be untouched by all of the above.** The free tier records ten
+  // times a month, and the option defaults to off, so the two ways of calling
+  // gate() have to agree exactly on the free tier's happy path.
+  it('leaves the free tier alone when the option is absent or false', async () => {
+    for (const options of [undefined, {}, { requireEntitlement: false }]) {
+      const calls = installFetch(passingHandlers({ subscriptions: { body: [] } }));
+
+      const result = await gate(requestWith('Bearer good-token'), env, options);
+
+      expect(result, JSON.stringify(options)).toEqual({
+        ok: true,
+        userId: USER_ID,
+        farmId: FARM_ID,
+        entitled: false,
+      });
+      expect(quotaCalls(calls)[0]?.body).toEqual({
+        p_farm_id: FARM_ID,
+        p_limit: FREE_MONTHLY_AI_LIMIT,
+      });
+    }
   });
 });

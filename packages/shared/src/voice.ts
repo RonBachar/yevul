@@ -480,7 +480,14 @@ function boundsHint(node: Record<string, unknown>): string | null {
 // כי הסכמות המקוריות הן as const ומשותפות בין הקריאות: PLOT_NAME_FIELD
 // ו-CONFIDENCE_FIELD הם אותו אובייקט בשלוש הסכמות, ומוטציה אחת הייתה
 // מזהמת את כולן.
-function withoutNumericBounds(node: unknown): unknown {
+//
+// Exported for receipt.ts, which needs the identical treatment for the identical
+// reason: its schema also travels inside response_format with a `models` array
+// behind it, so it can also reach a provider that answers 400 to a numeric bound
+// keyword. A second copy of this walk would be a second thing to keep correct,
+// and the failure it guards against only shows up on the day the primary model
+// is down — the worst possible day to discover it.
+export function withoutNumericBounds(node: unknown): unknown {
   if (Array.isArray(node)) return node.map(withoutNumericBounds);
   if (typeof node !== 'object' || node === null) return node;
 

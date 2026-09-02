@@ -1,0 +1,25 @@
+{
+  "id": "gen-2026090200000001",
+  "provider": "Google",
+  "model": "google/gemini-3.7-flash",
+  "object": "chat.completion",
+  "created": 1788307200,
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "native_finish_reason": "STOP",
+      "message": {
+        "role": "assistant",
+        "refusal": null,
+        "content": "{\"name\":\"חממות הגליל בע\\\"מ\",\"date\":\"2026-08-30\",\"amount\":1450.5,\"confidence\":0.88}"
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 1184,
+    "completion_tokens": 42,
+    "total_tokens": 1226,
+    "cost": 0.00037
+  }
+}

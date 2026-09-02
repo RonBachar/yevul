@@ -37,6 +37,36 @@ export type GateResult =
   | { ok: true; userId: string; farmId: string; entitled: boolean }
   | { ok: false; status: 401 | 403 | 429 | 500; reason: string };
 
+// **The reason code for a free tier farm asking for a paid-only feature.** It is
+// its own string and not the existing 'no active farm', because from the client
+// both are a 403 and the two send the farmer to completely different places: one
+// is an offer to upgrade, the other is something broken that he cannot fix. A
+// single shared 403 would force the app to guess which sentence to show him.
+export const PAID_PLAN_REQUIRED = 'paid plan required';
+
+// **Which features the free tier may reach at all, as opposed to how often.**
+// The two are genuinely different questions and only receipts ask the second
+// one. prd.md section 11: the free tier gets "עשרה רישומים בקול בחודש", ten
+// voice records a month — capped, but allowed. prd.md section 9 says the
+// opposite about receipts: "הקבלות הן פיצ'ר בתשלום במלואו. במסלול החינמי אין
+// צילום, אין סריקה ואין ארכיון", receipts are a paid feature in full, and line
+// 121 repeats it — "זמין במסלולים בתשלום בלבד".
+//
+// **It is an option on gate() rather than a check the caller does afterwards,
+// and that is the whole point of it.** gate() consumes a month of quota
+// atomically and there is no refund path, so a caller that asked gate() first
+// and inspected `entitled` second would already have charged a farmer for a
+// call he was never entitled to make. Putting the question inside gate() is what
+// makes the ordering structural instead of a rule every future endpoint has to
+// remember: the check sits between loading the farm and consuming the quota, in
+// the one function that owns both.
+export type GateOptions = {
+  // Defaults to false, which is exactly the behaviour every existing caller
+  // already has. Voice is unchanged by this: the free tier may record, it is
+  // simply counted against FREE_MONTHLY_AI_LIMIT.
+  requireEntitlement?: boolean;
+};
+
 // ============================================================
 // אימות הטוקן.
 //
@@ -135,9 +165,20 @@ async function consumeQuota(env: Env, farmId: string, limit: number | null): Pro
 // ============================================================
 // השומר עצמו. סדר הבדיקות אינו שרירותי: אימות לפני זהות משק, וזהות
 // משק לפני מכסה, כדי שבקשה לא מאומתת לעולם לא תיגע במונה.
+//
+// The entitlement check added for receipts extends that same rule by one step
+// rather than bending it: authentication, then farm identity, then **whether
+// this farm may use this feature at all**, and only then the counter. Each
+// question that can refuse for free is asked before the one that costs
+// something, and the counter stays last because it is the only step that cannot
+// be undone.
 // ============================================================
 
-export async function gate(request: Request, env: Env): Promise<GateResult> {
+export async function gate(
+  request: Request,
+  env: Env,
+  options: GateOptions = {},
+): Promise<GateResult> {
   const auth = request.headers.get('Authorization');
   const token = auth?.startsWith('Bearer ') ? auth.slice(7).trim() : null;
   if (!token) return { ok: false, status: 401, reason: 'missing token' };
@@ -147,6 +188,15 @@ export async function gate(request: Request, env: Env): Promise<GateResult> {
 
   const farm = await loadFarm(env, userId);
   if (!farm) return { ok: false, status: 403, reason: 'no active farm' };
+
+  // **Before consumeQuota, and that placement is the requirement.** A farmer on
+  // the free tier photographing a receipt is asking for something he was never
+  // entitled to, and consume_ai_quota only ever increments. Refusing him one
+  // line later would take a month of voice recordings from him — the shared
+  // counter, per docs/roadmap.md — as the price of being told no.
+  if (options.requireEntitlement && !farm.entitled) {
+    return { ok: false, status: 403, reason: PAID_PLAN_REQUIRED };
+  }
 
   const limit = farm.entitled ? null : FREE_MONTHLY_AI_LIMIT;
   const allowed = await consumeQuota(env, farm.farmId, limit);
