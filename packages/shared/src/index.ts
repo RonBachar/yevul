@@ -148,6 +148,21 @@ export {
   type VoiceFailure,
   type VoiceClientResult,
 } from './voiceClient';
+// The rules the microphone is steered by, stage 5. Pure policy, no audio and no
+// endpoint: the native recorder lives in the mobile app, which has no test
+// runner, so everything about it that can be decided without a device is
+// decided here. See the header of voiceRecording.ts.
+export {
+  microphoneDecision,
+  recordingReachedLimit,
+  recordingTooShort,
+  formatRecordingElapsed,
+  voicePromptKey,
+  VOICE_MAX_RECORDING_MILLIS,
+  VOICE_MIN_RECORDING_MILLIS,
+  type MicrophoneDecision,
+  type MicrophonePermissionState,
+} from './voiceRecording';
 export { profitabilityCsv, expensesCsv, journalCsv, type CsvReport } from './reports';
 export {
   useFarmProfit,

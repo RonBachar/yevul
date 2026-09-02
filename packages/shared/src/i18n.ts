@@ -42,7 +42,14 @@ const strings: Record<string, string> = {
   'capture.taskHint': 'מה צריך לעשות',
   'capture.journal': 'יומן',
   'capture.journalHint': 'מה עשיתי, כולל ריסוס',
+  // The long press straight to the microphone, design.md, Capture Tab & Sheet.
+  // **Still the spec, not yet the app.** POST /ai/voice needs a kind, so the
+  // shortcut that skips the sheet and lets the model choose the form cannot be
+  // built until the endpoint can. Kept here rather than deleted because the day
+  // it can be built, this is the sentence; CaptureSheet shows capture.voiceHint
+  // instead while the microphone lives on the rows.
   'capture.micHint': 'לחיצה ארוכה על הכפתור פותחת ישר את המיקרופון',
+  'capture.voiceHint': 'אפשר גם לדבר, לחצו על המיקרופון שבשורה',
   'capture.close': 'סגירה',
 
   // ניווט הווב. קבוצה נפרדת מ-nav.* בכוונה, כי היעדים לא זהים לנייד.
@@ -396,6 +403,39 @@ const strings: Record<string, string> = {
   // right after speaking to the device assumes he did something wrong, and
   // stops using voice at all.
   'voice.error.ourBug': 'משהו אצלנו לא עבד. זו לא אשמתכם, נסו שוב מאוחר יותר.',
+
+  // The recording panel itself, stage 5. Everything above this line is a
+  // failure; everything below it is the farmer being told what is happening
+  // right now, which is a different job and a different tone. No sentence here
+  // is longer than a breath, because they are read while he is holding a button
+  // down and about to speak.
+  'capture.voice': 'רישום בקול',
+  // The instruction, and the only place the press-and-hold gesture is taught.
+  // Both halves are needed: a farmer who presses and lets go immediately
+  // records nothing, and one who never lets go never sends anything.
+  'voice.hold': 'לחצו והחזיקו כדי לדבר, שחררו כשסיימתם',
+  'voice.recording': 'מקליט',
+  // design.md, Loading State, Voice Processing, word for word.
+  'voice.processing': 'מעבד...',
+  // The coaching line, design.md, Mic Capture Button. Three fields per kind,
+  // said before the sentence rather than corrected after it, because the
+  // single-item extraction rule needs him to say one thing with its fields.
+  'voice.prompt.expense': 'אמרו: מה, כמה, לאיזו חלקה',
+  'voice.prompt.task': 'אמרו: מה צריך לעשות, לאיזו חלקה, מתי',
+  'voice.prompt.journal': 'אמרו: מה עשיתי, באיזו חלקה, מתי',
+  'voice.heard': 'שמענו',
+  'voice.again': 'הקלטה חדשה',
+  'voice.back': 'חזרה',
+  'voice.permissionAsking': 'מבקשים גישה למיקרופון',
+  // The way back for a farmer who said "don't allow" once. Without this the
+  // button would be dead forever with no explanation, since the phone will
+  // never show him the prompt again.
+  'voice.permissionBlocked': 'אין לאפליקציה גישה למיקרופון. אפשר לאשר אותה בהגדרות הטלפון.',
+  'voice.openSettings': 'פתיחת ההגדרות',
+  // Shown when the two minute cap cut him off. It is not an error, it is an
+  // explanation: the recording was sent, and he needs to know why it ended
+  // without him letting go.
+  'voice.stoppedAtLimit': 'עצרנו את ההקלטה אחרי שתי דקות, ושלחנו מה שהוקלט.',
 };
 
 // מחזיר את המחרוזת לפי המפתח, ואם אין, מחזיר את המפתח עצמו כדי
