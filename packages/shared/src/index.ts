@@ -125,6 +125,24 @@ export {
   type VoiceParseResult,
   type PlotMatch,
 } from './voice';
+// The client side of POST /ai/voice, stage 5. Transport only: it takes audio
+// bytes and returns a typed outcome, it records nothing, and it reads no
+// environment. See the header of voiceClient.ts.
+export {
+  requestVoiceExtraction,
+  deviceToday,
+  VOICE_AUDIO_FORMATS,
+  VOICE_MESSAGE_KEYS,
+  type VoiceAudioFormat,
+  type VoiceExtractionInput,
+  type VoiceFetch,
+  type VoiceFetchInit,
+  type VoiceFetchResponse,
+  type VoiceNextStep,
+  type VoiceSuccess,
+  type VoiceFailure,
+  type VoiceClientResult,
+} from './voiceClient';
 export { profitabilityCsv, expensesCsv, journalCsv, type CsvReport } from './reports';
 export {
   useFarmProfit,

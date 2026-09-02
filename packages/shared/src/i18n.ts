@@ -373,6 +373,29 @@ const strings: Record<string, string> = {
   'expense.form.receiptReplace': 'החלף קבלה',
   'expense.form.receiptUploading': 'מעלה קבלה',
   'expense.form.receiptError': 'העלאת הקבלה נכשלה',
+
+  // Voice capture, stage 5. **One sentence per next step in VoiceNextStep**
+  // (packages/shared/src/voiceClient.ts), not one per reason code the endpoint
+  // can send. The farmer does not need to know whether the model answered
+  // nonsense or did not answer at all; he needs to know whether to record
+  // again, wait, or give up for this month. No error codes and no jargon: this
+  // is read at arm's length on a phone in the sun.
+  //
+  // fixRecording is the only step with two sentences, because "we heard
+  // nothing" and "that was too long" send him in opposite directions.
+  'voice.error.retryNow': 'לא הצלחנו להתחבר כרגע. נסו שוב עוד רגע.',
+  'voice.error.recordAgain': 'לא הבנו את ההקלטה. נסו להקליט שוב, לאט וברור.',
+  // "you can keep writing it in by hand" is part of the sentence and not a
+  // nicety. Without it, running out of recordings reads as the app being locked
+  // until next month, when in fact every manual form still works.
+  'voice.error.outOfRecordings': 'נגמרו ההקלטות לחודש הזה. אפשר להמשיך לרשום ידנית.',
+  'voice.error.noSound': 'לא שמענו כלום. קרבו את הטלפון לפה ונסו שוב.',
+  'voice.error.tooLong': 'ההקלטה ארוכה מדי. נסו שוב, במשפט קצר.',
+  'voice.error.signIn': 'צריך להתחבר שוב כדי לרשום בקול.',
+  // "it is not your fault" stays in explicitly. A farmer who gets an error
+  // right after speaking to the device assumes he did something wrong, and
+  // stops using voice at all.
+  'voice.error.ourBug': 'משהו אצלנו לא עבד. זו לא אשמתכם, נסו שוב מאוחר יותר.',
 };
 
 // מחזיר את המחרוזת לפי המפתח, ואם אין, מחזיר את המפתח עצמו כדי
