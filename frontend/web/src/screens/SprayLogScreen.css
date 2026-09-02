@@ -42,6 +42,13 @@
   font-weight: var(--font-weight-bold);
 }
 
+/* Same rule as .journal-list__new: the pill is as wide as its label, not as
+   wide as the column. .spray-log__main is a flex column, so this is all the
+   button needs; the 24 gap above and below it comes from that column. */
+.spray-log__new {
+  align-self: flex-start;
+}
+
 .spray-log__rows {
   display: flex;
   flex-direction: column;

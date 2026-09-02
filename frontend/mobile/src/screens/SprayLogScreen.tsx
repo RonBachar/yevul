@@ -2,9 +2,12 @@ import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute } from '@react-navigation/native';
 import { useState } from 'react';
+// Imported by sub-path and not through the barrel, like everywhere else in the
+// app: Metro does no tree shaking. See RootTabs.tsx.
+import Plus from 'lucide-react-native/icons/plus';
 import { t, useLogEntries, usePlots, type LogEntry } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
-import { colors, fonts, fontSize, spacing } from '../theme/tokens';
+import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { ListStateNote } from '../components/ListStateNote';
@@ -34,6 +37,20 @@ export function SprayLogScreen() {
   // מזינות את אותו מסך, וחלקה חדשה שלא הופיעה בצ'יפים היא בדיוק אחת
   // הסיבות למשוך.
   const refreshControl = usePullToRefresh([entriesState, plotsState]);
+
+  // **Clearing editingEntryId is what makes this a create.** The id outlives
+  // the sheet being closed, so without it a farmer who edited a row and then
+  // pressed the button would get that row back for editing, with no sign that
+  // he was not writing a new record. Same shape as JournalList's openCreate.
+  function openCreate() {
+    setEditingEntryId(null);
+    setSheetOpen(true);
+  }
+
+  function openEdit(entryId: string) {
+    setEditingEntryId(entryId);
+    setSheetOpen(true);
+  }
 
   return (
     <SafeAreaView style={styles.screen} edges={['bottom']}>
@@ -78,6 +95,22 @@ export function SprayLogScreen() {
         </View>
       </ScrollView>
 
+      {/* The one thing this screen was missing: a way to write a spray. A
+          farmer testing the app reported he could not enter spray records at
+          all, and he was right -- the screen only ever opened the sheet from a
+          row, so a plot with no sprays yet offered nothing to press.
+
+          Same button as the Journal's own, and **outside the FlatList, not in
+          its ListHeaderComponent**. A header scrolls away with the rows, and
+          this is the primary action of the screen; keeping it out also leaves
+          ListEmptyComponent and the flexGrow that lets an empty list be pulled
+          exactly as they were. Between the plot filter and the list, because
+          it opens the sheet carrying whichever plot the filter is on. */}
+      <Pressable style={styles.newButton} onPress={openCreate} accessibilityRole="button">
+        <Plus size={20} strokeWidth={2.5} color={colors.paper} />
+        <Text style={styles.newButtonText}>{t('sprayLog.new')}</Text>
+      </Pressable>
+
       {/* הרשימה מרונדרת תמיד, גם בלי שורות, כדי שגם מצב ריק וגם כשל
           טעינה יישארו נגישים למשיכה. */}
       <FlatList<LogEntry>
@@ -102,10 +135,7 @@ export function SprayLogScreen() {
                 : null
             }
             sprayDetailed
-            onPress={() => {
-              setEditingEntryId(item.id);
-              setSheetOpen(true);
-            }}
+            onPress={() => openEdit(item.id)}
           />
         )}
         // Wrapped in a View because FlatList clones this element to attach
@@ -129,6 +159,9 @@ export function SprayLogScreen() {
         onClose={() => setSheetOpen(false)}
         entry={editingEntry}
         defaultPlotId={selectedPlotId}
+        // A new record starts on spray. An entry being edited keeps its own
+        // type, which the sheet decides, not this prop.
+        defaultType="spray"
         farmId={entriesState.farmId}
         onSaved={() => {
           setSheetOpen(false);
@@ -173,6 +206,28 @@ const styles = StyleSheet.create({
     flexGrow: 0,
     paddingHorizontal: spacing.s24,
     marginBottom: spacing.s16,
+  },
+  // The same pill JournalList already renders, token for token, so the two
+  // create buttons read as one control. The margins are the difference, and
+  // only because the parents differ: JournalList sits inside a padded screen,
+  // this screen pads each block itself (header, filters and rows all carry
+  // 24). alignSelf resolves to the right edge under RTL, as it does there.
+  newButton: {
+    alignSelf: 'flex-start',
+    minHeight: touchTarget.min,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.s8,
+    paddingHorizontal: spacing.s20,
+    marginHorizontal: spacing.s24,
+    marginBottom: spacing.s16,
+    borderRadius: radius.pill,
+    backgroundColor: colors.field700,
+  },
+  newButtonText: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.bodySm,
+    color: colors.paper,
   },
   scroll: {
     flex: 1,

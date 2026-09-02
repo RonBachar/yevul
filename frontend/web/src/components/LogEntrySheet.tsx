@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   createLogEntry,
   formatLocalDateOnly,
+  initialLogEntryType,
   logEntryTypeLabelKey,
   LOG_ENTRY_TYPES,
   safeHarvestDate,
@@ -28,12 +29,16 @@ function today(): string {
 // בין הלקוחות ל-TaskSheet. שדה סוג הוא תפריט נפתח כאן, שורת צ'יפים
 // בנייד, ותאריך הוא שדה date טבעי כי אין כאן את המגבלה של בורר native
 // בלי תלות שדחתה את זה בנייד.
+// defaultType is the sibling of defaultPlotId: what the opening screen wants a
+// *new* entry to start on. See initialLogEntryType in the shared package for
+// why an entry being edited ignores it.
 export function LogEntrySheet({
   supabase,
   open,
   onClose,
   entry,
   defaultPlotId,
+  defaultType,
   farmId,
   onSaved,
 }: {
@@ -42,13 +47,14 @@ export function LogEntrySheet({
   onClose: () => void;
   entry: LogEntry | null;
   defaultPlotId: string | null;
+  defaultType?: LogEntryType;
   farmId: string | null;
   onSaved: () => void;
 }) {
   const plotsState = usePlots(supabase);
   const suggestions = useSpraySuggestions(supabase, farmId);
 
-  const [type, setType] = useState<LogEntryType>('other');
+  const [type, setType] = useState<LogEntryType>(initialLogEntryType(entry, defaultType));
   const [plotId, setPlotId] = useState<string | null>(null);
   const [date, setDate] = useState(today());
   const [note, setNote] = useState('');
@@ -65,8 +71,11 @@ export function LogEntrySheet({
 
   useEffect(() => {
     if (!open) return;
+    // Outside the branch on purpose: one line owns the starting type in both
+    // cases, so a reopen after an edit cannot leave the previous entry's type
+    // on screen for a new record.
+    setType(initialLogEntryType(entry, defaultType));
     if (entry) {
-      setType(entry.type);
       setPlotId(entry.plotId);
       setDate(entry.date);
       setNote(entry.note ?? '');
@@ -77,7 +86,6 @@ export function LogEntrySheet({
       setHarvestQty(entry.harvestQty != null ? String(entry.harvestQty) : '');
       setHarvestUnit(entry.harvestUnit ?? '');
     } else {
-      setType('other');
       setPlotId(defaultPlotId);
       setDate(today());
       setNote('');
@@ -89,7 +97,7 @@ export function LogEntrySheet({
       setHarvestUnit('');
     }
     setStatus('idle');
-  }, [open, entry, defaultPlotId]);
+  }, [open, entry, defaultPlotId, defaultType]);
 
   const phiDaysNumber = sprayPhiDays.trim() ? Number(sprayPhiDays) : null;
   const safeHarvest =

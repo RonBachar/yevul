@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   createLogEntry,
   formatLocalDateOnly,
+  initialLogEntryType,
   logEntryTypeLabelKey,
   LOG_ENTRY_TYPES,
   safeHarvestDate,
@@ -45,12 +46,16 @@ function computeLogDate(day: string, month: string, now: Date): string | null {
 // הנקודה היחידה שכותבת ליומן, גם מהאפשרות "יומן" בגיליון הרישום וגם
 // (בעתיד) מ-Completion Prompts. בלי כפתורי מצלמה/מיקרופון, אותה סיבה
 // בדיוק כמו ב-TaskSheet: תלויים בתשתית הקול שנבנית בשלב 5.
+// defaultType is the sibling of defaultPlotId: what the opening screen wants a
+// *new* entry to start on. See initialLogEntryType in the shared package for
+// why an entry being edited ignores it.
 export function LogEntrySheet({
   supabase,
   visible,
   onClose,
   entry,
   defaultPlotId,
+  defaultType,
   farmId,
   onSaved,
 }: {
@@ -59,13 +64,14 @@ export function LogEntrySheet({
   onClose: () => void;
   entry: LogEntry | null;
   defaultPlotId: string | null;
+  defaultType?: LogEntryType;
   farmId: string | null;
   onSaved: () => void;
 }) {
   const plotsState = usePlots(supabase);
   const suggestions = useSpraySuggestions(supabase, farmId);
 
-  const [type, setType] = useState<LogEntryType>('other');
+  const [type, setType] = useState<LogEntryType>(initialLogEntryType(entry, defaultType));
   const [plotId, setPlotId] = useState<string | null>(null);
   const [day, setDay] = useState('');
   const [month, setMonth] = useState('');
@@ -84,9 +90,12 @@ export function LogEntrySheet({
   useEffect(() => {
     if (!visible) return;
     const now = new Date();
+    // Outside the branch on purpose: one line owns the starting type in both
+    // cases, so a reopen after an edit cannot leave the previous entry's type
+    // on screen for a new record.
+    setType(initialLogEntryType(entry, defaultType));
     if (entry) {
       const date = new Date(entry.date);
-      setType(entry.type);
       setPlotId(entry.plotId);
       setDay(String(date.getDate()));
       setMonth(String(date.getMonth() + 1));
@@ -98,7 +107,6 @@ export function LogEntrySheet({
       setHarvestQty(entry.harvestQty != null ? String(entry.harvestQty) : '');
       setHarvestUnit(entry.harvestUnit ?? '');
     } else {
-      setType('other');
       setPlotId(defaultPlotId);
       setDay(String(now.getDate()));
       setMonth(String(now.getMonth() + 1));
@@ -111,7 +119,7 @@ export function LogEntrySheet({
       setHarvestUnit('');
     }
     setStatus('idle');
-  }, [visible, entry, defaultPlotId]);
+  }, [visible, entry, defaultPlotId, defaultType]);
 
   const phiDaysNumber = sprayPhiDays.trim() ? Number(sprayPhiDays) : null;
   const dateValue = computeLogDate(day, month, new Date());

@@ -277,6 +277,7 @@ export {
   createLogEntry,
   updateLogEntry,
   logEntryTypeLabelKey,
+  initialLogEntryType,
   LOG_ENTRY_TYPES,
   type LogEntryType,
   type LogEntrySource,

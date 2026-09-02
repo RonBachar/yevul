@@ -1,10 +1,32 @@
 import { describe, expect, it } from 'vitest';
 import {
   createLogEntry,
+  initialLogEntryType,
   LOG_ENTRY_TYPES,
   logEntryTypeLabelKey,
+  type LogEntry,
   type LogEntryInput,
 } from './logEntries';
+
+function entry(overrides: Partial<LogEntry> = {}): LogEntry {
+  return {
+    id: 'log-1',
+    farmId: 'farm-1',
+    plotId: 'plot-1',
+    date: '2026-08-25',
+    type: 'harvest',
+    note: null,
+    source: 'manual',
+    sprayPest: null,
+    sprayMaterial: null,
+    sprayDose: null,
+    sprayPhiDays: null,
+    harvestQty: null,
+    harvestUnit: null,
+    createdAt: '2026-08-25T06:00:00.000Z',
+    ...overrides,
+  };
+}
 
 function input(overrides: Partial<LogEntryInput> = {}): LogEntryInput {
   return {
@@ -44,6 +66,25 @@ describe('logEntryTypeLabelKey', () => {
       'repair',
       'other',
     ]);
+  });
+});
+
+// The Spray Log Screen opens the sheet asking for 'spray', so the screen that
+// exists for spray records can create one. The rule that matters is the second
+// test: an entry already saved keeps its own type, whatever the screen asks
+// for.
+describe('initialLogEntryType', () => {
+  it('starts a new entry on the type the screen asked for', () => {
+    expect(initialLogEntryType(null, 'spray')).toBe('spray');
+  });
+
+  it('lets an existing entry keep its own type over the default', () => {
+    expect(initialLogEntryType(entry({ type: 'harvest' }), 'spray')).toBe('harvest');
+  });
+
+  it('falls back to other when no screen asked for anything', () => {
+    expect(initialLogEntryType(null)).toBe('other');
+    expect(initialLogEntryType(null, undefined)).toBe('other');
   });
 });
 
@@ -98,5 +139,49 @@ describe('createLogEntry, spray validation', () => {
       input({ type: 'harvest', harvestQty: 10 }),
     );
     expect(result).toEqual({ ok: true });
+  });
+});
+
+// The four fields are what make a spray record a regulatory document, and the
+// last two are what safeHarvestDate is computed from. Every screen that opens
+// the sheet ends here, so this asserts the write itself, once, instead of once
+// per entry point.
+describe('createLogEntry, spray fields', () => {
+  it('writes pest, material, dose and PHI days on a spray entry', async () => {
+    const inserts: Record<string, unknown>[] = [];
+    const supabase = {
+      from() {
+        return {
+          insert(row: Record<string, unknown>) {
+            inserts.push(row);
+            return { select: () => Promise.resolve({ data: [{ id: 'log-1' }], error: null }) };
+          },
+        };
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+
+    const result = await createLogEntry(
+      supabase,
+      'farm-1',
+      input({
+        type: 'spray',
+        sprayPest: 'כנימה',
+        sprayMaterial: 'קונפידור',
+        sprayDose: '200 סמ"ק',
+        sprayPhiDays: 14,
+      }),
+    );
+
+    expect(result).toEqual({ ok: true });
+    expect(inserts).toHaveLength(1);
+    expect(inserts[0]).toMatchObject({
+      farm_id: 'farm-1',
+      type: 'spray',
+      spray_pest: 'כנימה',
+      spray_material: 'קונפידור',
+      spray_dose: '200 סמ"ק',
+      spray_phi_days: 14,
+    });
   });
 });

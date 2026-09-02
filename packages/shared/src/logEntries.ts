@@ -39,6 +39,28 @@ export function logEntryTypeLabelKey(type: LogEntryType): string {
   return LOG_ENTRY_TYPE_LABEL_KEY[type];
 }
 
+// The type a Log Entry Sheet opens on, decided here rather than inside either
+// client's sheet so both answer the same way and the rule can be tested.
+//
+// `defaultType` is what the screen doing the opening asks for. The Spray Log
+// Screen asks for 'spray', because it is the one screen that exists for spray
+// records and a farmer standing on it should not have to find the type
+// selector to write one. Every other opener asks for nothing and gets 'other',
+// which is what the Journal has always defaulted to.
+//
+// **It applies to a new entry only.** An entry being edited always shows its
+// own type: a default allowed to win there would silently retype a saved
+// record the moment a farmer opened it to fix a typo. On the Spray Log Screen
+// that bug would also be invisible, since every row it lists is already a
+// spray and nothing on screen would move -- which is exactly why the rule is
+// written down and tested here rather than left to two sheets to remember.
+export function initialLogEntryType(
+  entry: LogEntry | null,
+  defaultType: LogEntryType = 'other',
+): LogEntryType {
+  return entry ? entry.type : defaultType;
+}
+
 // task, voice: קיימים בסכמה מהיום הראשון לצורך Completion Prompts
 // (שלב 3, טרם נבנה) וחילוץ מקול (שלב 5, טרם נבנה). היצירה הידנית
 // שהמסך הזה בונה כותבת תמיד 'manual'.

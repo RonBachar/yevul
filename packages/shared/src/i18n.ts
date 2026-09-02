@@ -338,6 +338,11 @@ const strings: Record<string, string> = {
   // משמשת גם ככותרת המסך וגם כתווית הקישור אליו משלושת המקומות האלה.
   'sprayLog.title': 'יומן ריסוס',
   'sprayLog.countSuffix': 'ריסוסים',
+  // Its own label rather than a reuse of log.new. That key says "new record",
+  // which is true of any of the ten types; this button opens the sheet already
+  // set to spray, and a farmer looking at an empty spray log is exactly the
+  // person who needs to be told that this is where a spray gets written.
+  'sprayLog.new': 'ריסוס חדש',
   'sprayLog.allPlots': 'כל החלקות',
   'sprayLog.empty': 'אין עדיין רישומי ריסוס',
   'sprayLog.loadError': 'לא הצלחנו לטעון את יומן הריסוס, נסו שוב',

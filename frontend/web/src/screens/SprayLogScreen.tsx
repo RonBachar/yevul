@@ -31,6 +31,20 @@ export function SprayLogScreen() {
   const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
   const editingEntry = entriesState.entries.find((entry) => entry.id === editingEntryId) ?? null;
 
+  // **Clearing editingEntryId is what makes this a create.** The id outlives
+  // the sheet being closed, so without it a farmer who edited a row and then
+  // pressed the button would get that row back for editing, with no sign that
+  // he was not writing a new record. Same shape as JournalList's openCreate.
+  function openCreate() {
+    setEditingEntryId(null);
+    setSheetOpen(true);
+  }
+
+  function openEdit(entryId: string) {
+    setEditingEntryId(entryId);
+    setSheetOpen(true);
+  }
+
   return (
     <div className="screen">
       <div className="spray-log__header">
@@ -94,6 +108,22 @@ export function SprayLogScreen() {
               ))}
           </div>
 
+          {/* The one thing this screen was missing: a way to write a spray. A
+              farmer testing the app reported he could not enter spray records
+              at all, and he was right -- the screen only ever opened the sheet
+              from a row, so a plot with no sprays yet offered nothing to
+              press.
+
+              Same button as the Journal's own (form__submit, align-self at the
+              start), and placed **between the plot filter and the list**, not
+              above the filter: it opens the sheet carrying whichever plot the
+              filter is on, so it reads in the order it acts. It sits outside
+              every loading/failed/empty condition below, because the empty
+              state is exactly the state that needs it. */}
+          <button type="button" className="form__submit spray-log__new" onClick={openCreate}>
+            {t('sprayLog.new')}
+          </button>
+
           {entriesState.loading && <p className="screen__note">{t('common.loading')}</p>}
           {!entriesState.loading && entriesState.failed && (
             <p className="form__message form__message--bad" role="alert">
@@ -116,10 +146,7 @@ export function SprayLogScreen() {
                       : null
                   }
                   sprayDetailed
-                  onEdit={() => {
-                    setEditingEntryId(entry.id);
-                    setSheetOpen(true);
-                  }}
+                  onEdit={() => openEdit(entry.id)}
                 />
               ))}
             </div>
@@ -152,6 +179,9 @@ export function SprayLogScreen() {
         onClose={() => setSheetOpen(false)}
         entry={editingEntry}
         defaultPlotId={selectedPlotId}
+        // A new record starts on spray. An entry being edited keeps its own
+        // type, which the sheet decides, not this prop.
+        defaultType="spray"
         farmId={entriesState.farmId}
         onSaved={() => {
           setSheetOpen(false);
