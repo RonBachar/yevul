@@ -46,10 +46,17 @@ const strings: Record<string, string> = {
   // **Still the spec, not yet the app.** POST /ai/voice needs a kind, so the
   // shortcut that skips the sheet and lets the model choose the form cannot be
   // built until the endpoint can. Kept here rather than deleted because the day
-  // it can be built, this is the sentence; CaptureSheet shows capture.voiceHint
-  // instead while the microphone lives on the rows.
+  // it can be built, this is the sentence; CaptureSheet shows
+  // capture.voiceScanHint instead while the microphone and the camera live on
+  // the rows.
   'capture.micHint': 'לחיצה ארוכה על הכפתור פותחת ישר את המיקרופון',
-  'capture.voiceHint': 'אפשר גם לדבר, לחצו על המיקרופון שבשורה',
+  // The caption under the three rows once the Worker is configured. It names
+  // both shortcuts because both are on the rows and neither is discoverable: the
+  // microphone on all three, the camera on the expense row only, since a receipt
+  // is an expense and nothing else. prd.md line 15 lists the three ways to
+  // record — typing, speaking, photographing a receipt — and this line is where
+  // the second and third are taught.
+  'capture.voiceScanHint': 'אפשר גם לדבר, ובהוצאה גם לצלם קבלה',
   'capture.close': 'סגירה',
 
   // ניווט הווב. קבוצה נפרדת מ-nav.* בכוונה, כי היעדים לא זהים לנייד.
@@ -476,6 +483,59 @@ const strings: Record<string, string> = {
   // two edit boxes, so the way out is to say the missing half again.
   'voice.confirm.sprayPestMissing': 'לא הבנו נגד איזה מזיק ריססתם. הקליטו שוב ואמרו את שם המזיק.',
   'voice.confirm.sprayMaterialMissing': 'לא הבנו באיזה חומר ריססתם. הקליטו שוב ואמרו את שם החומר.',
+
+  // Receipt scanning, stage 5 step 11. **Same rule as the voice block above:
+  // one sentence per next step in ReceiptNextStep, not one per reason code.**
+  //
+  // Two of the seven steps are missing from this list on purpose:
+  // RECEIPT_MESSAGE_KEYS points retryNow and ourBug at voice.error.retryNow and
+  // voice.error.ourBug, because "we could not connect just now" and "something
+  // broke at our end, it is not your fault" say the identical thing whether he
+  // spoke or photographed. Every other sentence names either the recording or
+  // the camera, so every other sentence is its own.
+  'receipt.error.photographAgain': 'לא הצלחנו לקרוא את הקבלה. צלמו שוב, ישר מלמעלה ובאור טוב.',
+  // **The only error in the product that is not an error.** Nothing broke:
+  // receipts are a paid feature in full (prd.md section 9), and this farm is on
+  // the free tier. No upgrade button goes with it, because the plans screen is
+  // stage 7 and a button that leads nowhere is worse than a sentence. What is
+  // offered instead is the thing that always works and costs nothing.
+  'receipt.error.paidPlan': 'סריקת קבלות זמינה במסלול בתשלום. אפשר לרשום את ההוצאה ידנית.',
+  'receipt.error.outOfScans': 'נגמרו הסריקות לחודש הזה. אפשר לרשום את ההוצאה ידנית.',
+  'receipt.error.noPhoto': 'לא קיבלנו תמונה. נסו לצלם שוב.',
+  // **"photograph it instead of picking it" is the actionable half.** The camera
+  // path compresses, an original file out of the gallery does not, so this is
+  // the one thing he can do that changes the outcome. Client-side compression is
+  // the next roadmap item; when it lands, this sentence should be revisited.
+  'receipt.error.tooLarge': 'התמונה כבדה מדי לשליחה. נסו לצלם את הקבלה במקום לבחור מהגלריה.',
+  // A PDF invoice or an iPhone HEIC. Both are things a farmer really holds and
+  // both are stored happily as an attachment; only the scanner cannot read them.
+  'receipt.error.unsupportedFile': 'לא הצלחנו לקרוא את הקובץ הזה. צלמו את הקבלה במצלמה ונסו שוב.',
+  'receipt.error.signIn': 'צריך להתחבר שוב כדי לסרוק קבלות.',
+
+  // The capture panel. voice.back, voice.openSettings, voice.confirm.saved and
+  // expense.form.receiptUploading are reused as they are — they say the same
+  // thing on this route and a second Hebrew string with the same meaning is a
+  // second string to keep in step.
+  'capture.receipt': 'צילום קבלה',
+  'receipt.hint': 'צלמו את הקבלה, ואנחנו נמלא את הספק, הסכום והתאריך',
+  'receipt.takePhoto': 'צילום קבלה',
+  'receipt.fromGallery': 'בחירה מהגלריה',
+  // Not the generic "מעבד..." the microphone shows. He is looking at a
+  // photograph of a receipt, so saying what is being read to him is both more
+  // honest and more reassuring than saying the phone is busy.
+  'receipt.reading': 'קורא את הקבלה...',
+  'receipt.again': 'צילום חדש',
+  'receipt.cameraBlocked': 'אין לאפליקציה גישה למצלמה. אפשר לאשר אותה בהגדרות הטלפון.',
+  // The mirror of voice.confirm.saveError, and the same promise: the scan he
+  // paid for is still on screen, so a failed save does not send him back to the
+  // camera to spend a second one on the same receipt.
+  'receipt.confirm.saveError': 'לא הצלחנו לשמור. מה שקראנו מהקבלה נשאר כאן, אפשר לאשר שוב.',
+  // **The expense is in and the photograph is not**, which is a real state and
+  // not a failure to hide: prd.md section 9 is that the accountant needs the
+  // document and not only the number, so a farmer who is told "saved" while the
+  // document was dropped has been lied to about the half that matters.
+  'receipt.attachFailed': 'ההוצאה נשמרה, אבל תמונת הקבלה לא נשמרה.',
+  'receipt.attachRetry': 'צירוף התמונה שוב',
 };
 
 // מחזיר את המחרוזת לפי המפתח, ואם אין, מחזיר את המפתח עצמו כדי

@@ -321,6 +321,45 @@ export function parseVoicePhiDaysInput(text: string): number | null | undefined 
 }
 
 // ============================================================
+// Where the record came from.
+//
+// **One confirmation screen now has two ways in**, stage 5 step 11: a recording
+// and a photographed receipt. design.md has always called this screen the "Voice
+// / OCR Confirmation Sheet", and prd.md line 15 lists photographing a receipt
+// beside typing and speaking as one of the three ways a farmer records
+// something — so the second route was always going to arrive here rather than at
+// a sheet of its own.
+//
+// **Three things follow from the origin, and every one of them would be a lie if
+// it were left on the voice wording.** The `source` column, which is the only
+// way anyone tells a scanned expense from a spoken one afterwards. The button
+// that offers another go, which cannot say "record again" to a farmer holding a
+// camera. And the sentence after a failed save, which promises that "what you
+// recorded is still here".
+//
+// **It is a prop and not a second component.** The sheet is the trust checkpoint
+// after *any* AI-parsed input, prd.md section 3, and the point of reusing the
+// expense schema in step 10 was that a receipt produces the same record in the
+// same columns. Two sheets that drift apart is exactly the outcome that reuse
+// was meant to prevent.
+//
+// **`ocr` is deliberately not offered to the journal write.** log_entries.source
+// is constrained to ('task','manual','voice') in the schema and LogEntrySource
+// says so, and a receipt cannot produce a journal entry anyway — ReceiptParsed
+// is narrowed to the expense arm. The type is the enforcement: passing an origin
+// to createLogEntry would not compile.
+// ============================================================
+
+export type VoiceConfirmOrigin = 'voice' | 'ocr';
+
+export type VoiceConfirmOriginKeys = { again: string; saveError: string };
+
+export const VOICE_CONFIRM_ORIGIN_KEYS: Record<VoiceConfirmOrigin, VoiceConfirmOriginKeys> = {
+  voice: { again: 'voice.again', saveError: 'voice.confirm.saveError' },
+  ocr: { again: 'receipt.again', saveError: 'receipt.confirm.saveError' },
+};
+
+// ============================================================
 // A parsed record becomes the arguments of a create call.
 //
 // The three functions below are the whole of the translation, and they are

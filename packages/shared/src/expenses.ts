@@ -249,12 +249,26 @@ async function clearAllocations(supabase: SupabaseClient, expenseId: string) {
 // farm_id כדי לתמוך במדיניות ה-RLS שבודקת את תיקיית השורש.
 // ============================================================
 
+// **The receipts row's own source, which is not the expense's.** They answer
+// different questions: expenses.source is how the *figure* got in, receipts.source
+// is how the *document* got in, and stage 5 step 11 is the first time the two can
+// disagree — a farmer can photograph a receipt and have it fill the form ('ocr'
+// on both), or type an expense and attach a photo of the paperwork ('manual' on
+// the receipt, whatever the expense was). Defaulted rather than required so no
+// existing call site changes meaning, exactly like createExpense's.
+//
+// Only two values, because those are the only two ways a document arrives today.
+// The column itself is unconstrained text, so this type is the only thing keeping
+// a third spelling out of it.
+export type ReceiptSource = 'manual' | 'ocr';
+
 export async function attachReceipt(
   supabase: SupabaseClient,
   farmId: string,
   expenseId: string,
   file: Blob,
   mimeType: string,
+  source: ReceiptSource = 'manual',
 ): Promise<{ ok: boolean }> {
   const ext = mimeType === 'application/pdf' ? 'pdf' : (mimeType.split('/')[1] ?? 'jpg');
   const storagePath = `${farmId}/${expenseId}.${ext}`;
@@ -276,7 +290,7 @@ export async function attachReceipt(
     expense_id: expenseId,
     storage_path: storagePath,
     mime_type: mimeType,
-    source: 'manual',
+    source,
   });
 
   return { ok: !insertError };

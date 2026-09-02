@@ -25,6 +25,8 @@ import {
   voiceRecordBlocker,
   voiceTaskInput,
   VOICE_BLOCKER_MESSAGE_KEYS,
+  VOICE_CONFIRM_ORIGIN_KEYS,
+  type VoiceConfirmOrigin,
   type VoiceDateParts,
   type VoiceParsed,
   type VoicePlotStep,
@@ -55,6 +57,15 @@ import { formStyles } from '../theme/formStyles';
 // CaptureSheet already opened, exactly as VoiceCapturePanel does, so the
 // farmer stays in one layer from the microphone to the confirmation.
 //
+// **Two ways in since step 11, and two props to show for it.** A photographed
+// receipt produces the same expense record as a spoken one — that was the whole
+// argument for reusing the expense schema in receipt.ts — so it arrives here
+// rather than at a second sheet that would drift. `origin` carries what the
+// route changes (the source column and two sentences, see
+// VOICE_CONFIRM_ORIGIN_KEYS), and `onAttach` carries the one step voice does not
+// have: the document itself, which per prd.md section 9 is the point of the
+// feature and is not allowed to be dropped quietly.
+//
 // **Sizes come from the tokens.** design.md asks for a 56px minimum on this
 // button; tokens.ts records the founder's 2026-08-31 decision replacing 56 and
 // 88 with 48 and 64, and formStyles.save is built on touchTarget.min. The same
@@ -65,6 +76,10 @@ type SaveStatus =
   | 'idle'
   | 'saving'
   | 'saved'
+  // The record is written and its document is going up. Only the receipt route
+  // reaches these two.
+  | 'attaching'
+  | 'attachFailed'
   | 'plotChoiceRequired'
   | 'amountInvalid'
   | 'dateInvalid'
@@ -73,6 +88,8 @@ type SaveStatus =
   | 'forbidden'
   | 'error';
 
+// `error` is deliberately absent: its sentence depends on the origin (what you
+// recorded / what we read off the receipt is still here) and is resolved below.
 const STATUS_MESSAGE_KEY: Partial<Record<SaveStatus, string>> = {
   plotChoiceRequired: 'voice.confirm.plotAsk',
   amountInvalid: 'expense.form.amountRequired',
@@ -80,7 +97,6 @@ const STATUS_MESSAGE_KEY: Partial<Record<SaveStatus, string>> = {
   titleRequired: 'tasks.form.titleRequired',
   phiInvalid: 'voice.confirm.phiInvalid',
   forbidden: 'voice.confirm.forbidden',
-  error: 'voice.confirm.saveError',
 };
 
 export function VoiceConfirmPanel({
@@ -88,6 +104,8 @@ export function VoiceConfirmPanel({
   farmId,
   parsed,
   transcript,
+  origin,
+  onAttach,
   onRecordAgain,
   onBack,
 }: {
@@ -98,10 +116,19 @@ export function VoiceConfirmPanel({
   // with no plot, which is a legitimate record.
   farmId: string | null;
   parsed: VoiceParsed;
-  // "This is what we heard." Display data, never a field of the record.
+  // "This is what we heard." Display data, never a field of the record. Always
+  // null on the receipt route: the farmer is looking at the photograph.
   transcript: string | null;
-  // Discards this extraction and returns to the microphone, with the same kind
-  // still selected.
+  // How the record got here. Written to expenses.source, and it picks the two
+  // sentences that name a device. See VOICE_CONFIRM_ORIGIN_KEYS.
+  origin: VoiceConfirmOrigin;
+  // **Runs after the record is written, with the id it was written under, and
+  // only the receipt route supplies one.** Returning false is not an error: the
+  // expense is in, and the screen says so while offering to attach the document
+  // again. It is never a reason to write the expense a second time.
+  onAttach?: (recordId: string) => Promise<boolean>;
+  // Discards this extraction and returns to the microphone or the camera, with
+  // the same kind still selected.
   onRecordAgain: () => void;
   // Back to the three capture rows.
   onBack: () => void;
@@ -140,7 +167,11 @@ export function VoiceConfirmPanel({
   const [chosenPlotId, setChosenPlotId] = useState<string | null>(null);
 
   const [status, setStatus] = useState<SaveStatus>('idle');
+  // The id the record was written under, held only so the document can be
+  // attached again without writing a second record. Null until the write lands.
+  const [savedId, setSavedId] = useState<string | null>(null);
   const busy = status === 'saving';
+  const originKeys = VOICE_CONFIRM_ORIGIN_KEYS[origin];
 
   function resolvedPlotId(): string | null {
     if (plotStep.status === 'ambiguous') return chosenPlotId;
@@ -172,15 +203,17 @@ export function VoiceConfirmPanel({
         return;
       }
       setStatus('saving');
-      // **'voice' and not the 'manual' default.** A spoken expense and a typed
-      // one have to be tellable apart afterwards; see createExpense.
+      // **The origin and never the 'manual' default.** A spoken expense, a
+      // scanned one and a typed one all have to be tellable apart afterwards;
+      // see createExpense. 'ocr' is what a receipt writes and it is already a
+      // valid ExpenseSource in the schema.
       const result = await createExpense(
         supabase,
         farmId,
         voiceExpenseInput(parsed.value, plotId, { amount: amountNumber, date: dateValue }),
-        'voice',
+        origin,
       );
-      finish(result.ok, result.ok ? null : result.reason);
+      await finish(result.ok, result.ok ? null : result.reason, result.ok ? result.id : null);
       return;
     }
 
@@ -203,7 +236,10 @@ export function VoiceConfirmPanel({
         farmId,
         voiceTaskInput(parsed.value, plotId, { title: trimmedTitle, dueDate }),
       );
-      finish(result.ok, result.ok ? null : result.reason);
+      // No id, because createTask does not return one and a task carries no
+      // document. Only an expense can, which is also the only kind a receipt
+      // produces.
+      await finish(result.ok, result.ok ? null : result.reason, null);
       return;
     }
 
@@ -222,25 +258,86 @@ export function VoiceConfirmPanel({
       return;
     }
     setStatus('saving');
+    // **'voice' and not the origin, and the compiler is what says so.**
+    // log_entries.source is constrained to ('task','manual','voice') in the
+    // schema and LogEntrySource says the same, so 'ocr' would not compile here.
+    // Nothing is lost: a receipt only ever produces an expense.
     const result = await createLogEntry(
       supabase,
       farmId,
       voiceJournalInput(parsed.value, plotId, { date: dateValue, sprayPhiDays: phi }),
       'voice',
     );
-    finish(result.ok, result.ok ? null : result.reason);
+    await finish(result.ok, result.ok ? null : result.reason, null);
   }
 
   // **A failed write leaves everything exactly where it was.** He has just
-  // spent one of ten monthly recordings, so the parsed record, both edit boxes
-  // and the plot he picked all stay on screen and the button stays pressable.
-  // The only thing that changes is the sentence under it.
-  function finish(ok: boolean, reason: string | null) {
-    if (ok) {
+  // spent one of ten monthly recordings, or one scan, so the parsed record, both
+  // edit boxes and the plot he picked all stay on screen and the button stays
+  // pressable. The only thing that changes is the sentence under it.
+  async function finish(ok: boolean, reason: string | null, recordId: string | null) {
+    if (!ok) {
+      setStatus(reason === 'forbidden' ? 'forbidden' : 'error');
+      return;
+    }
+    // **The record is in before the document goes up, and that order is not
+    // negotiable**: the storage path is built from the expense id (see
+    // attachReceipt), so there is nothing to attach to until the row exists.
+    // What the order costs is this branch — a window where the number is saved
+    // and the paperwork is not — and prd.md section 9 is that the accountant
+    // needs the document, so that window is shown rather than swallowed.
+    if (onAttach === undefined || recordId === null) {
       setStatus('saved');
       return;
     }
-    setStatus(reason === 'forbidden' ? 'forbidden' : 'error');
+    setSavedId(recordId);
+    setStatus('attaching');
+    setStatus((await onAttach(recordId)) ? 'saved' : 'attachFailed');
+  }
+
+  // **Retries the attachment and never the write.** The expense already exists;
+  // going round through onConfirm again would give the farmer two identical
+  // rows, which is a worse outcome than the missing photograph it was meant to
+  // fix.
+  async function onAttachAgain() {
+    if (onAttach === undefined || savedId === null) return;
+    setStatus('attaching');
+    setStatus((await onAttach(savedId)) ? 'saved' : 'attachFailed');
+  }
+
+  // The record is in and its document is on its way up. Said as "saved, and the
+  // receipt is uploading" rather than as a spinner, because the expense really
+  // is saved and a farmer who backs out here has lost nothing but the photo.
+  if (status === 'attaching') {
+    return (
+      <View style={styles.root}>
+        <CircleCheckBig size={32} strokeWidth={2} color={colors.field700} />
+        <Text style={styles.saved}>{t('voice.confirm.saved')}</Text>
+        <Text style={styles.note}>{t('expense.form.receiptUploading')}</Text>
+      </View>
+    );
+  }
+
+  // **The expense is in and the photograph is not.** Not an error screen: the
+  // number is safe, and the one action offered is the one that fixes what is
+  // actually missing. There is deliberately no "new photo" here — that would
+  // write a second expense for the same receipt.
+  if (status === 'attachFailed') {
+    return (
+      <View style={styles.root}>
+        <CircleCheckBig size={32} strokeWidth={2} color={colors.field700} />
+        <Text style={styles.saved}>{t('voice.confirm.saved')}</Text>
+        <Text style={[formStyles.bad, styles.centered]}>{t('receipt.attachFailed')}</Text>
+        <Pressable
+          style={[formStyles.save, styles.action]}
+          onPress={() => void onAttachAgain()}
+          accessibilityRole="button"
+        >
+          <Text style={formStyles.saveText}>{t('receipt.attachRetry')}</Text>
+        </Pressable>
+        <BackLink onPress={onBack} />
+      </View>
+    );
   }
 
   if (status === 'saved') {
@@ -250,7 +347,8 @@ export function VoiceConfirmPanel({
         <Text style={styles.saved}>
           {/* The one-at-a-time affordance, docs/roadmap.md: when the model
               heard further expenses, the farmer is walked through them one
-              recording at a time. There is no queue and no list schema. */}
+              recording at a time. There is no queue and no list schema. A
+              receipt never sets the flag — one document, one total. */}
           {hasMoreItems ? t('voice.confirm.savedMore') : t('voice.confirm.saved')}
         </Text>
         <Pressable
@@ -258,14 +356,16 @@ export function VoiceConfirmPanel({
           onPress={onRecordAgain}
           accessibilityRole="button"
         >
-          <Text style={formStyles.saveText}>{t('voice.again')}</Text>
+          <Text style={formStyles.saveText}>{t(originKeys.again)}</Text>
         </Pressable>
         <BackLink onPress={onBack} />
       </View>
     );
   }
 
-  const messageKey = STATUS_MESSAGE_KEY[status];
+  // The failed-save sentence is the origin's, because it promises that what he
+  // just spent is still on screen and it has to name the right thing.
+  const messageKey = status === 'error' ? originKeys.saveError : STATUS_MESSAGE_KEY[status];
 
   return (
     <View style={styles.root}>
@@ -386,7 +486,7 @@ export function VoiceConfirmPanel({
             onPress={onRecordAgain}
             accessibilityRole="button"
           >
-            <Text style={formStyles.saveText}>{t('voice.again')}</Text>
+            <Text style={formStyles.saveText}>{t(originKeys.again)}</Text>
           </Pressable>
         </>
       )}
@@ -408,7 +508,7 @@ export function VoiceConfirmPanel({
           disabled={busy}
           accessibilityRole="button"
         >
-          <Text style={styles.linkText}>{t('voice.again')}</Text>
+          <Text style={styles.linkText}>{t(originKeys.again)}</Text>
         </Pressable>
       ) : (
         <BackLink onPress={onBack} />

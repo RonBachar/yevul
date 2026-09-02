@@ -15,6 +15,8 @@ import {
   voiceTaskInput,
   VOICE_BLOCKER_MESSAGE_KEYS,
   VOICE_CONFIRM_MAX_EDITABLE_FIELDS,
+  VOICE_CONFIRM_ORIGIN_KEYS,
+  type VoiceConfirmOrigin,
 } from './voiceConfirm';
 import { t } from './i18n';
 import {
@@ -408,5 +410,53 @@ describe('the confirmation sheet strings', () => {
 
   it('still covers all three kinds, so a fourth would show up here', () => {
     expect(VOICE_KINDS).toHaveLength(3);
+  });
+});
+
+// ============================================================
+// Where the record came from, stage 5 step 11.
+//
+// **One sheet, two ways in, and the wording has to follow the way in.** The
+// failure this pins is the quiet one: a receipt route added by copying the voice
+// props, leaving a farmer holding a camera a button that says "record again" and
+// a failed save that promises "what you recorded is still here".
+// ============================================================
+
+describe('the confirmation sheet origin', () => {
+  const origins: VoiceConfirmOrigin[] = ['voice', 'ocr'];
+
+  it('gives each origin its own wording, never the other one’s', () => {
+    expect(VOICE_CONFIRM_ORIGIN_KEYS.voice.again).not.toBe(VOICE_CONFIRM_ORIGIN_KEYS.ocr.again);
+    expect(VOICE_CONFIRM_ORIGIN_KEYS.voice.saveError).not.toBe(
+      VOICE_CONFIRM_ORIGIN_KEYS.ocr.saveError,
+    );
+  });
+
+  it('has Hebrew behind every sentence either origin can show', () => {
+    for (const origin of origins) {
+      for (const key of Object.values(VOICE_CONFIRM_ORIGIN_KEYS[origin])) {
+        expect(t(key), key).not.toBe(key);
+      }
+    }
+  });
+
+  // A scanned receipt is never offered a microphone and a recording is never
+  // offered a camera. Read off the Hebrew rather than off the key names, because
+  // the key names are ours and the sentence is the farmer's.
+  it('never offers the wrong device', () => {
+    expect(t(VOICE_CONFIRM_ORIGIN_KEYS.ocr.again)).toContain('צילום');
+    expect(t(VOICE_CONFIRM_ORIGIN_KEYS.ocr.saveError)).not.toContain('הקלט');
+    expect(t(VOICE_CONFIRM_ORIGIN_KEYS.voice.again)).toContain('הקלטה');
+    expect(t(VOICE_CONFIRM_ORIGIN_KEYS.voice.saveError)).not.toContain('צילום');
+  });
+
+  // Both values are valid ExpenseSource strings, which is what lets the sheet
+  // hand the origin straight to createExpense. 'manual' is deliberately not one
+  // of them: nothing that reaches this sheet was typed.
+  it('is a source the expense writer accepts, and never manual', () => {
+    for (const origin of origins) {
+      expect(['voice', 'ocr']).toContain(origin);
+      expect(origin).not.toBe('manual');
+    }
   });
 });

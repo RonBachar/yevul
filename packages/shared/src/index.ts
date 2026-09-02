@@ -108,10 +108,20 @@ export {
   attachReceipt,
   type Expense,
   type ExpenseSource,
+  type ReceiptSource,
   type ExpenseInput,
   type ExpenseWriteResult,
   type ExpensesListState,
 } from './expenses';
+// Whether the farm is on a paid plan, stage 5 step 11. **Courtesy and never
+// enforcement** — gate.ts refuses an unentitled scan with 403 whatever this
+// says, and `entitled` is null when we do not know. See entitlement.ts.
+export {
+  farmEntitled,
+  useFarmEntitlement,
+  type SubscriptionRow,
+  type FarmEntitlementState,
+} from './entitlement';
 // חילוץ מקול, שלב 5. **מוקפא בהחלטת היזם 2026-08-30**, ראה
 // docs/roadmap.md. קוד טהור בלי תלויות ובלי צרכן, שממתין ליום שבו
 // הקול ייבנה, ומשרת גם את OCR הקבלות.
@@ -165,12 +175,31 @@ export {
   type VoiceFailure,
   type VoiceClientResult,
 } from './voiceClient';
+// The client side of POST /ai/receipt, stage 5 step 11. voiceClient's sibling:
+// transport only, no camera, no environment. **The one thing it does that
+// voiceClient does not is tell the endpoint's two 403s apart** — a paid feature
+// the farm has not bought, versus something broken it cannot fix. See the header
+// of receiptClient.ts.
+export {
+  requestReceiptExtraction,
+  RECEIPT_MESSAGE_KEYS,
+  RECEIPT_PAID_PLAN_REASON,
+  type ReceiptExtractionInput,
+  type ReceiptFetch,
+  type ReceiptFetchInit,
+  type ReceiptFetchResponse,
+  type ReceiptNextStep,
+  type ReceiptSuccess,
+  type ReceiptFailure,
+  type ReceiptClientResult,
+} from './receiptClient';
 // The rules the microphone is steered by, stage 5. Pure policy, no audio and no
 // endpoint: the native recorder lives in the mobile app, which has no test
 // runner, so everything about it that can be decided without a device is
 // decided here. See the header of voiceRecording.ts.
 export {
   microphoneDecision,
+  cameraPermissionDecision,
   recordingReachedLimit,
   recordingTooShort,
   formatRecordingElapsed,
@@ -200,6 +229,9 @@ export {
   voiceJournalInput,
   VOICE_BLOCKER_MESSAGE_KEYS,
   VOICE_CONFIRM_MAX_EDITABLE_FIELDS,
+  VOICE_CONFIRM_ORIGIN_KEYS,
+  type VoiceConfirmOrigin,
+  type VoiceConfirmOriginKeys,
   type VoiceEditableField,
   type VoicePlotOption,
   type VoicePlotStep,

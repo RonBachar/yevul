@@ -119,6 +119,10 @@ export function VoiceCapturePanel({
           farmId={farmId}
           parsed={state.success.parsed}
           transcript={state.success.transcript}
+          // 'voice' and not the 'manual' default: a spoken expense and a typed
+          // one have to be tellable apart afterwards. It is also what picks the
+          // two sentences on that panel that name a microphone.
+          origin="voice"
           // Straight back to the microphone with the same kind still selected,
           // which is also the one-at-a-time affordance for "there are more
           // expenses". reset() tears the recorder down first.

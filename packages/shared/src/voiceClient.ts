@@ -234,15 +234,22 @@ function voiceUrl(input: VoiceExtractionInput): string {
 // transport, not a promise about the content: the endpoint could be a version
 // ahead of this client, or the answer could have come from a captive portal or
 // a proxy rather than from us at all.
+//
+// **The four below are exported, and never through index.ts.** receiptClient.ts
+// is the second transport onto the same Worker and has to treat a body exactly
+// as hostilely as this one does; a private copy over there would be four
+// functions that agree until the day one of them is fixed. They are
+// package-internal on purpose — nothing outside packages/shared imports them,
+// and the barrel stays a list of what the app may use.
 // ============================================================
 
-function asRecord(value: unknown): Record<string, unknown> | null {
+export function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null;
 }
 
-async function readJson(
+export async function readJson(
   response: VoiceFetchResponse,
 ): Promise<{ read: true; value: unknown } | { read: false }> {
   try {
@@ -254,7 +261,7 @@ async function readJson(
 
 // The endpoint's error bodies are always { error: code }. A body without one is
 // not from the endpoint, and the caller only needs a stable string for the log.
-function reasonCode(body: { read: true; value: unknown } | { read: false }): string {
+export function reasonCode(body: { read: true; value: unknown } | { read: false }): string {
   if (!body.read) return 'no_reason_body';
   const code = asRecord(body.value)?.error;
   return typeof code === 'string' && code.trim() !== '' ? code : 'no_reason_code';
@@ -269,7 +276,7 @@ function readTranscript(value: unknown): string | null {
   return trimmed === '' ? null : trimmed;
 }
 
-function describeError(error: unknown): string {
+export function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 

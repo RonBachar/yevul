@@ -19,7 +19,7 @@ import {
   type VoiceNextStep,
   type VoiceSuccess,
 } from '@yevul/shared';
-import { createVoiceFetch } from '../lib/voiceTransport';
+import { createVoiceFetch } from '../lib/aiTransport';
 
 // The microphone, stage 5, docs/roadmap.md.
 //

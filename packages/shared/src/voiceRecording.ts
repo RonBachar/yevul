@@ -93,6 +93,16 @@ export function microphoneDecision(state: MicrophonePermissionState): Microphone
   return state.canAskAgain ? 'ask' : 'blocked';
 }
 
+// **The camera asks the phone the identical question and has the identical
+// three answers**, and expo-image-picker's PermissionResponse satisfies the same
+// structural type, so receipt scanning (step 11) reuses this decision rather
+// than making a second one. Deliberately the same function and not a copy: a
+// copy is a second chance to read "the system will never prompt again" as "ask
+// again", which is the bug that leaves a button dead forever with no
+// explanation. The alias exists so the receipt hook is not calling something
+// named after a microphone.
+export const cameraPermissionDecision = microphoneDecision;
+
 // ============================================================
 // What the farmer reads while it is happening.
 // ============================================================

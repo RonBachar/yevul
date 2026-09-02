@@ -4,13 +4,15 @@ import Wallet from 'lucide-react-native/icons/wallet';
 import ListChecks from 'lucide-react-native/icons/list-checks';
 import NotebookPen from 'lucide-react-native/icons/notebook-pen';
 import Mic from 'lucide-react-native/icons/mic';
+import CameraIcon from 'lucide-react-native/icons/camera';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { t, type VoiceKind } from '@yevul/shared';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 import { BottomSheet } from '../components/BottomSheet';
 import { VoiceCapturePanel } from '../components/VoiceCapturePanel';
+import { ReceiptCapturePanel } from '../components/ReceiptCapturePanel';
 import { useAuth } from '../auth/AuthProvider';
-import { workerUrl } from '../lib/voiceTransport';
+import { workerUrl } from '../lib/aiTransport';
 
 // גיליון הרישום, design.md, Capture Tab & Sheet. שלוש שורות, כל אחת
 // אייקון, כותרת ושורת משנה, ומתחתן שורת caption שמתעדת את קיצור
@@ -39,6 +41,30 @@ import { workerUrl } from '../lib/voiceTransport';
 // **Choosing a row's microphone replaces the sheet's contents rather than
 // opening a second sheet.** One layer, one back link, and the recording panel
 // unmounts the moment he leaves it, which is what tears the recorder down.
+//
+// ---- Stage 5, step 11: the receipt entry point. ----
+//
+// **A camera on the expense row, beside its microphone, and on that row only.**
+// This sheet is where the farmer answers "how am I recording this", and prd.md
+// line 15 says there are exactly three answers: "הרישום נעשה בשלוש דרכים,
+// הקלדה, דיבור, או צילום קבלה" — typing, speaking, or photographing a receipt.
+// Tapping the row is the first, the microphone is the second, and this is the
+// third. It belongs to the expense row and to nothing else because a receipt is
+// an invoice for money spent; there is no such thing as photographing a task.
+//
+// **Money's own screen was the other candidate, and it lost on what the action
+// is.** Receipts belong to כסף (prd.md section 9), and the Money tab is where
+// they are read, filed and exported. But this is not reading a receipt, it is
+// recording one, and the capture sheet is one tap from anywhere in the app
+// while the Money tab is a destination the farmer visits in the evening — the
+// opposite of standing at a counter holding the paper.
+//
+// **It is not ExpenseSheet's camera button and must never be mistaken for it.**
+// That button says "צרף קבלה" and lives at the foot of a form he has already
+// filled in: it attaches a document to numbers he typed, and it works on the
+// free tier. This one says "צילום קבלה", is reached before anything exists, and
+// the photograph is what produces the numbers. Different screen, different verb,
+// opposite direction of travel.
 export function CaptureSheet({
   supabase,
   farmId,
@@ -62,12 +88,19 @@ export function CaptureSheet({
 }) {
   const { session } = useAuth();
   const [voiceKind, setVoiceKind] = useState<VoiceKind | null>(null);
+  const [scanningReceipt, setScanningReceipt] = useState(false);
 
   // Closing the sheet always comes back to the three rows. Without this a
   // farmer who closed the sheet mid-recording would reopen it into a panel he
-  // did not ask for, holding a recorder that had already been torn down.
+  // did not ask for, holding a recorder that had already been torn down. The
+  // scan panel is reset for the same reason and one more: it holds the picked
+  // photograph, and reopening into it would offer to attach a receipt he
+  // abandoned.
   useEffect(() => {
-    if (!visible) setVoiceKind(null);
+    if (!visible) {
+      setVoiceKind(null);
+      setScanningReceipt(false);
+    }
   }, [visible]);
 
   // `as const` on each key so the array carries the VoiceKind literals rather
@@ -102,14 +135,35 @@ export function CaptureSheet({
   }
 
   // No EXPO_PUBLIC_WORKER_URL in this build means no endpoint to talk to, so
-  // the microphones are simply not there. Every manual form still works, which
-  // is the whole reason voiceTransport.ts returns null instead of throwing.
-  const voiceAvailable = workerUrl !== null;
+  // neither the microphones nor the camera are there. Every manual form still
+  // works, including attaching a photograph to an expense he types, which never
+  // touches the Worker — that is the whole reason aiTransport.ts returns null
+  // instead of throwing.
+  const aiAvailable = workerUrl !== null;
   const selected = voiceKind === null ? null : options.find((option) => option.key === voiceKind);
+
+  // **The camera is offered whatever the plan, and the panel behind it is what
+  // knows about plans.** Hiding it from a free-tier farm would mean he never
+  // learns the feature exists, which is the one outcome that helps nobody: the
+  // roadmap's own answer to this is an Upgrade Gate, not a missing button.
+  function scanPanel() {
+    if (workerUrl === null) return null;
+    return (
+      <ReceiptCapturePanel
+        workerUrl={workerUrl}
+        accessToken={session?.access_token ?? null}
+        supabase={supabase}
+        farmId={farmId}
+        onBack={() => setScanningReceipt(false)}
+      />
+    );
+  }
 
   return (
     <BottomSheet visible={visible} onClose={onClose} closeLabel={t('capture.close')}>
-      {selected && workerUrl !== null ? (
+      {scanningReceipt && workerUrl !== null ? (
+        scanPanel()
+      ) : selected && workerUrl !== null ? (
         <VoiceCapturePanel
           kind={selected.key}
           title={selected.title}
@@ -134,7 +188,21 @@ export function CaptureSheet({
                 <Text style={styles.rowTitle}>{title}</Text>
                 <Text style={styles.rowHint}>{hint}</Text>
               </View>
-              {voiceAvailable && (
+              {/* The expense row alone carries a second shortcut, and it is
+                  Wheat rather than Field so a thumb reaching for the microphone
+                  cannot land on the camera by muscle memory. design.md, Tokens
+                  Colors: Wheat 500 is the OCR/scan affordance. */}
+              {aiAvailable && key === 'expense' && (
+                <Pressable
+                  style={styles.rowScan}
+                  onPress={() => setScanningReceipt(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('capture.receipt')}
+                >
+                  <CameraIcon size={22} strokeWidth={2} color={colors.wheat800} />
+                </Pressable>
+              )}
+              {aiAvailable && (
                 <Pressable
                   style={styles.rowMic}
                   onPress={() => setVoiceKind(key)}
@@ -147,7 +215,7 @@ export function CaptureSheet({
             </Pressable>
           ))}
           <Text style={styles.micHint}>
-            {voiceAvailable ? t('capture.voiceHint') : t('capture.micHint')}
+            {aiAvailable ? t('capture.voiceScanHint') : t('capture.micHint')}
           </Text>
         </>
       )}
@@ -190,6 +258,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.field100,
+  },
+  // The same shape as the microphone at the same touch-target floor, in the
+  // scan colour rather than the brand one. Wheat-800 on Wheat-100, never
+  // Wheat-500 on white, which the contrast rules ban for anything but a fill.
+  rowScan: {
+    width: touchTarget.min,
+    height: touchTarget.min,
+    borderRadius: radius.pill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.wheat100,
   },
   micHint: {
     fontFamily: fonts.bold,
