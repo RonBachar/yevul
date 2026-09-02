@@ -1,6 +1,11 @@
 export const SHARED_PACKAGE_VERSION = '0.0.1';
 
-export { safeHarvestDate, openSafeHarvestDate, isCalendarDate } from './safeHarvestDate';
+export {
+  safeHarvestDate,
+  openSafeHarvestDate,
+  isCalendarDate,
+  formatLocalDateOnly,
+} from './safeHarvestDate';
 export { t } from './i18n';
 export { useAuthSession, type AuthState } from './auth';
 export { colors } from './colors';

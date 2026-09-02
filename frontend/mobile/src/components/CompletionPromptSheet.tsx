@@ -5,6 +5,7 @@ import CheckCircle from 'lucide-react-native/icons/circle-check';
 import {
   confirmExpenseFromTask,
   confirmJournalFromTask,
+  formatLocalDateOnly,
   t,
   taskCostMemory,
   usePlots,
@@ -17,8 +18,12 @@ import { BottomSheet } from './BottomSheet';
 
 const AUTO_DISMISS_MS = 8000;
 
+// The device's calendar day, never the UTC one. toISOString() here is right
+// for most of the day and wrong from local midnight until 02:00 or 03:00,
+// when Israel is on a date UTC has not reached yet, and a farmer closing out
+// the day's tasks at 00:30 would have them booked to the day before.
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return formatLocalDateOnly(new Date());
 }
 
 // Completion Prompts, design.md. שתי הצעות עצמאיות אחרי סימון משימה

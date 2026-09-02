@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createTask, t, updateTask, usePlots, type Task } from '@yevul/shared';
+import { createTask, formatLocalDateOnly, t, updateTask, usePlots, type Task } from '@yevul/shared';
 import { Modal } from './Modal';
 
 type DueMode = 'someday' | 'week' | 'date';
@@ -8,7 +8,9 @@ type DueMode = 'someday' | 'week' | 'date';
 function computeDueDate(mode: DueMode, customDate: string, now: Date): string | null {
   if (mode === 'someday') return null;
   if (mode === 'week') {
-    return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    // A week on the user's calendar. toISOString() would make it six days
+    // whenever the button is pressed between local midnight and 02:00/03:00.
+    return formatLocalDateOnly(new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000));
   }
   return customDate || null;
 }

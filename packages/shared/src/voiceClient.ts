@@ -32,6 +32,7 @@
 // ones for free and before the quota, and a second copy of those rules here
 // would be one more thing to keep in sync for no gain.
 
+import { formatLocalDateOnly } from './safeHarvestDate';
 import { parseVoiceResult, type VoiceKind, type VoiceParsed } from './voice';
 
 // ============================================================
@@ -45,18 +46,17 @@ import { parseVoiceResult, type VoiceKind, type VoiceParsed } from './voice';
 // **Not toISOString().** That converts to UTC and reintroduces the exact bug
 // the field exists to prevent: at 23:30 local the UTC day is already tomorrow,
 // and at 00:30 local it is still yesterday. Reading the local getters is the
-// entire point. Same shape as formatUtcDateOnly in safeHarvestDate.ts, read off
-// the local calendar instead of the UTC one.
+// entire point, and that is all formatLocalDateOnly does — it lives in
+// safeHarvestDate.ts, beside the UTC formatter it must not be confused with,
+// and it is the one implementation of this in the repo.
 //
-// `now` is a parameter with a default so the helper stays pure and testable.
-// Callers just write deviceToday().
+// What stays here is the *reason* the voice contract needs it, which is not
+// obvious from the helper's own file. `now` is a parameter with a default so
+// this stays pure and testable; callers just write deviceToday().
 // ============================================================
 
 export function deviceToday(now: Date = new Date()): string {
-  const year = String(now.getFullYear()).padStart(4, '0');
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  const day = String(now.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  return formatLocalDateOnly(now);
 }
 
 // ============================================================

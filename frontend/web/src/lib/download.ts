@@ -1,4 +1,4 @@
-import type { CsvReport } from '@yevul/shared';
+import { formatLocalDateOnly, type CsvReport } from '@yevul/shared';
 
 // הורדת קובץ בדפדפן. חי בווב ולא ב-packages/shared, כי הוא נוגע
 // ב-Blob, ב-URL וב-document, ולפי prd.md סעיף 12 ייצוא הדוחות הוא
@@ -8,7 +8,11 @@ import type { CsvReport } from '@yevul/shared';
 // שם הקובץ נושא תאריך, כי רואה חשבון מקבל את אותו דוח כמה פעמים
 // בשנה ו-"expenses.csv" פעמיים בתיקיית ההורדות הוא בלבול מובטח.
 export function downloadCsv(report: CsvReport, farmName: string | null): void {
-  const stamp = new Date().toISOString().slice(0, 10);
+  // The user's calendar day, so the name on the file matches the day he
+  // remembers exporting it. Cosmetic next to the dates inside the report, but
+  // the same reasoning, and no reason for one file in the app to keep the
+  // pattern that caused the rest of this bug.
+  const stamp = formatLocalDateOnly(new Date());
   const prefix = farmName?.trim() ? `${farmName.trim()}-` : '';
   const filename = `${prefix}${report.filename}-${stamp}.csv`;
 

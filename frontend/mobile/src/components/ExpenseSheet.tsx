@@ -4,7 +4,14 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import * as ImagePicker from 'expo-image-picker';
 import CameraIcon from 'lucide-react-native/icons/camera';
 import CircleCheckBig from 'lucide-react-native/icons/circle-check-big';
-import { attachReceipt, createExpense, t, updateExpense, type Expense } from '@yevul/shared';
+import {
+  attachReceipt,
+  createExpense,
+  formatLocalDateOnly,
+  t,
+  updateExpense,
+  type Expense,
+} from '@yevul/shared';
 import { colors, fonts, fontSize } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from './BottomSheet';
@@ -24,7 +31,9 @@ function computeExpenseDate(day: string, month: string, now: Date): string | nul
   const today = startOfDay(now);
   let candidate = new Date(now.getFullYear(), monthNum - 1, dayNum);
   if (candidate > today) candidate = new Date(now.getFullYear() - 1, monthNum - 1, dayNum);
-  return candidate.toISOString().slice(0, 10);
+  // candidate is local midnight, so it must be read off the local calendar.
+  // toISOString() here shifted every date the farmer typed a day earlier.
+  return formatLocalDateOnly(candidate);
 }
 
 // גיליון יצירה/עריכה של הוצאה. ארבעה שדות בלבד, בלי שום בחירה, לפי

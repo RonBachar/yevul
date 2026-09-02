@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createExpense, type ExpenseInput } from './expenses';
+import { formatLocalDateOnly } from './safeHarvestDate';
 import { rememberTaskCost, type Task } from './tasks';
 import { writeOutcome, type WriteOutcome } from './postgrest';
 
@@ -27,7 +28,9 @@ export async function confirmJournalFromTask(
     .insert({
       farm_id: farmId,
       plot_id: task.plotId,
-      date: new Date().toISOString().slice(0, 10),
+      // The farmer's own calendar day, not the UTC one: he ticks the task off
+      // at 22:00 and the entry belongs to the day he did the work.
+      date: formatLocalDateOnly(new Date()),
       type: 'other',
       source: 'task',
       note: task.title,

@@ -3,6 +3,7 @@ import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   createLogEntry,
+  formatLocalDateOnly,
   logEntryTypeLabelKey,
   LOG_ENTRY_TYPES,
   safeHarvestDate,
@@ -34,7 +35,10 @@ function computeLogDate(day: string, month: string, now: Date): string | null {
   const today = startOfDay(now);
   let candidate = new Date(now.getFullYear(), monthNum - 1, dayNum);
   if (candidate > today) candidate = new Date(now.getFullYear() - 1, monthNum - 1, dayNum);
-  return candidate.toISOString().slice(0, 10);
+  // candidate is local midnight, so it must be read off the local calendar.
+  // toISOString() here shifted every spray date a day earlier, and a spray
+  // date is what safeHarvestDate computes the regulatory answer from.
+  return formatLocalDateOnly(candidate);
 }
 
 // גיליון יצירה/עריכה של רשומת יומן, design.md "Log Entry Sheet". זו

@@ -83,6 +83,38 @@ export function isCalendarDate(value: string): boolean {
   return toUtcDateOnly(value) !== null && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+// ============================================================
+// A Date as YYYY-MM-DD on the **local** calendar. The deliberate counterpart
+// of formatUtcDateOnly below, and it sits next to it so the choice between the
+// two is one a reader has to make on purpose.
+//
+// **This function exists so that nobody writes `.toISOString().slice(0, 10)`
+// again.** That is the obvious way to get a calendar day out of a Date and it
+// is wrong for every date a person picked or is living in. `new Date(y, m, d)`
+// builds *local* midnight; toISOString converts that instant to UTC; in Israel
+// (UTC+2/+3) local midnight is 21:00 or 22:00 of the day *before*. So
+// `new Date(2026, 8, 2).toISOString().slice(0, 10)` is "2026-09-01", and a
+// farmer who picked September 2 had September 1 written to his books. It cost
+// this app every hand picked expense, task and journal date, and because a
+// spray date feeds safeHarvestDate above, the regulatory answer inherited the
+// error too.
+//
+// Which one to reach for: local here, whenever the Date came off a wall clock
+// (`new Date()`, `Date.now() + n`, a picker's day and month), because what is
+// wanted is the day the person is standing in. UTC in formatUtcDateOnly,
+// **only** for a Date that was itself built from a YYYY-MM-DD string by
+// toUtcDateOnly, where the value carries a calendar day and no location at
+// all; reading that one with the local getters would put the same off-by-one
+// back, mirrored.
+// ============================================================
+
+export function formatLocalDateOnly(date: Date): string {
+  const year = String(date.getFullYear()).padStart(4, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 function toUtcDateOnly(input: string | Date): Date | null {
   if (input instanceof Date) {
     if (Number.isNaN(input.getTime())) {

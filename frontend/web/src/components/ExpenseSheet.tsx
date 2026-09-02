@@ -1,10 +1,21 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { attachReceipt, createExpense, t, updateExpense, type Expense } from '@yevul/shared';
+import {
+  attachReceipt,
+  createExpense,
+  formatLocalDateOnly,
+  t,
+  updateExpense,
+  type Expense,
+} from '@yevul/shared';
 import { Modal } from './Modal';
 
+// The browser's calendar day, never the UTC one. toISOString() is right for
+// most of the day and wrong from local midnight until 02:00 or 03:00, when
+// Israel is on a date UTC has not reached yet, so the field would open
+// pre-filled with yesterday.
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return formatLocalDateOnly(new Date());
 }
 
 // גיליון יצירה/עריכה של הוצאה בווב, כדיאלוג ממורכז (Modal). ארבעה

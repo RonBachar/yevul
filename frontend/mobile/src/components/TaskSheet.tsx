@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createTask, t, updateTask, usePlots, type Task } from '@yevul/shared';
+import { createTask, formatLocalDateOnly, t, updateTask, usePlots, type Task } from '@yevul/shared';
 import { colors } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from './BottomSheet';
@@ -25,7 +25,7 @@ function startOfDay(date: Date): Date {
 function computeDueDate(mode: DueMode, day: string, month: string, now: Date): string | null {
   if (mode === 'someday') return null;
   if (mode === 'week') {
-    return new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    return formatLocalDateOnly(new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000));
   }
   const dayNum = Number(day);
   const monthNum = Number(month);
@@ -35,7 +35,10 @@ function computeDueDate(mode: DueMode, day: string, month: string, now: Date): s
   const today = startOfDay(now);
   let candidate = new Date(now.getFullYear(), monthNum - 1, dayNum);
   if (candidate < today) candidate = new Date(now.getFullYear() + 1, monthNum - 1, dayNum);
-  return candidate.toISOString().slice(0, 10);
+  // candidate is local midnight, so it must be read off the local calendar.
+  // toISOString() here made every picked due date land a day early, which for
+  // a task means it shows up overdue a day before it is.
+  return formatLocalDateOnly(candidate);
 }
 
 // גיליון יצירה/עריכה של משימה, design.md "Task Sheet". כותרת, חלקה,

@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { currentFarmQuery } from './currentFarm';
 import { t } from './i18n';
 import { writeOutcome, type WriteOutcome } from './postgrest';
+import { formatLocalDateOnly } from './safeHarvestDate';
 
 // משימות, שלב 3 משימה שנייה. אותה גישה כמו plots.ts, שני הלקוחות
 // טוענים וכותבים דרך הפונקציות וההוקים כאן.
@@ -409,7 +410,9 @@ export async function snoozeTask(
   task: Pick<Task, 'id' | 'snoozeCount'>,
 ): Promise<WriteOutcome> {
   const nextCount = task.snoozeCount + 1;
-  const snoozedUntil = new Date(Date.now() + 7 * MS_PER_DAY).toISOString().slice(0, 10);
+  // A week on the farmer's calendar. toISOString here would snooze until the
+  // sixth day whenever he pressed the button after 21:00 Israel time.
+  const snoozedUntil = formatLocalDateOnly(new Date(Date.now() + 7 * MS_PER_DAY));
   const write = await supabase
     .from('tasks')
     .update({

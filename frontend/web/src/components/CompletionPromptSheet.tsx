@@ -4,6 +4,7 @@ import { CheckCircle } from 'lucide-react';
 import {
   confirmExpenseFromTask,
   confirmJournalFromTask,
+  formatLocalDateOnly,
   t,
   taskCostMemory,
   usePlots,
@@ -15,8 +16,11 @@ import './CompletionPromptSheet.css';
 
 const AUTO_DISMISS_MS = 8000;
 
+// The browser's calendar day, never the UTC one. See the same helper in the
+// mobile CompletionPromptSheet: toISOString() is wrong from local midnight
+// until 02:00 or 03:00, and dates the work to the day before.
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return formatLocalDateOnly(new Date());
 }
 
 // Completion Prompts, design.md. שתי הצעות עצמאיות אחרי סימון משימה

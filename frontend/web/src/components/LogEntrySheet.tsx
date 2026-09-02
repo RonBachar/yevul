@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   createLogEntry,
+  formatLocalDateOnly,
   logEntryTypeLabelKey,
   LOG_ENTRY_TYPES,
   safeHarvestDate,
@@ -15,8 +16,11 @@ import {
 import { Modal } from './Modal';
 import './LogEntrySheet.css';
 
+// The browser's calendar day, never the UTC one. toISOString() is wrong from
+// local midnight until 02:00 or 03:00, and here that default becomes a spray
+// date, which is what safeHarvestDate computes the regulatory answer from.
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return formatLocalDateOnly(new Date());
 }
 
 // גיליון יצירה/עריכה של רשומת יומן בווב, design.md "Log Entry Sheet",
