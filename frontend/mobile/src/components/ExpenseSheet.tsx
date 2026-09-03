@@ -204,6 +204,14 @@ export function ExpenseSheet({
           value={date}
           onChange={(next) => setDate(next ?? today())}
           direction="past"
+          // **No today/yesterday shortcuts here, by the founder's decision
+          // 2026-09-03.** They are right on a spray, which is logged the same
+          // evening or the next morning, and wrong on an expense, which is
+          // usually a receipt found later. His words: "they just complicate it,
+          // options that dull the experience -- I only want to pick a date from
+          // a calendar." When a receipt is photographed the model reads the
+          // date off it and he is not asked at all, which is the real shortcut.
+          shortcuts={false}
           disabled={busy}
         />
       </View>

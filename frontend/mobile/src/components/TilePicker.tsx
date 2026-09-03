@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 
@@ -67,6 +67,12 @@ import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/
 // SprayEntrySheet). `caption` is a second, smaller line under the label, used
 // on the review screen to say which field a value belongs to.
 
+// The space between the two columns. Named because the tile size is computed
+// from it -- the grid hands out (width - gap) / 2 to each column -- and a value
+// that lived only inside the stylesheet would silently break that arithmetic
+// the day someone nudged it.
+const TILE_COLUMN_GAP = spacing.s12;
+
 export type TileOption = {
   value: string;
   label: string;
@@ -102,6 +108,21 @@ export function TilePicker({
   footer?: ReactNode;
 }) {
   const busy = disabled === true;
+
+  // **The tile size is measured, not declared, because a square has to be a
+  // square in pixels.** The first attempt was `width: '48%'` plus
+  // `aspectRatio: 1`, and it produced rectangles on the device: a wrapping row
+  // defaults to `alignItems: 'stretch'`, so every tile is stretched to the
+  // height of the tallest one in its row and the aspect ratio it computed for
+  // itself is discarded. Measuring the row once and handing both dimensions the
+  // same number cannot be overridden by anything, and it is what the founder
+  // actually asked for: "ריבועים סימטריים בפיקסלים".
+  const [gridWidth, setGridWidth] = useState(0);
+  const tileSize = gridWidth > 0 ? Math.floor((gridWidth - TILE_COLUMN_GAP) / 2) : null;
+  // Until the first layout there is no width to divide, so the tiles fall back
+  // to the touch minimum rather than rendering at zero and flashing.
+  const tileSquare = { width: tileSize ?? touchTarget.min, height: tileSize ?? touchTarget.min };
+
   return (
     <View style={styles.root}>
       <View style={styles.heading}>
@@ -110,13 +131,18 @@ export function TilePicker({
       </View>
       {options.length === 0 && emptyHint ? <Text style={styles.empty}>{emptyHint}</Text> : null}
 
-      <View style={styles.grid}>
+      <View style={styles.grid} onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}>
         {options.map((option) => {
           const active = option.value === selectedValue;
           return (
             <Pressable
               key={option.value}
-              style={[styles.tile, active && styles.tileActive, busy && styles.tileDisabled]}
+              style={[
+                styles.tile,
+                tileSquare,
+                active && styles.tileActive,
+                busy && styles.tileDisabled,
+              ]}
               onPress={() => onSelect(option.value)}
               disabled={busy}
               accessibilityRole="radio"
@@ -137,7 +163,7 @@ export function TilePicker({
         {(actions ?? []).map((action) => (
           <Pressable
             key={action.key}
-            style={[styles.tile, styles.tileAction, busy && styles.tileDisabled]}
+            style={[styles.tile, tileSquare, styles.tileAction, busy && styles.tileDisabled]}
             onPress={action.onPress}
             disabled={busy}
             accessibilityRole="button"
@@ -190,19 +216,18 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    // **flex-start with an explicit column gap, not space-between.** The tiles
+    // now carry a measured pixel width, so space-between would push a lone tile
+    // on the last row hard against one edge. alignItems keeps a row from
+    // stretching its children, which is what discarded the square in the first
+    // place.
+    alignItems: 'flex-start',
+    columnGap: TILE_COLUMN_GAP,
     rowGap: spacing.s12,
   },
   tile: {
-    width: '48%',
-    // **Square, by founder's decision 2026-09-03: "קוביות".** aspectRatio and
-    // not a fixed height, because the width is a percentage of whatever the
-    // sheet gives us and a hardcoded height would only be square on one phone.
-    // minHeight stays underneath as the floor: aspectRatio is resolved from the
-    // measured width, and on a very narrow screen half of it could otherwise
-    // fall below the touch minimum.
-    aspectRatio: 1,
-    minHeight: touchTarget.primary,
+    // No width, no height and no aspectRatio here: both dimensions are handed
+    // in per render from the measured grid width. See tileSquare above.
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.s4,
