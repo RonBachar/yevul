@@ -34,6 +34,24 @@ export { writeOutcome, type WriteOutcome } from './postgrest';
 // not exported: it is how the list hooks in this package feed the rule, not
 // something a screen calls.
 export { pullSpinnerVisible, type RefreshSource } from './refresh';
+// Dragging a bottom sheet closed. Here for the same reason the pull rule above
+// is: the mobile app has no test runner, so the distances, the velocity and the
+// fade are decided away from React Native and only the PanResponder wiring
+// stays on the device. See the header of sheetDrag.ts.
+export {
+  sheetDragOffset,
+  sheetDismissDistance,
+  sheetDismissDuration,
+  sheetExitOffset,
+  sheetScrimFade,
+  shouldDismissSheet,
+  SHEET_DISMISS_DISTANCE,
+  SHEET_DISMISS_MAX_MS,
+  SHEET_DISMISS_MIN_MS,
+  SHEET_DISMISS_VELOCITY,
+  SHEET_FLICK_DISTANCE,
+  SHEET_SCRIM_MIN_OPACITY,
+} from './sheetDrag';
 export {
   formatNumber,
   formatArea,
