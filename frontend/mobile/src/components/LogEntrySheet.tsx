@@ -18,28 +18,14 @@ import {
 import { colors, fonts, fontSize } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from './BottomSheet';
+import { DateField } from './DateField';
 
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-// גוזר את date מיום/חודש. בכיוון הפוך מ-computeDueDate ב-TaskSheet:
-// שם תאריך עתידי גולש לשנה הבאה כי מדובר ביעד קדימה, כאן רשומת יומן
-// מתעדת משהו שכבר קרה, ולכן תאריך שהיה עתידי השנה גולש אחורה לשנה
-// שעברה במקום קדימה.
-function computeLogDate(day: string, month: string, now: Date): string | null {
-  const dayNum = Number(day);
-  const monthNum = Number(month);
-  if (!Number.isFinite(dayNum) || !Number.isFinite(monthNum) || dayNum < 1 || monthNum < 1) {
-    return null;
-  }
-  const today = startOfDay(now);
-  let candidate = new Date(now.getFullYear(), monthNum - 1, dayNum);
-  if (candidate > today) candidate = new Date(now.getFullYear() - 1, monthNum - 1, dayNum);
-  // candidate is local midnight, so it must be read off the local calendar.
-  // toISOString() here shifted every spray date a day earlier, and a spray
-  // date is what safeHarvestDate computes the regulatory answer from.
-  return formatLocalDateOnly(candidate);
+// The device's calendar day, never the UTC one, for a new entry's default.
+// toISOString() is wrong from local midnight until 02:00 or 03:00, and here
+// that default can become a spray date, which is what safeHarvestDate computes
+// the regulatory answer from.
+function today(): string {
+  return formatLocalDateOnly(new Date());
 }
 
 // גיליון יצירה/עריכה של רשומת יומן, design.md "Log Entry Sheet". זו
@@ -73,8 +59,9 @@ export function LogEntrySheet({
 
   const [type, setType] = useState<LogEntryType>(initialLogEntryType(entry, defaultType));
   const [plotId, setPlotId] = useState<string | null>(null);
-  const [day, setDay] = useState('');
-  const [month, setMonth] = useState('');
+  // The date itself, YYYY-MM-DD, rather than a day and a month with the year
+  // guessed from which side of today they landed on. See DateField.
+  const [date, setDate] = useState(today());
   const [note, setNote] = useState('');
   const [sprayPest, setSprayPest] = useState('');
   const [sprayMaterial, setSprayMaterial] = useState('');
@@ -89,16 +76,18 @@ export function LogEntrySheet({
 
   useEffect(() => {
     if (!visible) return;
-    const now = new Date();
     // Outside the branch on purpose: one line owns the starting type in both
     // cases, so a reopen after an edit cannot leave the previous entry's type
     // on screen for a new record.
     setType(initialLogEntryType(entry, defaultType));
     if (entry) {
-      const date = new Date(entry.date);
       setPlotId(entry.plotId);
-      setDay(String(date.getDate()));
-      setMonth(String(date.getMonth() + 1));
+      // **Passed through as the string it already is**, the same rule
+      // sprayDraftFromEntry states: log_entries.date is a Postgres date column
+      // and arrives as YYYY-MM-DD. The previous version put it through a Date
+      // and read getDate() off it, which is the day-early round trip written
+      // out at the bottom of safeHarvestDate.ts.
+      setDate(entry.date);
       setNote(entry.note ?? '');
       setSprayPest(entry.sprayPest ?? '');
       setSprayMaterial(entry.sprayMaterial ?? '');
@@ -108,8 +97,7 @@ export function LogEntrySheet({
       setHarvestUnit(entry.harvestUnit ?? '');
     } else {
       setPlotId(defaultPlotId);
-      setDay(String(now.getDate()));
-      setMonth(String(now.getMonth() + 1));
+      setDate(today());
       setNote('');
       setSprayPest('');
       setSprayMaterial('');
@@ -122,16 +110,13 @@ export function LogEntrySheet({
   }, [visible, entry, defaultPlotId, defaultType]);
 
   const phiDaysNumber = sprayPhiDays.trim() ? Number(sprayPhiDays) : null;
-  const dateValue = computeLogDate(day, month, new Date());
   const safeHarvest =
-    type === 'spray' && dateValue && phiDaysNumber != null && Number.isFinite(phiDaysNumber)
-      ? safeHarvestDate(dateValue, phiDaysNumber)
+    type === 'spray' && date && phiDaysNumber != null && Number.isFinite(phiDaysNumber)
+      ? safeHarvestDate(date, phiDaysNumber)
       : null;
 
   async function onSave() {
-    if (!farmId) return;
-    const date = computeLogDate(day, month, new Date());
-    if (!date) return;
+    if (!farmId || !date) return;
 
     setStatus('saving');
     const input = {
@@ -330,32 +315,18 @@ export function LogEntrySheet({
         </ScrollView>
       </View>
 
-      <View style={[formStyles.field, sheetGap]}>
-        <Text style={formStyles.label}>{t('log.form.date')}</Text>
-        <View style={dateRow}>
-          <TextInput
-            style={[formStyles.input, dateInput]}
-            value={day}
-            onChangeText={setDay}
-            editable={!busy}
-            keyboardType="number-pad"
-            placeholder={t('log.form.dateDay')}
-            placeholderTextColor={colors.slate600}
-            textAlign="center"
-            maxLength={2}
-          />
-          <TextInput
-            style={[formStyles.input, dateInput]}
-            value={month}
-            onChangeText={setMonth}
-            editable={!busy}
-            keyboardType="number-pad"
-            placeholder={t('log.form.dateMonth')}
-            placeholderTextColor={colors.slate600}
-            textAlign="center"
-            maxLength={2}
-          />
-        </View>
+      {/* A journal entry records something that has already happened, whatever
+          its type, so the calendar stops at today. The three shortcuts are the
+          same ones the spray walk already offers and for the same reason: a
+          record is written the evening it happened or the morning after. */}
+      <View style={sheetGap}>
+        <DateField
+          label={t('log.form.date')}
+          value={date}
+          onChange={(next) => setDate(next ?? today())}
+          direction="past"
+          disabled={busy}
+        />
       </View>
 
       <View style={[formStyles.field, sheetGap]}>
@@ -436,8 +407,6 @@ const safeHarvestText = {
   color: colors.field700,
   writingDirection: 'rtl' as const,
 };
-const dateRow = { flexDirection: 'row' as const, gap: 8 };
-const dateInput = { flex: 1, textAlign: 'center' as const };
 const rowFields = { flexDirection: 'row' as const, gap: 12 };
 const rowField = { flex: 1, gap: 8 };
 const suggestionScroll = { marginTop: 8 };

@@ -1,0 +1,205 @@
+/*
+  A month of days as squares, the browser half of the same component the mobile
+  app has. Every decision that is not painting lives in
+  packages/shared/src/calendar.ts and is tested there, because neither client
+  has a test runner.
+
+  **The reading direction is stated here rather than inherited.** index.html
+  puts dir="rtl" on the document, so the grid would come out right anyway -- but
+  the alignment of a calendar is not something to leave to ambient inheritance.
+  Column one is Sunday and the א header has to sit over it, so the grid says
+  direction: rtl in the place a reader will look for it.
+
+  The weekday headers and the day cells sit in one single grid, so the alignment
+  between the header row and the day rows cannot come apart: they are the same
+  seven columns.
+*/
+
+.calendar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+}
+
+/* Above the grid, not below it. The number of rows is the month's own, four to
+   six, so the grid changes height between months -- and with the controls on
+   top, nothing being aimed at moves when it does. */
+.calendar__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-8);
+}
+
+.calendar__arrow {
+  display: flex;
+  min-width: var(--touch-min);
+  min-height: var(--touch-min);
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-pill);
+  background: var(--color-paper);
+  color: var(--color-field-700);
+  cursor: pointer;
+}
+
+.calendar__arrow:disabled {
+  color: var(--color-slate-600);
+  opacity: 0.4;
+  cursor: default;
+}
+
+.calendar__arrow:focus-visible {
+  outline: 3px solid var(--color-field-700);
+  outline-offset: 2px;
+}
+
+/* The year is on screen at all times. It is what tells someone who has paged a
+   long way back where he actually is, and the field this replaces never showed
+   a year at all. */
+.calendar__month {
+  flex: 1;
+  margin: 0;
+  font-size: var(--text-subheading);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink-900);
+  text-align: center;
+}
+
+/* The one-click way back, offered only when he is not already here. Paging is
+   how a distant month is reached, and this is what stops paging from being a
+   way to get lost. */
+.calendar__today {
+  min-height: var(--touch-min);
+  padding: 0 var(--spacing-16);
+  border: none;
+  background: none;
+  color: var(--color-field-700);
+  font-family: inherit;
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.calendar__grid {
+  display: grid;
+  /* Sunday in the right-hand column, as on every printed Israeli calendar. */
+  direction: rtl;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.calendar__weekday {
+  padding: var(--spacing-4) 0;
+  font-size: var(--text-caption);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-slate-600);
+  text-align: center;
+}
+
+/* The run-up before the 1st and the tail after the last. Empty rather than the
+   neighbouring month's days: a greyed-out "31" next to a live "1" is two kinds
+   of the same-looking square, and the reader here is 55 to 70. Nothing
+   clickable ever leaves the month whose name is in the header. */
+.calendar__empty {
+  min-height: var(--touch-min);
+}
+
+.calendar__day {
+  min-height: var(--touch-min);
+  border: none;
+  border-radius: var(--radius-input);
+  background: var(--color-mist-100);
+  color: var(--color-ink-900);
+  font-family: inherit;
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+/* Today is marked in every month view and not only when it is the chosen day,
+   because it is the landmark the rest of the grid is read against. */
+.calendar__day--today {
+  background: var(--color-field-100);
+  color: var(--color-field-700);
+}
+
+/* The same Field-700 / Field-100 pair every made choice in this app uses, at
+   full strength: a chosen day is filled rather than outlined, so it is the one
+   square on the page that cannot be mistaken. */
+.calendar__day--selected {
+  background: var(--color-field-700);
+  color: var(--color-paper);
+}
+
+/* A day this field does not accept: after today on an expense, before today on
+   a task due date. Shown rather than hidden -- the whole month has to be
+   visible for the reader to know where he is in it. */
+.calendar__day:disabled {
+  background: var(--color-paper);
+  color: var(--color-slate-600);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.calendar__day:focus-visible {
+  outline: 3px solid var(--color-ink-900);
+  outline-offset: 2px;
+}
+
+/*
+  The date field, the wrapper every sheet in the web client uses.
+*/
+
+.date-field__label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-8);
+}
+
+/* What is actually set, in full, always on screen. */
+.date-field__value {
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-field-700);
+}
+
+/* A shortcut row that wraps rather than scrolling sideways. The founder's
+   complaint about chips was the horizontal ScrollView -- "the options are in a
+   sliding strip" -- and there is no scrolling here: every option is on screen. */
+.date-field__shortcuts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-8);
+}
+
+.date-field__chip {
+  min-height: var(--touch-min);
+  padding: 0 var(--spacing-24);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-pill);
+  background: var(--color-paper);
+  color: var(--color-slate-600);
+  font-family: inherit;
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.date-field__chip--active {
+  border-color: var(--color-field-700);
+  background: var(--color-field-100);
+  color: var(--color-field-700);
+}
+
+.date-field__chip:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.date-field__chip:focus-visible {
+  outline: 3px solid var(--color-field-700);
+  outline-offset: 2px;
+}

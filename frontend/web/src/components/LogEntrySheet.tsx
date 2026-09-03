@@ -14,6 +14,7 @@ import {
   type LogEntry,
   type LogEntryType,
 } from '@yevul/shared';
+import { DateField } from './DateField';
 import { Modal } from './Modal';
 import './LogEntrySheet.css';
 
@@ -27,8 +28,13 @@ function today(): string {
 // גיליון יצירה/עריכה של רשומת יומן בווב, design.md "Log Entry Sheet",
 // כדיאלוג ממורכז (Modal) במקום גיליון תחתון, אותה הפרדה שכבר קיימת
 // בין הלקוחות ל-TaskSheet. שדה סוג הוא תפריט נפתח כאן, שורת צ'יפים
-// בנייד, ותאריך הוא שדה date טבעי כי אין כאן את המגבלה של בורר native
-// בלי תלות שדחתה את זה בנייד.
+// בנייד.
+//
+// **The date is no longer a native `<input type="date">`.** The line that used
+// to be here said the browser could have one because the constraint that ruled
+// a native picker out on mobile did not apply -- true, and beside the point once
+// the founder asked for a calendar everywhere. The two clients now share one,
+// written in packages/shared/src/calendar.ts. See DateField.
 // defaultType is the sibling of defaultPlotId: what the opening screen wants a
 // *new* entry to start on. See initialLogEntryType in the shared package for
 // why an entry being edited ignores it.
@@ -292,19 +298,18 @@ export function LogEntrySheet({
           </select>
         </div>
 
-        <div className="form__row">
-          <label className="form__label" htmlFor="log-date">
-            {t('log.form.date')}
-          </label>
-          <input
-            id="log-date"
-            className="form__input"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            disabled={busy}
-          />
-        </div>
+        {/* A journal entry records something that has already happened,
+            whatever its type, so the calendar stops at today. The three
+            shortcuts are the ones the spray walk already offers: a record is
+            written the evening it happened or the morning after. */}
+        <DateField
+          id="log-date"
+          label={t('log.form.date')}
+          value={date}
+          onChange={(next) => setDate(next ?? today())}
+          direction="past"
+          disabled={busy}
+        />
 
         <div className="form__row">
           <label className="form__label" htmlFor="log-note">

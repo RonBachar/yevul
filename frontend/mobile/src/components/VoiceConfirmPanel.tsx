@@ -13,13 +13,10 @@ import {
   safeHarvestDate,
   t,
   usePlots,
-  voiceDateParts,
   voiceEditableFields,
   voiceExpenseInput,
-  voiceFutureDateFromParts,
   voiceHasMoreItems,
   voiceJournalInput,
-  voicePastDateFromParts,
   voicePlotStep,
   voicePlotStepId,
   voiceRecordBlocker,
@@ -27,12 +24,12 @@ import {
   VOICE_BLOCKER_MESSAGE_KEYS,
   VOICE_CONFIRM_ORIGIN_KEYS,
   type VoiceConfirmOrigin,
-  type VoiceDateParts,
   type VoiceParsed,
   type VoicePlotStep,
 } from '@yevul/shared';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
+import { DateField } from './DateField';
 
 // The confirmation sheet, design.md "Voice / OCR Confirmation Sheet", stage 5
 // step 9. **The trust checkpoint after every AI-parsed input**, prd.md section
@@ -152,10 +149,15 @@ export function VoiceConfirmPanel({
       ? String(parsed.value.sprayPhiDays)
       : '',
   );
-  const [date, setDate] = useState<VoiceDateParts>(() => {
-    if (parsed.kind === 'expense') return voiceDateParts(parsed.value.date);
-    if (parsed.kind === 'journal') return voiceDateParts(parsed.value.date);
-    return voiceDateParts(parsed.value.dueDate);
+  // **The extracted date as the string it already is.** parseVoiceExpense and
+  // parseVoiceJournal have both already proved it is a real calendar date, and
+  // a task's due date is legitimately null. The previous version split it into
+  // a day and a month for two number boxes and put it back together on save
+  // with the year guessed again; the calendar needs neither half of that trip.
+  const [date, setDate] = useState<string | null>(() => {
+    if (parsed.kind === 'expense') return parsed.value.date;
+    if (parsed.kind === 'journal') return parsed.value.date;
+    return parsed.value.dueDate;
   });
 
   // All three schemas carry plotName, and deliberately a name rather than an
@@ -197,8 +199,7 @@ export function VoiceConfirmPanel({
         setStatus('amountInvalid');
         return;
       }
-      const dateValue = voicePastDateFromParts(date, new Date());
-      if (dateValue === null) {
+      if (date === null) {
         setStatus('dateInvalid');
         return;
       }
@@ -210,7 +211,7 @@ export function VoiceConfirmPanel({
       const result = await createExpense(
         supabase,
         farmId,
-        voiceExpenseInput(parsed.value, plotId, { amount: amountNumber, date: dateValue }),
+        voiceExpenseInput(parsed.value, plotId, { amount: amountNumber, date }),
         origin,
       );
       await finish(result.ok, result.ok ? null : result.reason, result.ok ? result.id : null);
@@ -223,9 +224,10 @@ export function VoiceConfirmPanel({
         setStatus('titleRequired');
         return;
       }
-      // A task with no due date is a real task ("מתישהו"), so empty boxes are
-      // an answer here rather than a failure.
-      const dueDate = voiceFutureDateFromParts(date, new Date());
+      // A task with no due date is a real task, so a cleared field is an answer
+      // here rather than a failure -- which is why this is the one date field
+      // in the app that carries a chip for clearing it.
+      const dueDate = date;
       setStatus('saving');
       // **No source is written for a task, because the column does not exist.**
       // expenses and log_entries both carry one; public.tasks does not, so
@@ -243,8 +245,7 @@ export function VoiceConfirmPanel({
       return;
     }
 
-    const dateValue = voicePastDateFromParts(date, new Date());
-    if (dateValue === null) {
+    if (date === null) {
       setStatus('dateInvalid');
       return;
     }
@@ -265,7 +266,7 @@ export function VoiceConfirmPanel({
     const result = await createLogEntry(
       supabase,
       farmId,
-      voiceJournalInput(parsed.value, plotId, { date: dateValue, sprayPhiDays: phi }),
+      voiceJournalInput(parsed.value, plotId, { date, sprayPhiDays: phi }),
       'voice',
     );
     await finish(result.ok, result.ok ? null : result.reason, null);
@@ -423,11 +424,27 @@ export function VoiceConfirmPanel({
         </>
       )}
 
+      {/* **The two number boxes are gone from here too.** This is the same
+          DateField the manual sheets use, so the confirmation screen after a
+          recording and the sheet a farmer types into ask for a date the same
+          way. It counts as one editable field, exactly as the pair of boxes
+          did, so design.md's ceiling of two is untouched -- voiceEditableFields
+          is still the only authority on which fields carry a pencil.
+
+          The direction follows the kind, and it is the same rule the old
+          voicePastDateFromParts / voiceFutureDateFromParts pair expressed: an
+          expense and a journal entry record what happened, a due date is a
+          target. The clear chip is offered only for the due date, because a
+          task with no due date is a real task and an expense with no date is
+          not. */}
       {(editable.includes('date') || editable.includes('dueDate')) && (
-        <DateRow
+        <DateField
           label={editable.includes('dueDate') ? t('tasks.form.due') : t('log.form.date')}
-          parts={date}
+          value={date}
           onChange={setDate}
+          direction={editable.includes('dueDate') ? 'future' : 'past'}
+          shortcuts={!editable.includes('dueDate')}
+          clearLabel={editable.includes('dueDate') ? t('tasks.form.dueSomeday') : undefined}
           disabled={busy}
         />
       )}
@@ -445,7 +462,7 @@ export function VoiceConfirmPanel({
       {/* The regulatory answer itself, derived rather than entered, exactly as
           the manual journal sheet shows it. It is the reason the date and the
           waiting period are the two boxes on this screen. */}
-      <SafeHarvestLine parsed={parsed} parts={date} phiDays={phiDays} />
+      <SafeHarvestLine parsed={parsed} date={date} phiDays={phiDays} />
 
       {parsed.kind === 'task' && parsed.value.estimatedCost !== null && (
         <ReadRow label={t('tasks.form.cost')} value={String(parsed.value.estimatedCost)} />
@@ -587,64 +604,19 @@ function EditRow({
   );
 }
 
-// Day and month, no year, the same two boxes every manual sheet in this app
-// uses. The year is inferred by voicePastDateFromParts / voiceFutureDateFromParts.
-function DateRow({
-  label,
-  parts,
-  onChange,
-  disabled,
-}: {
-  label: string;
-  parts: VoiceDateParts;
-  onChange: (next: VoiceDateParts) => void;
-  disabled: boolean;
-}) {
-  return (
-    <View style={styles.row}>
-      <EditLabel label={label} />
-      <View style={styles.dateRow}>
-        <TextInput
-          style={[formStyles.input, styles.dateInput]}
-          value={parts.day}
-          onChangeText={(day) => onChange({ ...parts, day })}
-          editable={!disabled}
-          keyboardType="number-pad"
-          placeholder={t('log.form.dateDay')}
-          placeholderTextColor={colors.slate600}
-          textAlign="center"
-          maxLength={2}
-        />
-        <TextInput
-          style={[formStyles.input, styles.dateInput]}
-          value={parts.month}
-          onChangeText={(month) => onChange({ ...parts, month })}
-          editable={!disabled}
-          keyboardType="number-pad"
-          placeholder={t('log.form.dateMonth')}
-          placeholderTextColor={colors.slate600}
-          textAlign="center"
-          maxLength={2}
-        />
-      </View>
-    </View>
-  );
-}
-
-// Recomputed from the two boxes as he types, not from the extraction, because
-// the whole reason those two boxes are the editable ones is that this line
-// depends on them.
+// Recomputed from the field as he changes it, not from the extraction, because
+// the whole reason the date and the waiting period are the editable ones is
+// that this line depends on them.
 function SafeHarvestLine({
   parsed,
-  parts,
+  date,
   phiDays,
 }: {
   parsed: VoiceParsed;
-  parts: VoiceDateParts;
+  date: string | null;
   phiDays: string;
 }) {
   if (parsed.kind !== 'journal' || parsed.value.type !== 'spray') return null;
-  const date = voicePastDateFromParts(parts, new Date());
   const phi = parseVoicePhiDaysInput(phiDays);
   if (date === null || phi === null || phi === undefined) return null;
   const safe = safeHarvestDate(date, phi);
@@ -775,14 +747,6 @@ const styles = StyleSheet.create({
   // The same body-lg the read-only values use, so an edited field and a shown
   // one read as the same kind of thing at the same size.
   editInput: {
-    fontSize: fontSize.bodyLg,
-  },
-  dateRow: {
-    flexDirection: 'row',
-    gap: spacing.s8,
-  },
-  dateInput: {
-    flex: 1,
     fontSize: fontSize.bodyLg,
   },
   safeHarvest: {

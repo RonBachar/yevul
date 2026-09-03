@@ -67,6 +67,7 @@
 //                    the regulatory answer.
 // ============================================================
 
+import { recentDateOptions, type RecentDateOption } from './calendar';
 import type { LogEntry, LogEntryInput } from './logEntries';
 import { formatLocalDateOnly } from './safeHarvestDate';
 
@@ -233,21 +234,23 @@ export function sprayPlotOptions(
 // ============================================================
 // The date tiles.
 //
-// labelKey rather than a label: the strings live in i18n.ts and this module
-// stays testable without one. Built by walking a local Date back a day at a
-// time and reading it with formatLocalDateOnly, which is the counterpart of the
-// ban on toISOString written out at the bottom of safeHarvestDate.ts.
+// **The three shortcuts moved to calendar.ts and this is now the spray flow's
+// name for them.** The expense sheet and the journal sheet ask the same
+// question and want the same three squares, and two copies of "yesterday" is
+// how two screens end up disagreeing about what yesterday is. Everything about
+// them is unchanged: the same three days, in the same order, built the same
+// way; only the label keys lost their spray. prefix, because the words are
+// "today", "yesterday" and "the day before" and nothing about them is a spray.
+//
+// What is *not* here is the fourth tile. "Another date" used to open two number
+// boxes; it now opens a calendar, and that lives in the component because it is
+// a grid the farmer touches.
 // ============================================================
 
-export type SprayDateOption = { date: string; labelKey: string };
-
-const SPRAY_DATE_LABEL_KEYS = ['spray.date.today', 'spray.date.yesterday', 'spray.date.dayBefore'];
+export type SprayDateOption = RecentDateOption;
 
 export function sprayDateOptions(now: Date): SprayDateOption[] {
-  return SPRAY_DATE_LABEL_KEYS.map((labelKey, daysBack) => {
-    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() - daysBack);
-    return { date: formatLocalDateOnly(day), labelKey };
-  });
+  return recentDateOptions(now);
 }
 
 // ============================================================

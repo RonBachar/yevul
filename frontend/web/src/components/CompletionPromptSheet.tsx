@@ -11,6 +11,7 @@ import {
   type Currency,
   type Task,
 } from '@yevul/shared';
+import { DateField } from './DateField';
 import { Modal } from './Modal';
 import './CompletionPromptSheet.css';
 
@@ -232,19 +233,20 @@ export function CompletionPromptSheet({
                 </select>
               </div>
 
-              <div className="form__row">
-                <label className="form__label" htmlFor="completion-expense-date">
-                  {t('log.form.date')}
-                </label>
-                <input
-                  id="completion-expense-date"
-                  className="form__input"
-                  type="date"
-                  value={expenseDate}
-                  onChange={(e) => setExpenseDate(e.target.value)}
-                  disabled={expenseStatus === 'saving'}
-                />
-              </div>
+              {/* The last date input in the web client, and the one the
+                  mobile twin does not have at all -- there the expense is
+                  filed under today with no field offered. Left editable here
+                  and switched to the shared calendar, because narrowing what a
+                  screen can do is a product decision and this change is not
+                  one. 'past': it is money already spent. */}
+              <DateField
+                id="completion-expense-date"
+                label={t('log.form.date')}
+                value={expenseDate}
+                onChange={(next) => setExpenseDate(next ?? today())}
+                direction="past"
+                disabled={expenseStatus === 'saving'}
+              />
 
               <div className="form__actions">
                 <button

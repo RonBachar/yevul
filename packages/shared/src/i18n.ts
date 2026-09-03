@@ -24,6 +24,36 @@ const strings: Record<string, string> = {
   'common.numberPlaceholder': 'הזן מספר',
   'common.optional': 'לא חובה',
   'common.other': 'אחר',
+
+  // The calendar, packages/shared/src/calendar.ts. **No screen prefix, on
+  // purpose.** These are the words "today", "yesterday" and "the day before"
+  // plus the names of the days of the week, and they are the same in the
+  // expense sheet, the journal, the spray walk and the voice confirmation. The
+  // spray. prefix these three used to carry made them the property of one
+  // screen, and the moment the expense sheet wanted them there would have been
+  // a second copy.
+  'date.today': 'היום',
+  'date.yesterday': 'אתמול',
+  'date.dayBefore': 'שלשום',
+  'date.other': 'תאריך אחר',
+  'date.notSet': 'לא נבחר',
+  'date.previousMonth': 'חודש קודם',
+  'date.nextMonth': 'חודש הבא',
+  // Back to the current month from anywhere in the calendar. This is what
+  // stops a farmer who has paged backwards from being stranded without knowing
+  // where he is.
+  'date.backToToday': 'חזרה להיום',
+  // One letter per column, as on every printed Hebrew calendar. Not derived
+  // from toLocaleDateString: he-IL returns "יום א׳" there, which is not a
+  // column heading.
+  'date.weekday.sunday': 'א',
+  'date.weekday.monday': 'ב',
+  'date.weekday.tuesday': 'ג',
+  'date.weekday.wednesday': 'ד',
+  'date.weekday.thursday': 'ה',
+  'date.weekday.friday': 'ו',
+  'date.weekday.saturday': 'ש',
+
   'shell.signedInAs': 'מחוברים בתור',
   'shell.signOut': 'התנתקות',
   'shell.signOutError': 'ההתנתקות נכשלה, נסו שוב',
@@ -276,8 +306,6 @@ const strings: Record<string, string> = {
   'tasks.form.dueSomeday': 'מתישהו',
   'tasks.form.dueWeek': 'השבוע',
   'tasks.form.dueDate': 'עד תאריך',
-  'tasks.form.dueDay': 'יום',
-  'tasks.form.dueMonth': 'חודש',
   'tasks.form.cost': 'עלות משוערת',
   'tasks.form.forbidden': 'אין לכם הרשאה ליצור או לערוך משימות',
   'tasks.form.saveError': 'לא הצלחנו לשמור, נסו שוב',
@@ -310,8 +338,6 @@ const strings: Record<string, string> = {
   'log.form.titleEdit': 'עריכת רישום',
   'log.form.type': 'סוג',
   'log.form.date': 'תאריך',
-  'log.form.dateDay': 'יום',
-  'log.form.dateMonth': 'חודש',
   'log.form.note': 'הערה',
   'log.form.notePlaceholder': 'הערה קצרה, לא חובה',
   'log.form.sprayPest': 'מזיק או סיבה',
@@ -366,10 +392,6 @@ const strings: Record<string, string> = {
   'spray.addMaterial': 'חומר חדש',
   'spray.addDose': 'מינון אחר',
   'spray.addPhiDays': 'מספר אחר',
-  'spray.addDate': 'תאריך אחר',
-  'spray.date.today': 'היום',
-  'spray.date.yesterday': 'אתמול',
-  'spray.date.dayBefore': 'שלשום',
   'spray.skipDose': 'בלי מינון',
   // "לא ידוע" ולא "בלי המתנה". אלה שני דברים שונים: חומר שמותר לקטוף
   // אחריו מיד הוא 0 ימים, וחקלאי שלא יודע כמה להמתין הוא היעדר נתון.
@@ -415,8 +437,6 @@ const strings: Record<string, string> = {
   'expense.form.name': 'שם ההוצאה',
   'expense.form.namePlaceholder': 'למשל, דלק, דשן, תיקון משאבה',
   'expense.form.date': 'תאריך',
-  'expense.form.dateDay': 'יום',
-  'expense.form.dateMonth': 'חודש',
   'expense.form.note': 'הערה',
   'expense.form.notePlaceholder': 'הערה קצרה, לא חובה',
   'expense.form.forbidden': 'אין לכם הרשאה ליצור או לערוך הוצאות',

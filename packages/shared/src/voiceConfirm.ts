@@ -223,16 +223,24 @@ export function voiceHasMoreItems(parsed: VoiceParsed): boolean {
 // ============================================================
 // Editing a date without a date picker.
 //
-// Two number fields, day and month, no year — the same shape every manual sheet
-// in this app already uses, and for the same reason: no native date picker
-// dependency, and a farmer thinking "within the season" does not think in
-// years. The year is inferred, and **the two directions are opposite facts**:
-// an expense or a journal entry records something that already happened, so a
-// day/month still ahead belongs to last year; a task due date is a target, so
-// one already past belongs to next year. Both rules already existed, written
-// out three times across three components. This is the tested copy; the three
-// components are not touched here, and that duplication is recorded rather than
-// silently left (see the report for this step).
+// **Superseded, and kept on purpose.** These three were the tested copy of the
+// day/month rule that five components each wrote out by hand: two number
+// fields, no year, with the year inferred from which side of today the pair
+// landed on. Every one of those screens now opens a calendar instead
+// (packages/shared/src/calendar.ts), so nothing in either client calls them any
+// more.
+//
+// They stay for two reasons. They are the plainest statement in the repo of the
+// fact the calendar now expresses as a bound -- **the two directions are
+// opposite**: an expense or a journal entry records something that already
+// happened, so a day and month still ahead belong to last year; a task due date
+// is a target, so one already past belongs to next year. calendarBounds is the
+// same rule pointing the same two ways, and the tests below are what pinned it
+// down. And they are exported API rather than a private helper, so deleting
+// them is a separate decision from replacing the screens that used them.
+//
+// **If nothing has grown a use for them by the next pass over this file, delete
+// them and their tests.** Recorded here rather than left to be discovered.
 // ============================================================
 
 export type VoiceDateParts = { day: string; month: string };

@@ -1,18 +1,25 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { createTask, formatLocalDateOnly, t, updateTask, usePlots, type Task } from '@yevul/shared';
+import { DateField } from './DateField';
 import { Modal } from './Modal';
 
 type DueMode = 'someday' | 'week' | 'date';
 
-function computeDueDate(mode: DueMode, customDate: string, now: Date): string | null {
+// **The three modes stay and the calendar sits behind the third**, the same
+// shape the mobile sheet keeps. They are this field's own shortcuts and they
+// already point forwards, which is why the today / yesterday / the-day-before
+// squares the expense and journal dialogs got would be wrong here.
+//
+// "This week" is still a week on the user's own calendar. toISOString would
+// make it six days whenever the button is pressed between local midnight and
+// 02:00 or 03:00.
+function computeDueDate(mode: DueMode, customDate: string | null, now: Date): string | null {
   if (mode === 'someday') return null;
   if (mode === 'week') {
-    // A week on the user's calendar. toISOString() would make it six days
-    // whenever the button is pressed between local midnight and 02:00/03:00.
     return formatLocalDateOnly(new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000));
   }
-  return customDate || null;
+  return customDate;
 }
 
 // גיליון יצירה/עריכה של משימה, design.md "Task Sheet", כדיאלוג ממורכז
@@ -43,7 +50,7 @@ export function TaskSheet({
   const [title, setTitle] = useState('');
   const [plotId, setPlotId] = useState<string | null>(null);
   const [dueMode, setDueMode] = useState<DueMode>('someday');
-  const [customDate, setCustomDate] = useState('');
+  const [customDate, setCustomDate] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'saving' | 'titleRequired' | 'forbidden' | 'error'>(
     'idle',
   );
@@ -59,13 +66,13 @@ export function TaskSheet({
         setCustomDate(task.dueDate);
       } else {
         setDueMode('someday');
-        setCustomDate('');
+        setCustomDate(null);
       }
     } else {
       setTitle('');
       setPlotId(defaultPlotId);
       setDueMode('someday');
-      setCustomDate('');
+      setCustomDate(null);
     }
     setStatus('idle');
   }, [open, task, defaultPlotId]);
@@ -149,16 +156,26 @@ export function TaskSheet({
             <option value="week">{t('tasks.form.dueWeek')}</option>
             <option value="date">{t('tasks.form.dueDate')}</option>
           </select>
-          {dueMode === 'date' && (
-            <input
-              className="form__input"
-              type="date"
-              value={customDate}
-              onChange={(e) => setCustomDate(e.target.value)}
-              disabled={busy}
-            />
-          )}
         </div>
+
+        {/* **The one place in the app where the calendar looks forwards.** A
+            due date is a target, so days behind today are not clickable --
+            except the one an overdue task is already carrying, which
+            calendarBounds keeps selectable so editing such a task cannot argue
+            with its own record. No shortcut chips: the mode select above is
+            this field's shortcut, and the calendar is always open here because
+            there is nothing to fold it behind. */}
+        {dueMode === 'date' && (
+          <DateField
+            id="task-due-date"
+            label={t('tasks.form.dueDate')}
+            value={customDate}
+            onChange={setCustomDate}
+            direction="future"
+            shortcuts={false}
+            disabled={busy}
+          />
+        )}
 
         <div className="form__actions">
           <button type="submit" className="form__submit" disabled={busy}>

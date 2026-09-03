@@ -7,6 +7,39 @@ export {
   formatLocalDateOnly,
 } from './safeHarvestDate';
 export { t } from './i18n';
+// A month of days as a grid, and the rules for moving around it. The founder,
+// on every date field in the app: "it is very uncomfortable to set a day and a
+// month. I want a calendar to open!" Pure policy -- which days a month contains,
+// which column each one falls in, what the arrows do at a year boundary, and
+// which days a given field is allowed to accept. Both clients have no test
+// runner, so only touch and paint stay in the components. See the header of
+// calendar.ts.
+export {
+  calendarBounds,
+  calendarMonthLabel,
+  calendarMonthOfDate,
+  calendarMonthStartOffset,
+  calendarViewMonth,
+  calendarWeekdayKeys,
+  calendarWeeks,
+  canShiftCalendarMonth,
+  daysInCalendarMonth,
+  formatCalendarDate,
+  isSelectableDate,
+  recentDateOptions,
+  sameCalendarMonth,
+  shiftCalendarMonth,
+  CALENDAR_NO_BOUNDS,
+  CALENDAR_WEEKDAY_LABEL_KEYS,
+  CALENDAR_WEEK_START,
+  type CalendarBounds,
+  type CalendarCell,
+  type CalendarDay,
+  type CalendarDirection,
+  type CalendarMonth,
+  type CalendarWeek,
+  type RecentDateOption,
+} from './calendar';
 export { useAuthSession, type AuthState } from './auth';
 export { colors } from './colors';
 export { spacing, radius, fontSize, fontWeight, touchTarget, shadowFloat } from './tokens';

@@ -16,26 +16,14 @@ import {
 import { colors, fonts, fontSize, radius } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from './BottomSheet';
+import { DateField } from './DateField';
 import { ReceiptViewer } from './ReceiptViewer';
 
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-// אותה נוסחה בדיוק כמו computeLogDate ב-LogEntrySheet: הוצאה מתעדת
-// משהו שכבר קרה, ולכן תאריך עתידי גולש אחורה לשנה שעברה, לא קדימה.
-function computeExpenseDate(day: string, month: string, now: Date): string | null {
-  const dayNum = Number(day);
-  const monthNum = Number(month);
-  if (!Number.isFinite(dayNum) || !Number.isFinite(monthNum) || dayNum < 1 || monthNum < 1) {
-    return null;
-  }
-  const today = startOfDay(now);
-  let candidate = new Date(now.getFullYear(), monthNum - 1, dayNum);
-  if (candidate > today) candidate = new Date(now.getFullYear() - 1, monthNum - 1, dayNum);
-  // candidate is local midnight, so it must be read off the local calendar.
-  // toISOString() here shifted every date the farmer typed a day earlier.
-  return formatLocalDateOnly(candidate);
+// The device's calendar day, never the UTC one, for a new expense's default.
+// toISOString() is right for most of the day and wrong from local midnight
+// until 02:00 or 03:00, when Israel is on a date UTC has not reached yet.
+function today(): string {
+  return formatLocalDateOnly(new Date());
 }
 
 // גיליון יצירה/עריכה של הוצאה. ארבעה שדות בלבד, בלי שום בחירה, לפי
@@ -64,8 +52,9 @@ export function ExpenseSheet({
   const [amount, setAmount] = useState('');
   const [name, setName] = useState('');
   const [plotId, setPlotId] = useState<string | null>(null);
-  const [day, setDay] = useState('');
-  const [month, setMonth] = useState('');
+  // The date itself, YYYY-MM-DD, rather than a day and a month with the year
+  // guessed from which side of today they landed on. See DateField.
+  const [date, setDate] = useState(today());
   const [note, setNote] = useState('');
   const [pickedUri, setPickedUri] = useState<string | null>(null);
   const [pickedMime, setPickedMime] = useState<string>('image/jpeg');
@@ -85,21 +74,23 @@ export function ExpenseSheet({
 
   useEffect(() => {
     if (!visible) return;
-    const now = new Date();
     if (expense) {
-      const date = new Date(expense.date);
       setAmount(String(expense.amount));
       setName(expense.name ?? '');
       setPlotId(expense.plotId);
-      setDay(String(date.getDate()));
-      setMonth(String(date.getMonth() + 1));
+      // **Passed through as the string it already is.** expenses.date is a
+      // Postgres date column and arrives as YYYY-MM-DD; the previous version
+      // put it through `new Date()` and read getDate() off it, which is UTC
+      // midnight read on a local calendar -- the day-early round trip written
+      // out at the bottom of safeHarvestDate.ts, latent here because Israel is
+      // ahead of UTC and live for anyone behind it.
+      setDate(expense.date);
       setNote(expense.note ?? '');
     } else {
       setAmount('');
       setName('');
       setPlotId(defaultPlotId);
-      setDay(String(now.getDate()));
-      setMonth(String(now.getMonth() + 1));
+      setDate(today());
       setNote('');
     }
     setPickedUri(null);
@@ -122,9 +113,7 @@ export function ExpenseSheet({
   }
 
   async function onSave() {
-    if (!farmId) return;
-    const date = computeExpenseDate(day, month, new Date());
-    if (!date) return;
+    if (!farmId || !date) return;
     const amountNumber = Number(amount.replace(',', '.'));
     if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
       setStatus('amountRequired');
@@ -205,32 +194,18 @@ export function ExpenseSheet({
         />
       </View>
 
-      <View style={[formStyles.field, sheetGap]}>
-        <Text style={formStyles.label}>{t('expense.form.date')}</Text>
-        <View style={dateRow}>
-          <TextInput
-            style={[formStyles.input, dateInput]}
-            value={day}
-            onChangeText={setDay}
-            editable={!busy}
-            keyboardType="number-pad"
-            placeholder={t('expense.form.dateDay')}
-            placeholderTextColor={colors.slate600}
-            textAlign="center"
-            maxLength={2}
-          />
-          <TextInput
-            style={[formStyles.input, dateInput]}
-            value={month}
-            onChangeText={setMonth}
-            editable={!busy}
-            keyboardType="number-pad"
-            placeholder={t('expense.form.dateMonth')}
-            placeholderTextColor={colors.slate600}
-            textAlign="center"
-            maxLength={2}
-          />
-        </View>
+      {/* An expense records money already spent, so the calendar stops at
+          today and the three shortcuts point backwards. This sheet never had
+          them before -- the receipt in his hand is almost always today's or
+          yesterday's, and now that costs one tap and no grid at all. */}
+      <View style={sheetGap}>
+        <DateField
+          label={t('expense.form.date')}
+          value={date}
+          onChange={(next) => setDate(next ?? today())}
+          direction="past"
+          disabled={busy}
+        />
       </View>
 
       <View style={[formStyles.field, sheetGap]}>
@@ -313,8 +288,6 @@ export function ExpenseSheet({
 }
 
 const sheetGap = { marginTop: 16 };
-const dateRow = { flexDirection: 'row' as const, gap: 8 };
-const dateInput = { flex: 1, textAlign: 'center' as const };
 const receiptButton = {
   flexDirection: 'row' as const,
   alignItems: 'center' as const,

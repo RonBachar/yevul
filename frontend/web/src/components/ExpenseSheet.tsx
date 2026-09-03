@@ -8,6 +8,7 @@ import {
   updateExpense,
   type Expense,
 } from '@yevul/shared';
+import { DateField } from './DateField';
 import { Modal } from './Modal';
 import { ReceiptViewer } from './ReceiptViewer';
 
@@ -164,19 +165,19 @@ export function ExpenseSheet({
           />
         </div>
 
-        <div className="form__row">
-          <label className="form__label" htmlFor="expense-date">
-            {t('expense.form.date')}
-          </label>
-          <input
-            id="expense-date"
-            className="form__input"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            disabled={busy}
-          />
-        </div>
+        {/* An expense records money already spent, so the calendar stops at
+            today and the three shortcuts point backwards. What was here was a
+            native date input -- better than the two number boxes the phone had,
+            still a text box with a popup that differs by browser. Both clients
+            now ask the same way. */}
+        <DateField
+          id="expense-date"
+          label={t('expense.form.date')}
+          value={date}
+          onChange={(next) => setDate(next ?? today())}
+          direction="past"
+          disabled={busy}
+        />
 
         <div className="form__row">
           <label className="form__label" htmlFor="expense-note">

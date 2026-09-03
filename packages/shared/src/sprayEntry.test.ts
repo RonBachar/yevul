@@ -206,9 +206,9 @@ describe('sprayPlotOptions', () => {
 describe('sprayDateOptions', () => {
   it('offers today, yesterday and the day before, read off the local calendar', () => {
     expect(sprayDateOptions(new Date(2026, 8, 3, 9, 30))).toEqual([
-      { date: '2026-09-03', labelKey: 'spray.date.today' },
-      { date: '2026-09-02', labelKey: 'spray.date.yesterday' },
-      { date: '2026-09-01', labelKey: 'spray.date.dayBefore' },
+      { date: '2026-09-03', labelKey: 'date.today' },
+      { date: '2026-09-02', labelKey: 'date.yesterday' },
+      { date: '2026-09-01', labelKey: 'date.dayBefore' },
     ]);
   });
 
@@ -218,7 +218,7 @@ describe('sprayDateOptions', () => {
   it('gives the day the farmer is standing in, not the UTC one, late in the evening', () => {
     expect(sprayDateOptions(new Date(2026, 8, 3, 23, 45))[0]).toEqual({
       date: '2026-09-03',
-      labelKey: 'spray.date.today',
+      labelKey: 'date.today',
     });
   });
 

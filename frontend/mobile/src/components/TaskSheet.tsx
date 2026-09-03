@@ -5,6 +5,7 @@ import { createTask, formatLocalDateOnly, t, updateTask, usePlots, type Task } f
 import { colors } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from './BottomSheet';
+import { DateField } from './DateField';
 
 type DueMode = 'someday' | 'week' | 'date';
 
@@ -15,30 +16,22 @@ const DUE_MODE_LABEL_KEY: Record<DueMode, string> = {
   date: 'tasks.form.dueDate',
 };
 
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
-
-// גוזר את due_date מהצ'יפ שנבחר. "עד תאריך" מקבל יום/חודש בלבד, בלי
-// שנה, השנה מוסקת: אם היום-חודש כבר עברו השנה, קופצת לשנה הבאה. חוסך
-// שדה שנה בטופס ומתאים לאיך שחקלאי חושב על "תוך העונה".
-function computeDueDate(mode: DueMode, day: string, month: string, now: Date): string | null {
+// **The three modes stay and the calendar sits behind the third.** They are
+// this sheet's own shortcuts and they already point the right way: "someday"
+// and "this week" are how a farmer talks about a job ahead of him, and the
+// today / yesterday / the-day-before squares the expense and journal sheets got
+// would all be pointing backwards on a field that means a target. Only "by a
+// date" changed, from two number boxes to a month of days.
+//
+// "This week" is still a week on the user's own calendar. toISOString would
+// make it six days whenever the button is pressed between local midnight and
+// 02:00 or 03:00.
+function computeDueDate(mode: DueMode, customDate: string | null, now: Date): string | null {
   if (mode === 'someday') return null;
   if (mode === 'week') {
     return formatLocalDateOnly(new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000));
   }
-  const dayNum = Number(day);
-  const monthNum = Number(month);
-  if (!Number.isFinite(dayNum) || !Number.isFinite(monthNum) || dayNum < 1 || monthNum < 1) {
-    return null;
-  }
-  const today = startOfDay(now);
-  let candidate = new Date(now.getFullYear(), monthNum - 1, dayNum);
-  if (candidate < today) candidate = new Date(now.getFullYear() + 1, monthNum - 1, dayNum);
-  // candidate is local midnight, so it must be read off the local calendar.
-  // toISOString() here made every picked due date land a day early, which for
-  // a task means it shows up overdue a day before it is.
-  return formatLocalDateOnly(candidate);
+  return customDate;
 }
 
 // גיליון יצירה/עריכה של משימה, design.md "Task Sheet". כותרת, חלקה,
@@ -46,8 +39,14 @@ function computeDueDate(mode: DueMode, day: string, month: string, now: Date): s
 // Completion Prompts (טרם נבנה). בלי כפתורי מצלמה ומיקרופון, אלה
 // תלויים בתשתית הקול שנבנית בשלב 5.
 //
-// אין בורר תאריך native כאן בכוונה, שני שדות מספריים (יום/חודש) ובלי
-// תלות חדשה, אותה גישה כמו הימנעות מ-reanimated ב-BottomSheet.
+// **Still no native date picker, and now not two number boxes either.** The
+// line that used to be here said the day/month pair was the price of avoiding a
+// new native dependency, the same trade BottomSheet makes over reanimated. The
+// dependency is still refused for the same reason (docs/open-items.md: it needs
+// verifying in Expo Go, and it could not be shared with the web client anyway)
+// -- what changed is that the price is no longer paid by the farmer. The
+// calendar under "by a date" is written here, out of the tile pattern he
+// already approved. See Calendar.tsx and packages/shared/src/calendar.ts.
 export function TaskSheet({
   supabase,
   visible,
@@ -70,8 +69,7 @@ export function TaskSheet({
   const [title, setTitle] = useState('');
   const [plotId, setPlotId] = useState<string | null>(null);
   const [dueMode, setDueMode] = useState<DueMode>('someday');
-  const [dueDay, setDueDay] = useState('');
-  const [dueMonth, setDueMonth] = useState('');
+  const [dueDate, setDueDate] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'saving' | 'titleRequired' | 'forbidden' | 'error'>(
     'idle',
   );
@@ -85,21 +83,21 @@ export function TaskSheet({
       setTitle(task.title);
       setPlotId(task.plotId);
       if (task.dueDate) {
-        const due = new Date(task.dueDate);
         setDueMode('date');
-        setDueDay(String(due.getDate()));
-        setDueMonth(String(due.getMonth() + 1));
+        // **Passed through as the string it already is.** tasks.due_date is a
+        // Postgres date column and arrives as YYYY-MM-DD; the previous version
+        // parsed it into a Date and read getDate() off it, which is UTC
+        // midnight read on a local calendar. See safeHarvestDate.ts.
+        setDueDate(task.dueDate);
       } else {
         setDueMode('someday');
-        setDueDay('');
-        setDueMonth('');
+        setDueDate(null);
       }
     } else {
       setTitle('');
       setPlotId(defaultPlotId);
       setDueMode('someday');
-      setDueDay('');
-      setDueMonth('');
+      setDueDate(null);
     }
     setStatus('idle');
   }, [visible, task, defaultPlotId]);
@@ -110,7 +108,7 @@ export function TaskSheet({
     const input = {
       title,
       plotId,
-      dueDate: computeDueDate(dueMode, dueDay, dueMonth, new Date()),
+      dueDate: computeDueDate(dueMode, dueDate, new Date()),
       // עלות משוערת ירדה מהגיליון: היא שאלה ששייכת ל"בוצע", לא ליצירה.
       // ראה ההערה למעלה ליד TaskSheet.
       estimatedCost: null,
@@ -198,29 +196,22 @@ export function TaskSheet({
             );
           })}
         </View>
+        {/* **The one place in the app where the calendar looks forwards.** A
+            due date is a target, so `direction="future"` blocks the days behind
+            today -- except the one an overdue task is already carrying, which
+            calendarBounds keeps selectable so editing such a task cannot
+            silently argue with its own record. No shortcut chips: the three
+            mode chips above are this field's shortcuts, and the calendar is
+            always open here because there is nothing to fold it behind. */}
         {dueMode === 'date' && (
-          <View style={dateRow}>
-            <TextInput
-              style={[formStyles.input, dateInput]}
-              value={dueDay}
-              onChangeText={setDueDay}
-              editable={!busy}
-              keyboardType="number-pad"
-              placeholder={t('tasks.form.dueDay')}
-              placeholderTextColor={colors.slate600}
-              textAlign="center"
-              maxLength={2}
-            />
-            <TextInput
-              style={[formStyles.input, dateInput]}
-              value={dueMonth}
-              onChangeText={setDueMonth}
-              editable={!busy}
-              keyboardType="number-pad"
-              placeholder={t('tasks.form.dueMonth')}
-              placeholderTextColor={colors.slate600}
-              textAlign="center"
-              maxLength={2}
+          <View style={dueCalendar}>
+            <DateField
+              label={t('tasks.form.dueDate')}
+              value={dueDate}
+              onChange={setDueDate}
+              direction="future"
+              shortcuts={false}
+              disabled={busy}
             />
           </View>
         )}
@@ -248,5 +239,4 @@ export function TaskSheet({
 }
 
 const sheetGap = { marginTop: 16 };
-const dateRow = { flexDirection: 'row' as const, gap: 8, marginTop: 8 };
-const dateInput = { flex: 1, textAlign: 'center' as const };
+const dueCalendar = { marginTop: 8 };

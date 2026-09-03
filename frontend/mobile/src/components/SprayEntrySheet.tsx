@@ -4,6 +4,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   applySprayMaterial,
   createLogEntry,
+  formatCalendarDate,
   newSprayDraft,
   nextSprayStep,
   parseSprayPhiDaysInput,
@@ -26,7 +27,6 @@ import {
   updateLogEntry,
   usePlots,
   useSpraySuggestions,
-  voicePastDateFromParts,
   type LogEntry,
   type SprayDraft,
   type SprayStep,
@@ -34,6 +34,7 @@ import {
 import { colors, fonts, fontSize, spacing } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from './BottomSheet';
+import { Calendar } from './Calendar';
 import { TilePicker, type TileOption } from './TilePicker';
 
 // Writing a spray, one question per screen, every answer a square.
@@ -93,11 +94,20 @@ import { TilePicker, type TileOption } from './TilePicker';
 // the review already is the six-field summary with a way into each one. There
 // is no second layout for editing.
 //
-// The date arithmetic is voicePastDateFromParts from the shared package, which
-// is the tested copy of the day/month rule the three older sheets each wrote
-// out by hand. It builds the date with formatLocalDateOnly; toISOString is
-// banned in this repo and the reason is written at the bottom of
-// safeHarvestDate.ts.
+// ---- The date ----
+//
+// **"Another date" opens a calendar, and it used to open two number boxes.**
+// The founder, after using the tiles: "everywhere there is a date and it has to
+// be entered it is very uncomfortable to set a day and a month. I want a
+// calendar to open!" The three squares in front of it -- today, yesterday, the
+// day before -- are unchanged and are still the answer nearly every time; the
+// grid is the way past them, and it is the same grid every other date field in
+// the app now uses. See Calendar.tsx and packages/shared/src/calendar.ts.
+//
+// Nothing in this file builds a date any more. Every date it handles is a
+// YYYY-MM-DD string that came from the shared package or straight off a
+// log_entries row; toISOString is banned in this repo and the reason is written
+// at the bottom of safeHarvestDate.ts.
 
 // The plot step's tiles carry a plot id, and "the whole farm" is a real answer
 // with no id. A sentinel rather than an empty string so that a missing value
@@ -134,8 +144,6 @@ export function SprayEntrySheet({
   const [returnToReview, setReturnToReview] = useState(false);
   const [adding, setAdding] = useState(false);
   const [addText, setAddText] = useState('');
-  const [addDay, setAddDay] = useState('');
-  const [addMonth, setAddMonth] = useState('');
   const [status, setStatus] = useState<Status>('idle');
   const busy = status === 'saving';
 
@@ -153,8 +161,6 @@ export function SprayEntrySheet({
     setReturnToReview(false);
     setAdding(false);
     setAddText('');
-    setAddDay('');
-    setAddMonth('');
     setStatus('idle');
   }, [visible, entry, defaultPlotId]);
 
@@ -164,8 +170,6 @@ export function SprayEntrySheet({
     setDraft(next);
     setAdding(false);
     setAddText('');
-    setAddDay('');
-    setAddMonth('');
     setStatus('idle');
     setStep(returnToReview ? 'review' : nextSprayStep(current, next));
     setReturnToReview(false);
@@ -408,52 +412,31 @@ export function SprayEntrySheet({
           }))}
           selectedValue={draft.date}
           onSelect={(value) => answered('date', { ...draft, date: value })}
-          actions={[{ key: 'add', label: t('spray.addDate'), onPress: () => setAdding(true) }]}
+          // **The three squares stay and the calendar is the way past them.**
+          // A spray is written the evening it happened or the morning after, so
+          // today / yesterday / the day before is the answer nearly every time
+          // and it costs one tap. The calendar is for the rest -- and for the
+          // farmer three weeks behind on his paperwork, who now sees the month
+          // he is filing into instead of guessing which year two numbers landed
+          // in.
+          actions={[{ key: 'add', label: t('date.other'), onPress: () => setAdding(true) }]}
           disabled={busy}
           footer={
             adding ? (
               <View style={styles.addPanel}>
-                <View style={styles.dateRow}>
-                  <TextInput
-                    style={[formStyles.input, styles.dateInput]}
-                    value={addDay}
-                    onChangeText={setAddDay}
-                    editable={!busy}
-                    keyboardType="number-pad"
-                    placeholder={t('log.form.dateDay')}
-                    placeholderTextColor={colors.slate600}
-                    textAlign="center"
-                    maxLength={2}
-                  />
-                  <TextInput
-                    style={[formStyles.input, styles.dateInput]}
-                    value={addMonth}
-                    onChangeText={setAddMonth}
-                    editable={!busy}
-                    keyboardType="number-pad"
-                    placeholder={t('log.form.dateMonth')}
-                    placeholderTextColor={colors.slate600}
-                    textAlign="center"
-                    maxLength={2}
-                  />
-                </View>
-                <Pressable
-                  style={[formStyles.save, busy && formStyles.saveDisabled]}
-                  onPress={() => {
-                    // A spray is something that already happened, so a day and
-                    // month still ahead of today belong to last year. That is
-                    // the 'past' direction, and it is the tested copy.
-                    const date = voicePastDateFromParts(
-                      { day: addDay, month: addMonth },
-                      new Date(),
-                    );
-                    if (date) answered('date', { ...draft, date });
-                  }}
+                {/* A tap on a day is the answer. There is no confirm button
+                    here any more, and there is nothing to type: the two number
+                    boxes needed one because a half-typed pair is not a date,
+                    while a day in a grid is complete the moment it is pressed.
+                    'past', because a spray is something that already happened,
+                    and now that is a bound the grid shows rather than a year
+                    silently subtracted after the fact. */}
+                <Calendar
+                  value={draft.date}
+                  onSelect={(date) => answered('date', { ...draft, date })}
+                  direction="past"
                   disabled={busy}
-                  accessibilityRole="button"
-                >
-                  <Text style={formStyles.saveText}>{t('spray.confirm')}</Text>
-                </Pressable>
+                />
               </View>
             ) : null
           }
@@ -534,9 +517,13 @@ function reviewTiles(
         ? t('spray.unknownPhiDays')
         : `${draft.phiDays} ${t('spray.daysSuffix')}`,
     plot: plotName,
-    // Split rather than parsed. A YYYY-MM-DD string put through new Date() is
-    // UTC midnight, and reading the day off it west of UTC gives yesterday.
-    date: displayDate(draft.date),
+    // formatCalendarDate, which splits the string rather than parsing it: a
+    // YYYY-MM-DD put through new Date() is UTC midnight, and reading the day
+    // off it west of UTC gives yesterday. **It now shows the year as well.**
+    // The calendar can reach a month in another year, which the two number
+    // boxes never could, so the last screen before the write has to say which
+    // year it is about to file this spray under.
+    date: formatCalendarDate(draft.date),
   };
 
   return (Object.keys(values) as Exclude<SprayStep, 'review'>[]).map((step) => ({
@@ -544,11 +531,6 @@ function reviewTiles(
     label: values[step],
     caption: t(sprayStepFieldKey(step)),
   }));
-}
-
-function displayDate(date: string): string {
-  const [, month, day] = date.split('-');
-  return month && day ? `${Number(day)}.${Number(month)}` : date;
 }
 
 function FreeTextPanel({
@@ -613,14 +595,6 @@ const styles = StyleSheet.create({
   addPanel: {
     gap: spacing.s12,
     marginTop: spacing.s4,
-  },
-  dateRow: {
-    flexDirection: 'row',
-    gap: spacing.s8,
-  },
-  dateInput: {
-    flex: 1,
-    textAlign: 'center',
   },
   reviewFooter: {
     gap: spacing.s12,
