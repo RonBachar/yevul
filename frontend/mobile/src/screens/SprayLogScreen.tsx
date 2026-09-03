@@ -12,7 +12,7 @@ import { formStyles } from '../theme/formStyles';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { ListStateNote } from '../components/ListStateNote';
 import { LogRow } from '../components/LogRow';
-import { LogEntrySheet } from '../components/LogEntrySheet';
+import { SprayEntrySheet } from '../components/SprayEntrySheet';
 
 // מסך יומן ריסוס נפרד, design.md "Spray Log Screen". מוצג רק ריסוסים,
 // מסונן לפי חלקה, prd.md סעיף 8: "מה שהחקלאי חייב להציג לרגולטור...
@@ -153,15 +153,20 @@ export function SprayLogScreen() {
         }
       />
 
-      <LogEntrySheet
+      {/* The tile flow, not LogEntrySheet. This screen writes one type and one
+          type only, so it can ask the six spray questions as six grids of
+          squares instead of a form with a ten-option type strip at the top of
+          it. LogEntrySheet is untouched and still owns the Journal tab and the
+          other nine entry types -- see the header of SprayEntrySheet.
+
+          defaultPlotId is doing more than it did: when the filter above is on a
+          plot, the plot step is already answered and the walk skips it. */}
+      <SprayEntrySheet
         supabase={supabase}
         visible={sheetOpen}
         onClose={() => setSheetOpen(false)}
         entry={editingEntry}
         defaultPlotId={selectedPlotId}
-        // A new record starts on spray. An entry being edited keeps its own
-        // type, which the sheet decides, not this prop.
-        defaultType="spray"
         farmId={entriesState.farmId}
         onSaved={() => {
           setSheetOpen(false);

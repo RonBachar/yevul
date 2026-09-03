@@ -4,6 +4,7 @@ import { currentFarmQuery } from './currentFarm';
 import { LOG_ENTRY_TYPES, type LogEntryType } from './logEntryTypes';
 import { writeOutcome } from './postgrest';
 import { useLoadCount } from './refresh';
+import { sprayMaterialOptions, sprayPestOptions, type SprayHistoryRow } from './sprayEntry';
 
 // הסוגים עצמם חיים ב-logEntryTypes.ts, מודול טהור בלי ייבוא, כי
 // ה-Worker זקוק להם דרך voice.ts ואין לו צורך ב-react ולא ב-supabase-js
@@ -238,41 +239,39 @@ export function useLogEntries(
 // "שם החומר והמזיק מוצעים מתוך היסטוריית המשק, כדי שלא יקלידו את אותו
 // שם בכל פעם מחדש". שתי רשימות נפרדות, כל אחת בסדר מהאחרון לשימוש,
 // בלי כפילויות, מוגבלות כדי לא להציג עשרות הצעות ישנות.
+//
+// **The rows themselves are handed over too, and the two lists are now derived
+// from them by tested pure functions in sprayEntry.ts.** The tile flow asks
+// questions a flat list of names cannot answer -- what dose went with this
+// material, what waiting period -- and the alternative was a second query over
+// the same 50 rows. `pests` and `materials` are unchanged in shape and content,
+// so the two existing sheets that read them are untouched.
 // ============================================================
 
-const SPRAY_SUGGESTIONS_LIMIT = 6;
+export type SpraySuggestions = {
+  pests: string[];
+  materials: string[];
+  rows: SprayHistoryRow[];
+};
 
-export type SpraySuggestions = { pests: string[]; materials: string[] };
-
-function recentDistinct(values: (string | null)[], limit: number): string[] {
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const value of values) {
-    const trimmed = value?.trim();
-    if (!trimmed || seen.has(trimmed)) continue;
-    seen.add(trimmed);
-    result.push(trimmed);
-    if (result.length >= limit) break;
-  }
-  return result;
-}
+const EMPTY_SUGGESTIONS: SpraySuggestions = { pests: [], materials: [], rows: [] };
 
 export function useSpraySuggestions(
   supabase: SupabaseClient,
   farmId: string | null,
 ): SpraySuggestions {
-  const [suggestions, setSuggestions] = useState<SpraySuggestions>({ pests: [], materials: [] });
+  const [suggestions, setSuggestions] = useState<SpraySuggestions>(EMPTY_SUGGESTIONS);
 
   useEffect(() => {
     let active = true;
     if (!farmId) {
-      setSuggestions({ pests: [], materials: [] });
+      setSuggestions(EMPTY_SUGGESTIONS);
       return;
     }
 
     void supabase
       .from('log_entries')
-      .select('spray_pest, spray_material')
+      .select('spray_pest, spray_material, spray_dose, spray_phi_days')
       .eq('farm_id', farmId)
       .eq('type', 'spray')
       .is('deleted_at', null)
@@ -280,16 +279,20 @@ export function useSpraySuggestions(
       .limit(50)
       .then(({ data }) => {
         if (!active) return;
-        const rows = (data ?? []) as { spray_pest: string | null; spray_material: string | null }[];
+        const raw = (data ?? []) as Pick<
+          LogEntryRow,
+          'spray_pest' | 'spray_material' | 'spray_dose' | 'spray_phi_days'
+        >[];
+        const rows: SprayHistoryRow[] = raw.map((row) => ({
+          pest: row.spray_pest,
+          material: row.spray_material,
+          dose: row.spray_dose,
+          phiDays: row.spray_phi_days,
+        }));
         setSuggestions({
-          pests: recentDistinct(
-            rows.map((row) => row.spray_pest),
-            SPRAY_SUGGESTIONS_LIMIT,
-          ),
-          materials: recentDistinct(
-            rows.map((row) => row.spray_material),
-            SPRAY_SUGGESTIONS_LIMIT,
-          ),
+          pests: sprayPestOptions(rows),
+          materials: sprayMaterialOptions(rows),
+          rows,
         });
       });
 

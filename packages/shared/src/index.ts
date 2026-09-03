@@ -289,6 +289,49 @@ export {
   completionPromptVisibility,
   type CompletionPromptVisibility,
 } from './completionPrompts';
+// Writing a spray as a walk through tiles, one question per screen. The
+// founder's standing instruction for every data-entry screen in this app --
+// "it should always be squares, big tappable squares" -- and the retirement of
+// the horizontal chip strips he called unusable. Pure policy: which tiles each
+// step offers, which steps get asked at all, and what the picked values become
+// for createLogEntry. Here rather than in the component for the reason the rest
+// of the mobile policy is: frontend/mobile has no test runner. See the header
+// of sprayEntry.ts.
+export {
+  recentValues,
+  sprayPestOptions,
+  sprayMaterialOptions,
+  sprayDoseOptions,
+  sprayPhiOptions,
+  sprayMaterialMemory,
+  sprayPlotOptions,
+  sprayDateOptions,
+  sprayStepTitleKey,
+  sprayStepFieldKey,
+  sprayStepRequired,
+  sprayVisibleSteps,
+  sprayStepPosition,
+  nextSprayStep,
+  previousSprayStep,
+  newSprayDraft,
+  sprayDraftFromEntry,
+  applySprayMaterial,
+  sprayEntryBlocker,
+  sprayEntryInput,
+  parseSprayPhiDaysInput,
+  SPRAY_STEPS,
+  SPRAY_TILE_LIMIT,
+  SPRAY_PHI_TILE_LIMIT,
+  SPRAY_PHI_PRESET_DAYS,
+  SPRAY_BLOCKER_MESSAGE_KEYS,
+  type SprayStep,
+  type SprayDraft,
+  type SprayHistoryRow,
+  type SprayMaterialMemory,
+  type SprayPlotOption,
+  type SprayDateOption,
+  type SprayEntryBlocker,
+} from './sprayEntry';
 export {
   useLogEntries,
   useSpraySuggestions,

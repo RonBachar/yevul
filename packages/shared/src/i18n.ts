@@ -348,6 +348,40 @@ const strings: Record<string, string> = {
   'sprayLog.loadError': 'לא הצלחנו לטעון את יומן הריסוס, נסו שוב',
   'sprayLog.phiDaysSuffix': 'ימי המתנה',
 
+  // רישום ריסוס במשבצות, שאלה אחת בכל מסך. הכותרות מנוסחות כשאלה ולא
+  // כשם שדה: מסך שלם שמציג "מזיק" ותשע משבצות הוא טופס, מסך ששואל "נגד
+  // מה ריססתם?" הוא שיחה, וזה מה שהסקיצה של היזם מתארת.
+  'spray.step.pest': 'נגד מה ריססתם?',
+  'spray.step.material': 'באיזה חומר?',
+  'spray.step.dose': 'איזה מינון?',
+  'spray.step.phiDays': 'כמה ימי המתנה עד קטיף?',
+  'spray.step.plot': 'איזו חלקה?',
+  'spray.step.date': 'מתי ריססתם?',
+  'spray.step.review': 'בדקו ושמרו',
+  // "3 מתוך 5". הרכבה ולא אינטרפולציה, כמו "12 ריסוסים" במסך יומן
+  // הריסוס, כי במילון הזה אין עדיין מנגנון החלפת ערכים בתוך מחרוזת.
+  'spray.stepOf': 'מתוך',
+  'spray.back': 'חזרה',
+  'spray.addPest': 'מזיק חדש',
+  'spray.addMaterial': 'חומר חדש',
+  'spray.addDose': 'מינון אחר',
+  'spray.addPhiDays': 'מספר אחר',
+  'spray.addDate': 'תאריך אחר',
+  'spray.skipDose': 'בלי מינון',
+  // "לא ידוע" ולא "בלי המתנה". אלה שני דברים שונים: חומר שמותר לקטוף
+  // אחריו מיד הוא 0 ימים, וחקלאי שלא יודע כמה להמתין הוא היעדר נתון.
+  // ההבדל הזה הוא בדיוק מה ש-safeHarvestDate מחזיר עליו null.
+  'spray.unknownPhiDays': 'לא ידוע',
+  'spray.daysSuffix': 'ימים',
+  'spray.confirm': 'אישור',
+  'spray.notSet': 'לא הוזן',
+  'spray.emptyPests': 'עדיין לא רשמתם מזיקים. הוסיפו את הראשון והוא יופיע כאן בפעם הבאה.',
+  'spray.emptyMaterials': 'עדיין לא רשמתם חומרים. הוסיפו את הראשון והוא יופיע כאן בפעם הבאה.',
+  'spray.emptyDoses': 'עדיין לא רשמתם מינונים. הוסיפו מינון, או המשיכו בלי מינון.',
+  'spray.newTitle': 'ריסוס חדש',
+  'spray.editTitle': 'עריכת ריסוס',
+  'spray.save': 'שמירת הריסוס',
+
   // Completion Prompts, design.md. שתי שאלות עצמאיות בסיום משימה.
   'completion.donePrefix': 'בוצע',
   'completion.saveToJournal': 'לשמור ביומן?',
