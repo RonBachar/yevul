@@ -189,6 +189,7 @@ export {
 } from './tasks';
 export {
   useExpenses,
+  useExpenseSuggestions,
   createExpense,
   updateExpense,
   deleteExpense,
@@ -199,7 +200,25 @@ export {
   type ExpenseInput,
   type ExpenseWriteResult,
   type ExpensesListState,
+  type ExpenseSuggestions,
 } from './expenses';
+// Writing an expense, the third screen on the tile pattern and the first that is
+// deliberately not a walk: an expense is the highest-frequency action in the
+// product, and the taps were counted before the shape was chosen. Pure policy:
+// what the name grid offers and where it comes from, what the amount box will
+// accept, and what the four fields become for createExpense and updateExpense.
+// Here rather than in the two sheets because neither client has a test runner.
+// See the header of expenseForm.ts, which carries the tap counts and records,
+// field by field, what became a square and what stayed typed.
+export {
+  expenseNameOptions,
+  newExpenseDraft,
+  expenseDraftFromExpense,
+  parseExpenseAmountInput,
+  expenseWriteInput,
+  EXPENSE_NAME_TILE_LIMIT,
+  type ExpenseDraft,
+} from './expenseForm';
 // Opening a receipt that is already filed. **The half of the attachment feature
 // that was missing**: the bucket is private, so the only way to the bytes is a
 // signed URL, and nothing in either client could produce one. See the header of

@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { currentFarmQuery } from './currentFarm';
+// The cap-and-dedupe rule the name grid shares with the spray and crop grids.
+// See useExpenseSuggestions below; expenseForm.ts imports only *types* back from
+// here, so there is no import cycle at run time. Same shape as plots.ts.
+import { expenseNameOptions } from './expenseForm';
 import { writeOutcome, type WriteOutcome } from './postgrest';
 import { useLoadCount } from './refresh';
 
@@ -159,6 +163,79 @@ export function useExpenses(supabase: SupabaseClient, plotId?: string): Expenses
   }, [supabase, plotId, tick, settle]);
 
   return { loading, failed, farmId, expenses, plotNames, refresh, loadCount };
+}
+
+// ============================================================
+// The names this farm has spent money on, for the tile grid on the expense
+// sheet.
+//
+// **useSpraySuggestions' third twin, and it rests on the same argument.** A farm
+// buys a handful of things over and over -- diesel, fertiliser, pesticide -- so
+// the grid fills up from what was actually spent instead of being typed again
+// every time. See the header of expenseForm.ts for why the name is the only
+// field on that sheet that became squares.
+//
+// **useExpenses was checked first and cannot answer this.** Three reasons, and
+// each one alone is enough. It is not always there: RootTabs and CaptureSheet
+// open ExpenseSheet with no list behind them at all. Where it is there it is
+// sometimes the wrong list: the plot detail screen's expenses tab filters it to
+// one plot through expense_allocations!inner, and a farm's vocabulary is the
+// farm's, not one plot's. And it selects every column of every expense the farm
+// has ever had, with two joins, where this needs one column and fifty rows.
+//
+// **`active` is what the twins do not have, and this one needs.** ExpenseSheet
+// is mounted for the life of the tab bar with `visible` false, so a hook that
+// read once on mount would hand a farmer a grid that is missing the name he
+// entered an hour ago -- on the screen he uses most. Passing the sheet's own
+// visibility re-reads the fifty rows each time it opens, which is one small
+// request per opening and no requests at all while it is closed. An inactive
+// hook keeps what it already had rather than blanking the grid, so nothing
+// flickers on the way out.
+//
+// Fifty rows, newest first, exactly like the spray and crop queries: enough that
+// a real farm's whole vocabulary is in there, capped so the request stays small.
+// ============================================================
+
+export type ExpenseSuggestions = { names: string[] };
+
+const EMPTY_EXPENSE_SUGGESTIONS: ExpenseSuggestions = { names: [] };
+
+export function useExpenseSuggestions(
+  supabase: SupabaseClient,
+  farmId: string | null,
+  active: boolean = true,
+): ExpenseSuggestions {
+  const [suggestions, setSuggestions] = useState<ExpenseSuggestions>(EMPTY_EXPENSE_SUGGESTIONS);
+
+  useEffect(() => {
+    let alive = true;
+    if (!farmId) {
+      setSuggestions(EMPTY_EXPENSE_SUGGESTIONS);
+      return;
+    }
+    if (!active) return;
+
+    void supabase
+      .from('expenses')
+      // `category` and not `name`: the column the expense name is stored in. See
+      // the header of this file.
+      .select('category')
+      .eq('farm_id', farmId)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data }) => {
+        if (!alive) return;
+        const rows = (data ?? []) as { category: string | null }[];
+        setSuggestions({ names: expenseNameOptions(rows.map((row) => row.category)) });
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [supabase, farmId, active]);
+
+  return suggestions;
 }
 
 // ============================================================

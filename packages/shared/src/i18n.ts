@@ -465,6 +465,15 @@ const strings: Record<string, string> = {
   'expense.form.amountRequired': 'יש להזין סכום גדול מאפס',
   'expense.form.name': 'שם ההוצאה',
   'expense.form.namePlaceholder': 'למשל, דלק, דשן, תיקון משאבה',
+
+  // The one field on the expense sheet that became a grid of squares, out of
+  // the farm's own history. A question over the grid and not a field label,
+  // exactly like the spray and plot walks ask theirs. The empty sentence is the
+  // first run: a brand new farm has spent nothing yet, so the grid is empty, and
+  // this is what stops it from reading as a broken screen.
+  'expense.form.step.name': 'על מה ההוצאה?',
+  'expense.form.addName': 'שם חדש',
+  'expense.form.emptyNames': 'עדיין לא רשמתם הוצאות. הוסיפו את הראשונה והיא תופיע כאן בפעם הבאה.',
   'expense.form.date': 'תאריך',
   'expense.form.note': 'הערה',
   'expense.form.notePlaceholder': 'הערה קצרה, לא חובה',

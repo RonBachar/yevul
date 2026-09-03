@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import * as ImagePicker from 'expo-image-picker';
 import CameraIcon from 'lucide-react-native/icons/camera';
@@ -8,16 +8,57 @@ import Eye from 'lucide-react-native/icons/eye';
 import {
   attachReceipt,
   createExpense,
+  expenseDraftFromExpense,
+  expenseNameOptions,
+  expenseWriteInput,
   formatLocalDateOnly,
+  newExpenseDraft,
   t,
   updateExpense,
+  useExpenseSuggestions,
   type Expense,
+  type ExpenseDraft,
 } from '@yevul/shared';
-import { colors, fonts, fontSize, radius } from '../theme/tokens';
+import { colors, fonts, fontSize, radius, spacing } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from './BottomSheet';
 import { DateField } from './DateField';
 import { ReceiptViewer } from './ReceiptViewer';
+import { TilePicker } from './TilePicker';
+
+// גיליון יצירה/עריכה של הוצאה. ארבעה שדות בלבד, בלי שום בחירה, לפי
+// בקשה מפורשת של היזם: "אני לא רוצה שיהיו לי אפשרויות, זה מסבך".
+// גרסה קודמת כללה כאן קטגוריה כרשימה סגורה וחלקה כשורת צ'יפים, לפי
+// design.md, ונדחתה. plotId עדיין נכתב (טאב הוצאות בפרטי חלקה עדיין
+// זקוק לו), אבל תמיד משתיקה מ-defaultPlotId/expense.plotId, בלי שום
+// בורר שהמשתמש נוגע בו.
+//
+// **The third screen on the tile pattern, and the first one that stayed a
+// sheet.** SprayEntrySheet and PlotFormScreen both became a walk of one question
+// per screen and both were approved on a device; this one was counted rather
+// than copied, because an expense is the highest-frequency action in the product
+// and "too many clicks" is a standing complaint in docs/open-items.md. The
+// counts, the three cases they cover and the field-by-field reasoning are in
+// packages/shared/src/expenseForm.ts. The short version:
+//
+//   - a walk costs 4, 6 and 5 taps on the three cases; this sheet costs 4, 5
+//     and 4, and the case a walk loses worst on -- a receipt from last week --
+//     is the one the founder himself called the common one here;
+//   - so the four fields stay on one sheet, and the **name** becomes a grid of
+//     squares fed by the farm's own expense history;
+//   - the **amount** stays a decimal keypad, and that is the deliberate refusal:
+//     every profit figure in the product is summed from expenses.amount, so a
+//     one-tap plausible-but-wrong number is not a shortcut, it is a wrong season;
+//   - the **note** stays typed, because a note is the one-off thing about this
+//     expense and there is no vocabulary to build a grid out of;
+//   - the **date** is the calendar and is untouched.
+//
+// **Nothing on this sheet autofocuses any more.** The name box used to, which is
+// why the sheet carried a latch to stop the keyboard popping back up on the way
+// out of the receipt viewer; the grid is what greets him now, and a keyboard
+// over it would hide the squares. The one box that does autofocus is the
+// add-a-name box, and it is closed on the way back from the viewer for exactly
+// the reason that latch existed.
 
 // The device's calendar day, never the UTC one, for a new expense's default.
 // toISOString() is right for most of the day and wrong from local midnight
@@ -26,12 +67,6 @@ function today(): string {
   return formatLocalDateOnly(new Date());
 }
 
-// גיליון יצירה/עריכה של הוצאה. ארבעה שדות בלבד, בלי שום בחירה, לפי
-// בקשה מפורשת של היזם: "אני לא רוצה שיהיו לי אפשרויות, זה מסבך".
-// גרסה קודמת כללה כאן קטגוריה כרשימה סגורה וחלקה כשורת צ'יפים, לפי
-// design.md, ונדחתה. plotId עדיין נכתב (טאב הוצאות בפרטי חלקה עדיין
-// זקוק לו), אבל תמיד משתיקה מ-defaultPlotId/expense.plotId, בלי שום
-// בורר שהמשתמש נוגע בו.
 export function ExpenseSheet({
   supabase,
   visible,
@@ -49,53 +84,49 @@ export function ExpenseSheet({
   farmId: string | null;
   onSaved: () => void;
 }) {
-  const [amount, setAmount] = useState('');
-  const [name, setName] = useState('');
-  const [plotId, setPlotId] = useState<string | null>(null);
-  // The date itself, YYYY-MM-DD, rather than a day and a month with the year
-  // guessed from which side of today they landed on. See DateField.
-  const [date, setDate] = useState(today());
-  const [note, setNote] = useState('');
+  // The whole form as one value: name, the amount box's text, the inferred
+  // plot, the date and the note. See ExpenseDraft.
+  const [draft, setDraft] = useState<ExpenseDraft>(() => newExpenseDraft(new Date(), null));
+  // Whether the "new name" square has opened its box. The box writes straight
+  // into draft.name, so there is no second state to keep in step and no confirm
+  // tap between typing a name and saving the expense.
+  const [adding, setAdding] = useState(false);
   const [pickedUri, setPickedUri] = useState<string | null>(null);
   const [pickedMime, setPickedMime] = useState<string>('image/jpeg');
   // The viewer takes over the sheet rather than opening a second one. The form
   // state above stays exactly as he left it, because this component never
   // unmounts while he is looking at the document.
   const [viewing, setViewing] = useState(false);
-  // **Only here to stop the keyboard jumping back up.** The name field is
-  // autoFocus, and coming back from the viewer remounts the form, so without
-  // this the reward for looking at your own receipt is a keyboard over half the
-  // sheet. Nobody who never opens the viewer is affected.
-  const [viewedReceipt, setViewedReceipt] = useState(false);
   const [status, setStatus] = useState<
     'idle' | 'saving' | 'amountRequired' | 'forbidden' | 'error'
   >('idle');
   const busy = status === 'saving';
 
+  // The name grid, out of this farm's own expenses. Re-read every time the sheet
+  // opens rather than once on mount, because this component lives for the life
+  // of the tab bar and a grid missing the name he entered an hour ago is a grid
+  // that sends him back to the keyboard. See useExpenseSuggestions.
+  const suggestions = useExpenseSuggestions(supabase, farmId, visible);
+  // **The held value is dropped out of the grid while the box is open.** With it
+  // in, every keystroke in the box would push a tile in or out of the grid
+  // above and move the box itself under a thumb that is typing into it.
+  const nameOptions = expenseNameOptions(suggestions.names, adding ? null : draft.name);
+  const selectedName = adding || draft.name.trim() === '' ? null : draft.name.trim();
+
   useEffect(() => {
     if (!visible) return;
-    if (expense) {
-      setAmount(String(expense.amount));
-      setName(expense.name ?? '');
-      setPlotId(expense.plotId);
-      // **Passed through as the string it already is.** expenses.date is a
-      // Postgres date column and arrives as YYYY-MM-DD; the previous version
-      // put it through `new Date()` and read getDate() off it, which is UTC
-      // midnight read on a local calendar -- the day-early round trip written
-      // out at the bottom of safeHarvestDate.ts, latent here because Israel is
-      // ahead of UTC and live for anyone behind it.
-      setDate(expense.date);
-      setNote(expense.note ?? '');
-    } else {
-      setAmount('');
-      setName('');
-      setPlotId(defaultPlotId);
-      setDate(today());
-      setNote('');
-    }
+    // **The date is passed through as the string it already is.** expenses.date
+    // is a Postgres date column and arrives as YYYY-MM-DD; an earlier version
+    // put it through `new Date()` and read getDate() off it, which is UTC
+    // midnight read on a local calendar -- the day-early round trip written out
+    // at the bottom of safeHarvestDate.ts, latent here because Israel is ahead
+    // of UTC and live for anyone behind it. See expenseDraftFromExpense.
+    setDraft(
+      expense ? expenseDraftFromExpense(expense) : newExpenseDraft(new Date(), defaultPlotId),
+    );
+    setAdding(false);
     setPickedUri(null);
     setViewing(false);
-    setViewedReceipt(false);
     setStatus('idle');
   }, [visible, expense, defaultPlotId]);
 
@@ -113,21 +144,17 @@ export function ExpenseSheet({
   }
 
   async function onSave() {
-    if (!farmId || !date) return;
-    const amountNumber = Number(amount.replace(',', '.'));
-    if (!Number.isFinite(amountNumber) || amountNumber <= 0) {
+    if (!farmId || !draft.date) return;
+    // The one thing that can stop the save, and it is returned by the builder
+    // rather than checked beside it, so the write cannot be assembled without
+    // an amount. See expenseWriteInput.
+    const input = expenseWriteInput(draft);
+    if (!input) {
       setStatus('amountRequired');
       return;
     }
 
     setStatus('saving');
-    const input = {
-      amount: amountNumber,
-      name: name.trim() ? name.trim() : null,
-      plotId,
-      date,
-      note: note.trim() ? note.trim() : null,
-    };
     const result = expense
       ? await updateExpense(supabase, farmId, expense.id, input)
       : await createExpense(supabase, farmId, input);
@@ -158,7 +185,14 @@ export function ExpenseSheet({
         <ReceiptViewer
           supabase={supabase}
           expenseId={expense.id}
-          onBack={() => setViewing(false)}
+          onBack={() => {
+            setViewing(false);
+            // The add box is the only autofocusing field left on this sheet, and
+            // coming back from the viewer remounts the form. Closing it here is
+            // what stops the reward for looking at your own receipt from being a
+            // keyboard over half the sheet.
+            setAdding(false);
+          }}
         />
       </BottomSheet>
     );
@@ -166,26 +200,57 @@ export function ExpenseSheet({
 
   return (
     <BottomSheet visible={visible} onClose={onClose} closeLabel={t('capture.close')}>
-      <View style={formStyles.field}>
-        <Text style={formStyles.label}>{t('expense.form.name')}</Text>
-        <TextInput
-          style={formStyles.input}
-          value={name}
-          onChangeText={setName}
-          editable={!busy}
-          placeholder={t('expense.form.namePlaceholder')}
-          placeholderTextColor={colors.slate600}
-          textAlign="right"
-          autoFocus={!viewedReceipt}
-        />
-      </View>
+      {/* The one field on this sheet with a vocabulary that repeats: a farm buys
+          diesel, fertiliser and pesticide over and over. The grid fills up from
+          the farm's own history, which is the case useSpraySuggestions
+          established and useCropSuggestions repeated. */}
+      <TilePicker
+        title={t('expense.form.step.name')}
+        options={nameOptions.map((value) => ({ value, label: value }))}
+        selectedValue={selectedName}
+        onSelect={(value) => {
+          setDraft((current) => ({ ...current, name: value }));
+          setAdding(false);
+        }}
+        actions={[{ key: 'add', label: t('expense.form.addName'), onPress: () => setAdding(true) }]}
+        // The first expense on a new account lands here with an empty grid. The
+        // sentence plus the dashed square is what keeps that from reading as a
+        // broken screen.
+        emptyHint={t('expense.form.emptyNames')}
+        disabled={busy}
+        footer={
+          adding ? (
+            <View style={styles.answer}>
+              {/* Bound straight to the draft, with no confirm button under it:
+                  there is no next step to advance to on a sheet, so a button
+                  whose only job was to close the box would be a tap charged for
+                  nothing. */}
+              <TextInput
+                style={formStyles.input}
+                value={draft.name}
+                onChangeText={(name) => setDraft((current) => ({ ...current, name }))}
+                editable={!busy}
+                placeholder={t('expense.form.namePlaceholder')}
+                placeholderTextColor={colors.slate600}
+                textAlign="right"
+                autoFocus
+              />
+            </View>
+          ) : null
+        }
+      />
 
       <View style={[formStyles.field, sheetGap]}>
         <Text style={formStyles.label}>{t('expense.form.amount')}</Text>
+        {/* **Typed and never a square, deliberately.** Every profit figure the
+            product shows is summed from expenses.amount, and amounts do not
+            repeat the way names do -- a diesel fill is 380 one week and 412 the
+            next. Same refusal the plot form made for a plot's area, and for the
+            same reason. */}
         <TextInput
           style={formStyles.input}
-          value={amount}
-          onChangeText={setAmount}
+          value={draft.amountText}
+          onChangeText={(amountText) => setDraft((current) => ({ ...current, amountText }))}
           editable={!busy}
           keyboardType="decimal-pad"
           textAlign="right"
@@ -195,14 +260,12 @@ export function ExpenseSheet({
       </View>
 
       {/* An expense records money already spent, so the calendar stops at
-          today and the three shortcuts point backwards. This sheet never had
-          them before -- the receipt in his hand is almost always today's or
-          yesterday's, and now that costs one tap and no grid at all. */}
+          today. */}
       <View style={sheetGap}>
         <DateField
           label={t('expense.form.date')}
-          value={date}
-          onChange={(next) => setDate(next ?? today())}
+          value={draft.date}
+          onChange={(next) => setDraft((current) => ({ ...current, date: next ?? today() }))}
           direction="past"
           // **No today/yesterday shortcuts here, by the founder's decision
           // 2026-09-03.** They are right on a spray, which is logged the same
@@ -220,10 +283,13 @@ export function ExpenseSheet({
         <Text style={formStyles.label}>
           {t('expense.form.note')} · {t('common.optional')}
         </Text>
+        {/* Free text and optional. A note is by definition the one-off thing
+            worth saying about this expense, so there is no history to make a
+            grid out of -- the same argument that kept a plot's name typed. */}
         <TextInput
           style={formStyles.input}
-          value={note}
-          onChangeText={setNote}
+          value={draft.note}
+          onChangeText={(note) => setDraft((current) => ({ ...current, note }))}
           editable={!busy}
           placeholder={t('expense.form.notePlaceholder')}
           placeholderTextColor={colors.slate600}
@@ -262,10 +328,7 @@ export function ExpenseSheet({
       {expense?.receiptPath && (
         <Pressable
           style={[viewReceiptButton, sheetGap]}
-          onPress={() => {
-            setViewedReceipt(true);
-            setViewing(true);
-          }}
+          onPress={() => setViewing(true)}
           disabled={busy}
           accessibilityRole="button"
         >
@@ -296,6 +359,15 @@ export function ExpenseSheet({
 }
 
 const sheetGap = { marginTop: 16 };
+const styles = StyleSheet.create({
+  // The box a grid cannot answer, under the grid. Same gap the tiles use, so a
+  // typed answer and a picked one sit the same distance apart -- the shape
+  // TilePicker's own adoption guide shows for a footer.
+  answer: {
+    gap: spacing.s12,
+    marginTop: spacing.s4,
+  },
+});
 const receiptButton = {
   flexDirection: 'row' as const,
   alignItems: 'center' as const,
