@@ -64,6 +64,13 @@ export function ReceiptCapturePanel({
   // 'ocr' as the receipt row's own source, which is not the expense's: this
   // document arrived by being scanned, and the same file attached to a typed
   // expense would be 'manual'.
+  //
+  // **The file here is already compressed and nothing re-compresses it.**
+  // useReceiptScan resized it once, at the picker, before it was ever uploaded —
+  // so what the accountant is filed is byte for byte what the model was shown,
+  // and the resize is paid for once rather than once per upload. See
+  // frontend/mobile/src/lib/receiptImage.ts. The mimeType carried on the state is
+  // the compressed one for the same reason.
   async function attach(expenseId: string): Promise<boolean> {
     if (state.status !== 'done' || farmId === null) return false;
     const { uri, mimeType } = state.image;

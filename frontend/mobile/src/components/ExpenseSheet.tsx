@@ -16,11 +16,13 @@ import {
   t,
   updateExpense,
   useExpenseSuggestions,
+  RECEIPT_JPEG_QUALITY,
   type Expense,
   type ExpenseDraft,
 } from '@yevul/shared';
 import { colors, fonts, fontSize, radius, spacing } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
+import { compressPickedReceipt, type PickedReceipt } from '../lib/receiptImage';
 import { BottomSheet } from './BottomSheet';
 import { DateField } from './DateField';
 import { ReceiptViewer } from './ReceiptViewer';
@@ -91,8 +93,12 @@ export function ExpenseSheet({
   // into draft.name, so there is no second state to keep in step and no confirm
   // tap between typing a name and saving the expense.
   const [adding, setAdding] = useState(false);
-  const [pickedUri, setPickedUri] = useState<string | null>(null);
-  const [pickedMime, setPickedMime] = useState<string>('image/jpeg');
+  // **One value and not a uri beside a mime type**, because compression replaces
+  // both at once: a resized receipt leaves the manipulator as a new file *and*
+  // as image/jpeg, and two states updated one after the other are two states
+  // that can be read half-swapped. It also makes the "is this still the file he
+  // chose" check below a single comparison.
+  const [picked, setPicked] = useState<PickedReceipt | null>(null);
   // The viewer takes over the sheet rather than opening a second one. The form
   // state above stays exactly as he left it, because this component never
   // unmounts while he is looking at the document.
@@ -125,22 +131,47 @@ export function ExpenseSheet({
       expense ? expenseDraftFromExpense(expense) : newExpenseDraft(new Date(), defaultPlotId),
     );
     setAdding(false);
-    setPickedUri(null);
+    setPicked(null);
     setViewing(false);
     setStatus('idle');
   }, [visible, expense, defaultPlotId]);
 
+  // **Compressed here, at the picker, and not at the upload below.** The other
+  // two receipt paths do the same at the same moment, so the rule across the app
+  // is one rule: a picked receipt is already a resized JPEG by the time anything
+  // holds it. See frontend/mobile/src/lib/receiptImage.ts.
+  //
+  // A resize that fails hands the original back rather than throwing, so the
+  // farmer never loses a receipt to it — he only waits longer for it to upload.
   async function onPickImage() {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      quality: 0.7,
+      // Re-encodes at this quality and keeps the full 12MP raster. The resize is
+      // the other half and the larger one; both are kept.
+      quality: RECEIPT_JPEG_QUALITY,
       allowsEditing: false,
     });
     if (result.canceled) return;
     const asset = result.assets[0];
     if (!asset) return;
-    setPickedUri(asset.uri);
-    setPickedMime(asset.mimeType ?? 'image/jpeg');
+
+    // **Held first, swapped second, and that ordering is the whole point.** The
+    // resize is a native decode of a 12MP frame and takes long enough on an old
+    // phone that a farmer who attaches last and saves immediately can get in
+    // front of it. Setting the original now means the tick appears the instant he
+    // is back from the gallery, and the worst case is that he saves before the
+    // swap and uploads the uncompressed file — which is exactly what the resize
+    // failing does, and exactly what shipped before this. Holding the state back
+    // until the resize finished would have made that same race drop the receipt
+    // in silence.
+    const original: PickedReceipt = { uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg' };
+    setPicked(original);
+
+    const compressed = await compressPickedReceipt(asset);
+    // Only if he has not picked something else, or closed the sheet, in the
+    // meantime. Without this a slow resize of an abandoned photograph would
+    // land on top of the one he actually chose.
+    setPicked((current) => (current === original ? compressed : current));
   }
 
   async function onSave() {
@@ -163,12 +194,16 @@ export function ExpenseSheet({
       return;
     }
 
-    if (pickedUri) {
+    if (picked) {
       // **arrayBuffer() and not blob().** React Native's Blob is a handle to
       // bytes held natively, which supabase-js cannot read, so uploading one
       // sends nothing at all and fails silently. See attachReceipt.
-      const bytes = await fetch(pickedUri).then((r) => r.arrayBuffer());
-      await attachReceipt(supabase, farmId, result.id, bytes, pickedMime);
+      //
+      // The uri read here is already the compressed file, and the mime beside it
+      // is the compressed one, so the extension attachReceipt derives matches the
+      // bytes it stores. See onPickImage.
+      const bytes = await fetch(picked.uri).then((r) => r.arrayBuffer());
+      await attachReceipt(supabase, farmId, result.id, bytes, picked.mimeType);
     }
 
     onSaved();
@@ -303,15 +338,15 @@ export function ExpenseSheet({
         disabled={busy}
         accessibilityRole="button"
       >
-        {pickedUri || expense?.receiptPath ? (
+        {picked || expense?.receiptPath ? (
           <CircleCheckBig size={18} strokeWidth={2} color={colors.field700} />
         ) : (
           <CameraIcon size={18} strokeWidth={2} color={colors.slate600} />
         )}
         <Text
-          style={[receiptButtonText, (pickedUri || expense?.receiptPath) && receiptButtonTextDone]}
+          style={[receiptButtonText, (picked || expense?.receiptPath) && receiptButtonTextDone]}
         >
-          {pickedUri
+          {picked
             ? t('expense.form.receiptAttached')
             : expense?.receiptPath
               ? t('expense.form.receiptReplace')

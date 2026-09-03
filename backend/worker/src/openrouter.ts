@@ -94,8 +94,10 @@ export type AudioFormat = (typeof AUDIO_FORMATS)[number];
 //
 //   HEIC/HEIF  What an iPhone stores natively when a file is picked rather than
 //              captured. Support is uneven across providers, and the fix belongs
-//              on the client anyway — the next roadmap item is client side image
-//              compression, which re-encodes to JPEG on the way out.
+//              on the client, where it now is: the compression step re-encodes
+//              every resized receipt to JPEG on the way out, so this endpoint
+//              sees a HEIC only when that resize failed. See
+//              RECEIPT_COMPRESSED_MIME_TYPE in packages/shared/src/receiptImage.ts.
 //   PDF        Not an image at all. OpenRouter takes a PDF through a different
 //              content part and a separately priced document parsing plugin,
 //              billed per page, which is a second cost model rather than one

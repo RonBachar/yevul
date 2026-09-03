@@ -4,12 +4,14 @@ import {
   cameraPermissionDecision,
   deviceToday,
   requestReceiptExtraction,
+  RECEIPT_JPEG_QUALITY,
   RECEIPT_MESSAGE_KEYS,
   type ReceiptFailure,
   type ReceiptNextStep,
   type ReceiptSuccess,
 } from '@yevul/shared';
 import { createReceiptFetch } from '../lib/aiTransport';
+import { compressPickedReceipt, type PickedReceipt } from '../lib/receiptImage';
 
 // The camera, stage 5 step 11, docs/roadmap.md: "OCR לקבלות, אותו Worker, אותה
 // מכסה חודשית משותפת עם הקול".
@@ -35,8 +37,10 @@ import { createReceiptFetch } from '../lib/aiTransport';
 //
 // **2. Nothing here is time-limited, so there is no tick and no cap.** A
 // recording has a two-minute ceiling because bytes scale with seconds. A
-// photograph is one file; the only ceiling is the endpoint's 8MB, and that is
-// answered with a 413 the farmer can act on.
+// photograph is one file, and it is resized on the way out (../lib/receiptImage.ts)
+// so that the endpoint's 8MB is out of reach on every path but the fallback.
+// That ceiling is still there, and it is still answered with a 413 the farmer
+// can act on.
 //
 // **3. The picked file is kept after the upload succeeds.** The recording is
 // finished with once it has been sent — the record is what matters and the audio
@@ -46,10 +50,11 @@ import { createReceiptFetch } from '../lib/aiTransport';
 // the row. `done` therefore carries the image alongside the extraction.
 // ============================================================
 
-// What the picker handed back, kept so the same file can be attached to the
-// expense after it is written. The uri is a local file:// path; the mime is what
-// attachReceipt turns into the storage extension.
-export type PickedReceipt = { uri: string; mimeType: string };
+// What the picker handed back **after compression**, kept so the same file can
+// be attached to the expense after it is written. Declared in
+// frontend/mobile/src/lib/receiptImage.ts, which is where the compression
+// happens, and re-exported here because it is part of this hook's state.
+export type { PickedReceipt };
 
 export type ReceiptScanState =
   | { status: 'idle' }
@@ -75,14 +80,14 @@ export type ReceiptScanController = {
   reset: () => void;
 };
 
-// **0.7, the same as the receipt ExpenseSheet already attaches.** The picker
-// re-encodes at this quality, which is the only compression in the pipeline
-// today — client-side compression is the next roadmap item and this is not it.
-// Lower would start eating the small print on a thermal till receipt, which is
-// the one thing the model has to read; higher would push an ordinary photograph
-// towards the endpoint's 8MB ceiling for no gain, since the provider downsamples
-// to a fixed tile budget before looking at it.
-const IMAGE_QUALITY = 0.7;
+// **0.7, and it is no longer the only compression in the pipeline.** The picker
+// re-encodes at this quality and hands back the full 12MP raster; the resize
+// that follows in ../lib/receiptImage.ts is what takes the pixel count down, and
+// the pixel count is where the bytes are. Both are kept because they are two
+// different savings, and the quality is deliberately unchanged so that the one
+// receipt measured in the bucket stays a usable baseline — see
+// RECEIPT_JPEG_QUALITY in packages/shared/src/receiptImage.ts.
+const IMAGE_QUALITY = RECEIPT_JPEG_QUALITY;
 
 // **No crop step.** allowsEditing puts a mandatory framing screen between the
 // shutter and the result on both platforms, and the endpoint reads a whole
@@ -268,12 +273,27 @@ export function useReceiptScan({
       return;
     }
 
-    // **image/jpeg is the fallback and not a claim.** The endpoint reads the
-    // real format off the magic bytes and answers 400 unsupported_format if it
-    // cannot, so a wrong guess here cannot mislabel what is scanned. What it
-    // does decide is the extension attachReceipt stores the file under, which is
-    // why it is carried forward rather than re-guessed at attach time.
-    await upload(attempt, { uri: asset.uri, mimeType: asset.mimeType ?? 'image/jpeg' });
+    // **Compressed once, here, before anything is uploaded.** What comes back is
+    // carried through the whole scan: it is the body the Worker reads and, after
+    // the farmer confirms, the file ReceiptCapturePanel attaches to the expense.
+    // Doing it at the picker rather than at each upload is what stops the model
+    // reading one image and the accountant filing another. It also decides the
+    // mime type — a resized receipt leaves as image/jpeg, which is what settles
+    // an iPhone HEIC the endpoint would otherwise refuse — so nothing downstream
+    // re-guesses it.
+    //
+    // It cannot throw and it cannot lose the photograph: a resize that fails
+    // hands the original straight back. See compressPickedReceipt.
+    const image = await compressPickedReceipt(asset);
+
+    // The resize is a native decode and re-encode of a 12MP frame, so it is the
+    // longest gap in this function and a sheet closed across it must not go on
+    // to spend a scan. Same check the picker's own return gets, for the same
+    // reason, and it deliberately commits nothing: teardown has already released
+    // the press guard.
+    if (!aliveRef.current || attemptRef.current !== attempt) return;
+
+    await upload(attempt, image);
   }
 
   // **The teardown.** Closing the sheet and unmounting are the same event as far

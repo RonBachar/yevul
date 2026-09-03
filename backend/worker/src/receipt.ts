@@ -68,24 +68,34 @@ import { detectImageFormat, extractReceipt, type FetchLike, type ImageFormat } f
 // bounded by that flat per-image token cost and by the monthly quota, so raising
 // the byte cap does not raise the ceiling on what a farm can spend.
 //
-// **8MB, chosen against what will actually arrive.** Client side image
-// compression is the *next* roadmap item and does not exist yet, so what reaches
-// this endpoint is an uncompressed photograph straight off a phone. A 12MP
-// JPEG, which is what expo-image-picker returns on default settings on both
-// platforms, is roughly 2 to 5MB; a flagship shooting at a higher resolution can
-// reach 8. Capping at 4MB the way voice does would reject a real photograph of a
-// real receipt today, and would keep doing so until the compression step lands —
-// i.e. it would make the feature look broken for a reason the farmer cannot see
-// or fix.
+// **8MB, and it is a ceiling on what this Worker can hold rather than on what a
+// receipt should weigh.** This handler holds the bytes, then a base64 string
+// about a third larger, then that string again inside the JSON request body:
+// roughly 3.5x the upload, so about 30MB at the cap, comfortably inside a
+// Worker's 128MB. At 32MB it would not be.
 //
-// The other side of the number is the Worker. This handler holds the bytes, then
-// a base64 string about a third larger, then that string again inside the JSON
-// request body: roughly 3.5x the upload, so about 30MB at the cap, comfortably
-// inside a Worker's 128MB. At 32MB it would not be.
+// **Client side compression has now shipped, and the number deliberately did not
+// move.** The client resizes to 1600 pixels on the long edge before uploading
+// (packages/shared/src/receiptImage.ts), which puts an ordinary receipt in the
+// low hundreds of kilobytes — two orders of magnitude under this. An earlier
+// version of this comment said the cap should come back down once that landed.
+// It should not, and the reason is that compression is best effort on a device
+// we do not control:
 //
-// **Once compression ships, this should come back down.** An image that arrives
-// above 8MB after that step is a client that failed to compress, and 413 with
-// its own reason code is what says so.
+//   - the resize can fail, and when it does the client deliberately uploads the
+//     original rather than losing the farmer's receipt (see compressedOrOriginal);
+//   - a phone in the field runs whatever build it last updated to, and this
+//     audience does not update promptly, so an uncompressed client is a client
+//     that exists for months after the compressed one ships;
+//   - the ceiling is not a cost control in the first place. The provider resizes
+//     an image to a fixed tile budget before charging for it, so a 2MB and an 8MB
+//     photograph of the same receipt cost within a rounding error of each other.
+//     Tightening this saves nothing.
+//
+// So lowering it would convert the fallback path from "slower and heavier" into
+// "refused", and it would refuse hardest on the oldest phone — the one most
+// likely to have failed the resize in the first place. 413 stays what it always
+// was: the last line of defence, not the normal path.
 const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 
 // ============================================================

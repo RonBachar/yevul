@@ -14,6 +14,7 @@ import {
   type Expense,
   type ExpenseDraft,
 } from '@yevul/shared';
+import { compressReceiptFile } from '../lib/receiptImage';
 import { DateField } from './DateField';
 import { Modal } from './Modal';
 import { ReceiptViewer } from './ReceiptViewer';
@@ -271,7 +272,32 @@ export function ExpenseSheet({
             type="file"
             accept="image/*,application/pdf"
             disabled={busy}
-            onChange={(e) => setPickedFile(e.target.files?.[0] ?? null)}
+            // **Compressed at the input and not at the submit**, the rule both
+            // clients follow: the resize happens while he is still filling the
+            // form rather than adding to the wait after he presses save.
+            //
+            // **Held first, swapped second.** A canvas resize of a 40MB flatbed
+            // scan is not instant, and the file input is the last field before
+            // the submit button, so somebody who attaches and immediately saves
+            // can get in front of it. Setting the chosen file now means the
+            // worst case is that the original uploads — which is what happens
+            // when the canvas fails anyway — instead of the receipt being
+            // silently dropped because state was still null.
+            //
+            // The swap is conditional for the case where he changes his mind
+            // twice: a slow resize of the file he abandoned must not land on top
+            // of the one he actually wants.
+            //
+            // A PDF invoice passes through untouched and so does anything the
+            // canvas cannot read. compressReceiptFile never throws.
+            onChange={(e) => {
+              const chosen = e.target.files?.[0] ?? null;
+              setPickedFile(chosen);
+              if (chosen === null) return;
+              void compressReceiptFile(chosen).then((compressed) => {
+                setPickedFile((current) => (current === chosen ? compressed : current));
+              });
+            }}
           />
           {!pickedFile && expense?.receiptPath && (
             <p className="form__message form__message--good">{t('expense.form.receiptAttached')}</p>

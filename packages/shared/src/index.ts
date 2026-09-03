@@ -234,6 +234,21 @@ export {
   type ReceiptRow,
   type ReceiptViewResult,
 } from './receiptView';
+// Shrinking a receipt photograph before it is uploaded, stage 5, the last item
+// on the stage. **Nothing here resizes anything** — that is a native module on
+// the phone and a canvas in the browser. What is here is the box a photograph is
+// scaled into, the decision not to touch one that is already small, and the rule
+// that a resize which threw costs the farmer waiting and never the receipt. Both
+// clients call it; neither has a test runner. See the header of receiptImage.ts
+// for where 1600 and 0.7 come from.
+export {
+  compressedOrOriginal,
+  receiptResizeTarget,
+  RECEIPT_COMPRESSED_MIME_TYPE,
+  RECEIPT_JPEG_QUALITY,
+  RECEIPT_MAX_EDGE_PIXELS,
+  type ReceiptResizeTarget,
+} from './receiptImage';
 // Whether the farm is on a paid plan, stage 5 step 11. **Courtesy and never
 // enforcement** — gate.ts refuses an unentitled scan with 403 whatever this
 // says, and `entitled` is null when we do not know. See entitlement.ts.
