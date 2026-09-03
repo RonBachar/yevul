@@ -81,7 +81,7 @@ describe('plotCropOptions', () => {
 
 describe('the steps', () => {
   it('asks the plot fields in form order, then the review', () => {
-    expect(PLOT_STEPS).toEqual(['name', 'area', 'areaUnit', 'crop', 'review']);
+    expect(PLOT_STEPS).toEqual(['name', 'area', 'crop', 'review']);
   });
 
   it('gives every step a distinct question and a distinct field label', () => {
@@ -104,7 +104,7 @@ describe('newPlotDraft', () => {
       area: null,
       areaUnit: null,
       cropName: '',
-      prefilled: ['areaUnit'],
+      prefilled: [],
     });
   });
 
@@ -133,13 +133,15 @@ describe('newPlotDraft', () => {
     expect(previousPlotStep('name', draft)).toBeNull();
   });
 
-  // The unit is reached only by tapping its tile on the review, so it has no
-  // "next" of its own: the review is where it came from and where it goes back
-  // to. Same rule as the spray flow's prefilled plot step.
-  it('sends a step that is not on the walk back to the review', () => {
-    const draft = newPlotDraft();
-    expect(nextPlotStep('areaUnit', draft)).toBe('review');
-    expect(previousPlotStep('areaUnit', draft)).toBeNull();
+  // **The area unit is no longer a step at all.** It was prefilled from the
+  // farm setting and only reachable by tapping its tile on the review, and the
+  // founder's reaction to seeing it there was that the unit is decided once in
+  // settings and has no business being asked per plot. This holds the walk to
+  // the three questions that remain, so the unit cannot creep back in as a
+  // fourth.
+  it('does not ask for the area unit', () => {
+    expect(PLOT_STEPS).not.toContain('areaUnit');
+    expect(newPlotDraft().prefilled).toEqual([]);
   });
 });
 
@@ -151,7 +153,7 @@ describe('plotDraftFromPlot', () => {
       area: 40,
       areaUnit: 'dunam',
       cropName: '',
-      prefilled: ['areaUnit'],
+      prefilled: [],
     });
   });
 

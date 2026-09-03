@@ -1,7 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  AREA_UNITS,
   areaUnitLabelKey,
   createPlot,
   formatArea,
@@ -297,21 +296,6 @@ export function PlotFormScreen() {
           </TypedStep>
         )}
 
-        {step === 'areaUnit' && (
-          // Reached only from the review, because the farm setting already
-          // answered it. A closed set of three, so every value is a square and
-          // there is no "add".
-          <TilePicker
-            id="plot-step-area-unit"
-            title={t(plotStepTitleKey('areaUnit'))}
-            subtitle={subtitle}
-            options={AREA_UNITS.map((value) => ({ value, label: t(areaUnitLabelKey(value)) }))}
-            selectedValue={areaUnit}
-            onSelect={(value) => answered('areaUnit', { ...draft, areaUnit: value as AreaUnit })}
-            disabled={busy}
-          />
-        )}
-
         {step === 'crop' && (
           <TilePicker
             id="plot-step-crop"
@@ -418,11 +402,6 @@ function reviewTiles(draft: PlotDraft, areaUnit: AreaUnit): TileOption[] {
       // and the profit forecast multiplies by it.
       label: draft.area === null ? t('plots.form.notSet') : formatArea(draft.area, areaUnit),
       caption: t(plotStepFieldKey('area')),
-    },
-    {
-      value: 'areaUnit',
-      label: t(areaUnitLabelKey(areaUnit)),
-      caption: t(plotStepFieldKey('areaUnit')),
     },
   ];
 

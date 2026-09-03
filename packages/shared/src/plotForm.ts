@@ -39,13 +39,19 @@
 //              nothing and risks a lot. A number he knows, typed once, in a
 //              decimal keypad.
 //
-//   areaUnit   **Tiles, three of them, and never asked.** AREA_UNITS is a
-//              closed set, so it is a good grid -- but the unit is a farm
-//              setting (settings.area_unit) and not a per-plot choice, so it
-//              already has an answer before the walk starts and the walk skips
-//              it. It is still on the review, still one tap from being changed,
-//              which is exactly what the spray flow does with a dose the farm
-//              already knows. See PlotDraft.prefilled.
+//   areaUnit   **Not a step and not a tile. Removed on the founder's reaction
+//              to seeing it: "why choose dunam or hectare at all, that is set
+//              in the general settings". He is right -- it was on the review as
+//              a tappable tile, and a value the farmer can change per plot is a
+//              question whether or not it is prefilled.
+//
+//              The column still exists and is still written, because it has to
+//              be: a plot measured in hectares means nothing if the farm later
+//              switches to dunam, so plots.area_unit records the unit the number
+//              was measured in. A new plot takes the farm setting; an edit
+//              carries the plot's own unit through untouched. Nobody is asked,
+//              and the review shows the area with its unit in one line, which is
+//              the only place the unit was ever informative.
 //
 //   crop       **Tiles, from the farm's own crop history.** This is the case
 //              useSpraySuggestions established: a farm grows a handful of
@@ -96,16 +102,15 @@ export function plotCropOptions(
 // The walk.
 // ============================================================
 
-export type PlotStep = 'name' | 'area' | 'areaUnit' | 'crop' | 'review';
+export type PlotStep = 'name' | 'area' | 'crop' | 'review';
 
-export const PLOT_STEPS: readonly PlotStep[] = ['name', 'area', 'areaUnit', 'crop', 'review'];
+export const PLOT_STEPS: readonly PlotStep[] = ['name', 'area', 'crop', 'review'];
 
 // The question over each grid. These are questions and not field labels: "what
 // is the plot called", not "name".
 const PLOT_STEP_TITLE_KEYS: Record<PlotStep, string> = {
   name: 'plots.form.step.name',
   area: 'plots.form.step.area',
-  areaUnit: 'plots.form.step.areaUnit',
   crop: 'plots.form.step.crop',
   review: 'plots.form.step.review',
 };
@@ -121,7 +126,6 @@ export function plotStepTitleKey(step: PlotStep): string {
 const PLOT_STEP_FIELD_KEYS: Record<PlotStep, string> = {
   name: 'plots.form.name',
   area: 'plots.form.area',
-  areaUnit: 'settings.areaUnit',
   crop: 'plots.form.cropName',
   review: 'plots.form.step.review',
 };
@@ -178,7 +182,7 @@ export function newPlotDraft(): PlotDraft {
     area: null,
     areaUnit: null,
     cropName: '',
-    prefilled: ['areaUnit'],
+    prefilled: [],
   };
 }
 
@@ -197,7 +201,7 @@ export function plotDraftFromPlot(plot: Plot): PlotDraft {
     // edited from the plot's own screen, and the old form hid it on an edit for
     // exactly that reason -- see plotVisibleSteps.
     cropName: '',
-    prefilled: ['areaUnit'],
+    prefilled: [],
   };
 }
 

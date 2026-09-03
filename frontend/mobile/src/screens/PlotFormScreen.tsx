@@ -5,7 +5,6 @@ import { useNavigation, useRoute, type RouteProp } from '@react-navigation/nativ
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import {
-  AREA_UNITS,
   areaUnitLabelKey,
   createPlot,
   formatArea,
@@ -329,20 +328,6 @@ export function PlotFormScreen() {
         </TypedStep>
       ) : null}
 
-      {step === 'areaUnit' ? (
-        // Reached only from the review, because the farm setting already
-        // answered it. A closed set of three, so every value is a square and
-        // there is no "add".
-        <TilePicker
-          title={t(plotStepTitleKey('areaUnit'))}
-          subtitle={subtitle}
-          options={AREA_UNITS.map((value) => ({ value, label: t(areaUnitLabelKey(value)) }))}
-          selectedValue={areaUnit}
-          onSelect={(value) => answered('areaUnit', { ...draft, areaUnit: value as AreaUnit })}
-          disabled={busy}
-        />
-      ) : null}
-
       {step === 'crop' ? (
         <TilePicker
           title={t(plotStepTitleKey('crop'))}
@@ -439,11 +424,6 @@ function reviewTiles(draft: PlotDraft, areaUnit: AreaUnit): TileOption[] {
       // and the profit forecast multiplies by it.
       label: draft.area === null ? t('plots.form.notSet') : formatArea(draft.area, areaUnit),
       caption: t(plotStepFieldKey('area')),
-    },
-    {
-      value: 'areaUnit',
-      label: t(areaUnitLabelKey(areaUnit)),
-      caption: t(plotStepFieldKey('areaUnit')),
     },
   ];
 
