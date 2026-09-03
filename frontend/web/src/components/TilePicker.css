@@ -1,0 +1,131 @@
+/*
+  Picking one value out of a grid of large squares, two to a row. The browser
+  half of frontend/mobile/src/components/TilePicker.tsx, and deliberately its
+  twin: the same two columns, the same dashed "add a new one" square, and the
+  same Field-700 on Field-100 that every made choice in this app is drawn with.
+
+  **The square is a real square here too, and CSS can simply say so.** The
+  mobile component has to measure its row and hand both dimensions the same
+  number, because a wrapping flex row stretches its children to the tallest one
+  and throws the aspect ratio away. `aspect-ratio: 1` on a grid item has no
+  such problem, so this is the one place where the web is allowed to be simpler
+  than the phone rather than a copy of its workaround.
+
+  **The grid is capped rather than filling the column.** Two of `1fr` inside the
+  520px form column would make each square 254px tall, which is not a button any
+  more, it is a panel. Capping the grid keeps the founder's "two to a row" at
+  every width while keeping the square the size of a square.
+*/
+
+.tile-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-12);
+}
+
+.tile-picker__heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+/* The question, not a field label. One per screen, so it carries the weight a
+   screen title carries elsewhere rather than the weight of .form__label. */
+.tile-picker__title {
+  margin: 0;
+  font-size: var(--text-subheading);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink-900);
+}
+
+.tile-picker__subtitle {
+  font-size: var(--text-caption);
+  color: var(--color-slate-600);
+}
+
+/* What stops "no options plus one add button" from reading as a broken screen:
+   the sentence that explains the grid will fill up. */
+.tile-picker__empty {
+  font-size: var(--text-body-sm);
+  color: var(--color-slate-600);
+}
+
+.tile-picker__grid {
+  display: grid;
+  max-width: 420px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-12);
+}
+
+.tile-picker__tile {
+  display: flex;
+  /* A real square. Never below the 64pt primary touch target, whatever the
+     column does. */
+  aspect-ratio: 1;
+  min-height: var(--touch-primary);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--spacing-12);
+  gap: var(--spacing-4);
+  /* Two pixels always, so selecting a tile changes colour and never the
+     layout. A border that grows on selection nudges every tile after it. */
+  border: 2px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-paper);
+  color: var(--color-ink-900);
+  font-family: inherit;
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-bold);
+  text-align: center;
+  cursor: pointer;
+}
+
+.tile-picker__tile--active {
+  border-color: var(--color-field-700);
+  background: var(--color-field-100);
+  color: var(--color-field-700);
+}
+
+/* Dashed, so "add a new one" is visibly a different kind of square from the
+   ones holding values he has used before. */
+.tile-picker__tile--action {
+  border-style: dashed;
+  background: var(--color-mist-100);
+  color: var(--color-field-700);
+}
+
+.tile-picker__tile:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.tile-picker__tile:focus-visible {
+  outline: 3px solid var(--color-ink-900);
+  outline-offset: 2px;
+}
+
+/* A second, smaller line under the label, used on the review screen to say
+   which field a value belongs to. */
+.tile-picker__caption {
+  font-size: var(--text-caption);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-slate-600);
+}
+
+/* A word under a typed box saying what the number will be stored as. Small and
+   quiet: it is context for the field above it, not a second label. */
+.tile-picker__hint {
+  font-size: var(--text-caption);
+  color: var(--color-slate-600);
+}
+
+/* The block a typed answer sits in: the box, its unit and the button that
+   accepts them. Same gap as the grid, so a typed step and a picked step put
+   their contents the same distance apart. */
+.tile-picker__footer {
+  display: flex;
+  max-width: 420px;
+  flex-direction: column;
+  gap: var(--spacing-12);
+}

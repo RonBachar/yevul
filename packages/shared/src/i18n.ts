@@ -24,6 +24,16 @@ const strings: Record<string, string> = {
   'common.numberPlaceholder': 'הזן מספר',
   'common.optional': 'לא חובה',
   'common.other': 'אחר',
+  // The chrome of a stepped walk: the counter over each question, the button
+  // that accepts a typed answer, and the button that moves on. **No screen
+  // prefix**, for the reason the calendar words below carry none -- they belong
+  // to the tile pattern rather than to one flow, and the plot walk is the second
+  // flow to need them. The spray walk still reads its own spray.stepOf and
+  // spray.confirm; folding those two into these is a one-line change to make
+  // the next time that screen is opened.
+  'common.stepOf': 'מתוך',
+  'common.confirm': 'אישור',
+  'common.continue': 'המשך',
 
   // The calendar, packages/shared/src/calendar.ts. **No screen prefix, on
   // purpose.** These are the words "today", "yesterday" and "the day before"
@@ -267,6 +277,25 @@ const strings: Record<string, string> = {
   'plots.form.cropNameRequired': 'שם הגידול לא יכול להיות ריק',
   'plots.form.forbidden': 'אין לכם הרשאה ליצור או לערוך חלקות',
   'plots.form.saveError': 'לא הצלחנו לשמור, נסו שוב',
+
+  // The plot walk, one question per screen. Questions and not field labels:
+  // the squares under them are the answer, so the title has to be the thing
+  // being asked. See packages/shared/src/plotForm.ts.
+  'plots.form.step.name': 'איך קוראים לחלקה?',
+  'plots.form.step.area': 'מה גודל החלקה?',
+  'plots.form.step.areaUnit': 'באילו יחידות מודדים?',
+  'plots.form.step.crop': 'מה גדל בחלקה?',
+  'plots.form.step.review': 'בדקו ושמרו',
+  'plots.form.addCrop': 'גידול חדש',
+  // The first run on a brand new farm: the crop grid is empty, and this is the
+  // sentence that stops "no squares plus one dashed square" from reading as a
+  // broken screen.
+  'plots.form.emptyCrops': 'עדיין לא רשמתם גידולים. הוסיפו את הראשון והוא יופיע כאן בפעם הבאה.',
+  // plots.area is nullable and always was, so walking past the question has to
+  // be an option on the screen rather than an empty box the farmer guesses at.
+  'plots.form.skipArea': 'בלי שטח',
+  'plots.form.notSet': 'לא הוזן',
+  'plots.form.areaInvalid': 'השטח חייב להיות מספר, למשל 40',
 
   // משימות, רשימה ולוח
   'tasks.new': 'משימה חדשה',

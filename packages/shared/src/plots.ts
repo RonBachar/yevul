@@ -3,6 +3,10 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { currentFarmQuery } from './currentFarm';
 import { formatAmount, formatArea, formatNumber, yieldRateUnitLabel } from './format';
 import { t } from './i18n';
+// The one cap-and-dedupe rule the crop grid shares with the spray grids. See
+// useCropSuggestions below; plotForm.ts imports only *types* back from here, so
+// there is no import cycle at run time.
+import { plotCropOptions } from './plotForm';
 import { writeOutcome } from './postgrest';
 import { useLoadCount } from './refresh';
 import type { AreaUnit, Currency } from './settings';
@@ -341,6 +345,66 @@ export function usePlots(supabase: SupabaseClient): PlotsListState {
   }, [supabase, tick, settle]);
 
   return { loading, failed, farmId, plots, refresh, loadCount };
+}
+
+// ============================================================
+// The crops this farm has grown, for the tile grid on the plot form.
+//
+// **useSpraySuggestions' twin, and it rests on the same argument.** prd.md
+// section 8 asks for the spray material and pest to be suggested out of the
+// farm's history so that they are not typed again every time. A crop is the
+// same kind of value: a farm grows a handful of things and has grown them
+// before. The founder's sketch says it in his own words -- "this screen fills
+// up slowly according to what the farmer chose" -- and that is what turns the
+// crop from a text box into a grid of squares.
+//
+// **crop_cycles_view and not usePlots.** usePlots already carries a crop name
+// per plot, but only the *current* cycle of each, so a crop from an earlier
+// season would fall off the grid the moment its plot was replanted. This is the
+// farm's whole crop history instead. It reads the view and not the table for
+// the reason createPlot writes without a select(): the client has no SELECT on
+// crop_cycles at all, so that the role masking on the forecast columns cannot
+// be walked around.
+//
+// Fifty rows, newest first, exactly like the spray query: enough that a real
+// farm's whole vocabulary is in there, capped so the request stays small.
+// ============================================================
+
+export type CropSuggestions = { crops: string[] };
+
+const EMPTY_CROP_SUGGESTIONS: CropSuggestions = { crops: [] };
+
+export function useCropSuggestions(
+  supabase: SupabaseClient,
+  farmId: string | null,
+): CropSuggestions {
+  const [suggestions, setSuggestions] = useState<CropSuggestions>(EMPTY_CROP_SUGGESTIONS);
+
+  useEffect(() => {
+    let active = true;
+    if (!farmId) {
+      setSuggestions(EMPTY_CROP_SUGGESTIONS);
+      return;
+    }
+
+    void supabase
+      .from('crop_cycles_view')
+      .select('name')
+      .eq('farm_id', farmId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data }) => {
+        if (!active) return;
+        const rows = (data ?? []) as { name: string | null }[];
+        setSuggestions({ crops: plotCropOptions(rows.map((row) => row.name)) });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [supabase, farmId]);
+
+  return suggestions;
 }
 
 // ============================================================

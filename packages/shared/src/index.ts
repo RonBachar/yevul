@@ -101,6 +101,7 @@ export {
 export {
   usePlots,
   usePlotDetail,
+  useCropSuggestions,
   plotSummaryLine,
   expectedYieldDisplay,
   expectedPriceDisplay,
@@ -128,7 +129,41 @@ export {
   type UpdateCropCycleResult,
   type UpdateForecastInput,
   type UpdateForecastResult,
+  type CropSuggestions,
 } from './plots';
+// Adding and editing a plot as a walk through tiles, the second screen on the
+// pattern the founder approved on a device. Pure policy: which crops the grid
+// offers and where they come from, which steps are asked at all, which unit a
+// plot ends up carrying, what stops the save, and what the picked values become
+// for createPlot and updatePlot. Here rather than in the two screens because
+// neither client has a test runner. See the header of plotForm.ts, which also
+// records, field by field, what became a tile and what stayed typed.
+export {
+  plotCropOptions,
+  plotStepTitleKey,
+  plotStepFieldKey,
+  plotStepRequired,
+  plotAreaUnit,
+  newPlotDraft,
+  plotDraftFromPlot,
+  plotVisibleSteps,
+  nextPlotStep,
+  previousPlotStep,
+  plotStepPosition,
+  parsePlotAreaInput,
+  plotAreaInputText,
+  plotFormBlocker,
+  plotCreateInput,
+  plotUpdateInput,
+  PLOT_STEPS,
+  PLOT_CROP_TILE_LIMIT,
+  PLOT_AREA_UNIT_FALLBACK,
+  PLOT_BLOCKER_MESSAGE_KEYS,
+  type PlotStep,
+  type PlotDraft,
+  type PlotFormMode,
+  type PlotFormBlocker,
+} from './plotForm';
 export {
   useTasks,
   createTask,
