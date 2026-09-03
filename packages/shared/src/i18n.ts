@@ -367,6 +367,9 @@ const strings: Record<string, string> = {
   'spray.addDose': 'מינון אחר',
   'spray.addPhiDays': 'מספר אחר',
   'spray.addDate': 'תאריך אחר',
+  'spray.date.today': 'היום',
+  'spray.date.yesterday': 'אתמול',
+  'spray.date.dayBefore': 'שלשום',
   'spray.skipDose': 'בלי מינון',
   // "לא ידוע" ולא "בלי המתנה". אלה שני דברים שונים: חומר שמותר לקטוף
   // אחריו מיד הוא 0 ימים, וחקלאי שלא יודע כמה להמתין הוא היעדר נתון.

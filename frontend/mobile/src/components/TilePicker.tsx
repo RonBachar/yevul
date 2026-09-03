@@ -195,6 +195,13 @@ const styles = StyleSheet.create({
   },
   tile: {
     width: '48%',
+    // **Square, by founder's decision 2026-09-03: "קוביות".** aspectRatio and
+    // not a fixed height, because the width is a percentage of whatever the
+    // sheet gives us and a hardcoded height would only be square on one phone.
+    // minHeight stays underneath as the floor: aspectRatio is resolved from the
+    // measured width, and on a very narrow screen half of it could otherwise
+    // fall below the touch minimum.
+    aspectRatio: 1,
     minHeight: touchTarget.primary,
     alignItems: 'center',
     justifyContent: 'center',

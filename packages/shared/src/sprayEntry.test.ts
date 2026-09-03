@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createLogEntry, type LogEntry } from './logEntries';
+import { t } from './i18n';
 import { safeHarvestDate } from './safeHarvestDate';
 import {
   applySprayMaterial,
@@ -486,5 +487,23 @@ describe('parseSprayPhiDaysInput', () => {
 
   it('accepts a same-day material as zero days rather than as no answer', () => {
     expect(parseSprayPhiDaysInput('0')).toBe(0);
+  });
+});
+
+// **The bug this locks out shipped, and the existing tests did not catch it.**
+// sprayDateOptions returns label *keys*, the tests asserted those keys, and
+// nobody had put them in the string table -- so the farmer's screen read
+// "spray.date.today" where it should have said "היום". Asserting the key is
+// asserting that the code agrees with itself. This asserts it against the
+// table the user actually reads, which is the only assertion that would have
+// failed.
+describe('spray entry, every generated label key has Hebrew behind it', () => {
+  it('resolves the date tile labels to real words', () => {
+    const now = new Date(2026, 8, 3, 10, 0, 0);
+    for (const option of sprayDateOptions(now)) {
+      expect(t(option.labelKey), `${option.labelKey} is missing from i18n`).not.toBe(
+        option.labelKey,
+      );
+    }
   });
 });
