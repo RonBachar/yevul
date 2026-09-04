@@ -1,0 +1,177 @@
+/* חברי המשק, מדור במסך ההגדרות. קו מפריד למעלה כדי להפריד אותו מטופס
+   ההגדרות שמעליו. תגי התפקיד לפי design.md, בלוק Sharing, Role Badge. */
+
+.members {
+  margin-top: var(--spacing-32);
+  padding-top: var(--spacing-24);
+  border-top: 1px solid var(--color-mist-200);
+}
+
+.members__title {
+  margin: 0 0 var(--spacing-16);
+  font-size: var(--text-subheading);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink-900);
+}
+
+.members__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-12);
+}
+
+.members__row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-12);
+  min-height: var(--touch-min);
+}
+
+/* אווטר ראשי תיבות, design.md: 32px, Field-100, ראשי תיבות ב-Field-700. */
+.members__avatar {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  background: var(--color-field-100);
+  color: var(--color-field-700);
+  font-size: var(--text-caption);
+  font-weight: var(--font-weight-bold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  direction: ltr;
+}
+
+.members__identity {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.members__email {
+  font-size: var(--text-body-sm);
+  color: var(--color-ink-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: ltr;
+  text-align: right;
+}
+
+.members__pending {
+  font-size: var(--text-caption);
+  color: var(--color-slate-600);
+}
+
+/* תג תפקיד, design.md: בעלים Field-100/Field-700, שותף Mist-200/Ink-900,
+   עובד Mist-200/Slate-600. */
+.members__badge {
+  flex: none;
+  padding: 2px var(--spacing-12);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-caption);
+  font-weight: var(--font-weight-bold);
+}
+
+.members__badge--owner {
+  background: var(--color-field-100);
+  color: var(--color-field-700);
+}
+
+.members__badge--manager {
+  background: var(--color-mist-200);
+  color: var(--color-ink-900);
+}
+
+.members__badge--worker {
+  background: var(--color-mist-200);
+  color: var(--color-slate-600);
+}
+
+.members__role-select {
+  flex: none;
+  min-height: var(--touch-min);
+  padding: 0 var(--spacing-12);
+  border: 1px solid var(--color-mist-200);
+  border-radius: var(--radius-input);
+  background: var(--color-paper);
+  color: var(--color-ink-900);
+  font-family: inherit;
+  font-size: var(--text-body-sm);
+}
+
+.members__remove {
+  flex: none;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--color-loss-600);
+  cursor: pointer;
+  border-radius: var(--radius-pill);
+}
+
+.members__remove:hover {
+  background: var(--color-mist-100);
+}
+
+.members__remove:focus-visible {
+  outline: 3px solid var(--color-field-700);
+}
+
+/* טופס ההזמנה, מוצג לבעלים בלבד. */
+.members__invite {
+  margin-top: var(--spacing-24);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+}
+
+.members__invite-title {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink-900);
+}
+
+.members__invite-roles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-12);
+}
+
+.members__invite-role {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: var(--spacing-12);
+  min-height: var(--touch-min);
+  cursor: pointer;
+}
+
+.members__invite-role input[type='radio'] {
+  grid-row: span 2;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--color-field-700);
+  cursor: pointer;
+}
+
+.members__invite-role-label {
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink-900);
+}
+
+.members__invite-role-hint {
+  font-size: var(--text-caption);
+  color: var(--color-slate-600);
+}

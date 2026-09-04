@@ -13,6 +13,7 @@ import {
   type FarmSettingsForm,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
+import { MembersSection } from '../components/MembersSection';
 import '../styles/form.css';
 import './SettingsScreen.css';
 
@@ -179,6 +180,9 @@ export function SettingsScreen() {
           )}
         </div>
       </form>
+
+      {/* שיתוף המשק, שלב 6. ניהול פתוח לבעלים בלבד, האכיפה במסד. */}
+      <MembersSection />
     </div>
   );
 }

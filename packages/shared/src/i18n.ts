@@ -138,6 +138,42 @@ const strings: Record<string, string> = {
   'settings.forbidden': 'אין לכם הרשאה לשנות את הגדרות המשק',
   'settings.nameRequired': 'שם המשק לא יכול להיות ריק',
 
+  // שיתוף המשק, שלב 6, prd.md סעיף 11, design.md בלוק Sharing. שלושה
+  // תפקידים: בעלים רואה ועושה הכל, שותף עושה הכל חוץ מתשלום, עובד רואה
+  // משימות ויומן בלי כספים. ניהול החברים (הזמנה, שינוי תפקיד, הסרה)
+  // מוצג לבעלים בלבד, אבל האכיפה במסד ולא במסך.
+  'members.title': 'חברי המשק',
+  'members.loadError': 'לא הצלחנו לטעון את חברי המשק, נסו שוב',
+  'members.you': 'אני',
+  'members.role.owner': 'בעלים',
+  'members.role.manager': 'שותף',
+  'members.role.worker': 'עובד',
+  // מוצג ליד תפקיד בבורר ההזמנה, כדי שהבעלים יבין מה כל תפקיד רואה.
+  'members.role.managerHint': 'רואה הכל חוץ מתשלום',
+  'members.role.workerHint': 'רואה משימות ויומן, בלי כספים',
+  'members.status.invited': 'ממתין לכניסה',
+  'members.remove': 'הסרה',
+  'members.removeConfirmTitle': 'להסיר את החבר מהמשק?',
+  'members.removeInviteConfirmTitle': 'לבטל את ההזמנה?',
+  'members.removeConfirm': 'הסרה',
+  'members.cancel': 'ביטול',
+  'members.removeForbidden': 'רק בעלים יכול להסיר חברים',
+  'members.removeError': 'לא הצלחנו להסיר, נסו שוב',
+  'members.roleForbidden': 'רק בעלים יכול לשנות תפקיד',
+  'members.roleError': 'לא הצלחנו לשנות תפקיד, נסו שוב',
+  // הזמנה. הצלחה מסבירה את מנגנון הצירוף: אין מייל שנשלח, המוזמן מצטרף
+  // ברגע שהוא נכנס עם אותו אימייל. החלטת היזם 2026-09-04.
+  'members.invite.title': 'הזמנת חבר',
+  'members.invite.emailPlaceholder': 'אימייל של מי שמזמינים',
+  'members.invite.role': 'תפקיד',
+  'members.invite.submit': 'שליחת הזמנה',
+  'members.invite.sending': 'שולח',
+  'members.invite.success': 'ההזמנה נוספה. ברגע שהם ייכנסו עם האימייל הזה, הם יצטרפו למשק.',
+  'members.invite.invalidEmail': 'צריך להזין אימייל תקין',
+  'members.invite.duplicate': 'האימייל הזה כבר מוזמן',
+  'members.invite.forbidden': 'רק בעלים יכול להזמין אנשים',
+  'members.invite.error': 'לא הצלחנו לשלוח את ההזמנה, נסו שוב',
+
   'settings.currency.ILS': 'שקל חדש (₪)',
   'settings.currency.USD': 'דולר אמריקאי ($)',
   'settings.currency.EUR': 'אירו (€)',
