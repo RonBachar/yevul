@@ -36,4 +36,21 @@ describe('completionPromptVisibility', () => {
       showPrompt: true,
     });
   });
+
+  // Worker Mode, שלב 6: חצי ההוצאה לעולם לא נורה, חצי היומן כן.
+  it('drops the expense half for a worker but keeps the journal half', () => {
+    expect(completionPromptVisibility(true, true, true)).toEqual({
+      showJournal: true,
+      showExpense: false,
+      showPrompt: true,
+    });
+  });
+
+  it('shows nothing to a worker whose only enabled toggle is the expense one', () => {
+    expect(completionPromptVisibility(false, true, true)).toEqual({
+      showJournal: false,
+      showExpense: false,
+      showPrompt: false,
+    });
+  });
 });

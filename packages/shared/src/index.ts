@@ -61,6 +61,18 @@ export {
   type CurrentFarm,
   type CurrentFarmState,
 } from './currentFarm';
+// Worker Mode, שלב 6. useMyRole מחזיר את התפקיד שלי במשק, ו-workerModeShell
+// הוא כל החלטת המעטפת במקום אחד, טהור ובדיק. האכיפה עצמה במסד (RLS
+// ומיסוך view), כאן רק לא מציגים לעובד מעטפת כסף. ראה members.ts.
+export {
+  useMyRole,
+  workerModeShell,
+  type FarmRole,
+  type MyRoleState,
+  type WorkerModeShell,
+  type CaptureKind,
+  type PlotDetailTab,
+} from './members';
 export { writeOutcome, type WriteOutcome } from './postgrest';
 // Pull-to-refresh. The rule lives here, away from React, because the mobile
 // app has no test runner; only the wiring stays on the device. useLoadCount is

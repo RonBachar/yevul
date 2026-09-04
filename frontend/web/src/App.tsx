@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { t } from '@yevul/shared';
+import { t, useMyRole, workerModeShell } from '@yevul/shared';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
+import { supabase } from './lib/supabase';
 import { LoginScreen } from './screens/LoginScreen';
 import { AppShell } from './shell/AppShell';
 import { HomeScreen } from './screens/HomeScreen';
@@ -26,6 +27,20 @@ function Gate() {
     return <LoginScreen />;
   }
 
+  return <AuthedRoutes />;
+}
+
+// הניתובים של המשתמש המאומת. useMyRole נקרא כאן ולא ב-Gate, אחרי בדיקת
+// הסשן, כדי שההוק לא ירוץ במסך הכניסה ולא יפר את סדר ההוקים.
+//
+// **Worker Mode, שלב 6, design.md:** לעובד אין יעד "כסף". ה-route עצמו
+// שמור מאחורי שומר תפקיד ולא רק מוסתר מהסרגל: עובד שמקליד /money ידנית
+// מנותב לבית. בזמן שהתפקיד עדיין נטען מציגים טעינה במקום לנתב, כדי שבעל
+// משק שנכנס ישירות ל-/money (סימנייה) לא ייזרק לבית לפני שהתפקיד הוכרע.
+function AuthedRoutes() {
+  const role = useMyRole(supabase);
+  const shell = workerModeShell(role.role, role.loading);
+
   return (
     <Routes>
       <Route element={<AppShell />}>
@@ -34,7 +49,18 @@ function Gate() {
         <Route path="plots/new" element={<PlotFormScreen />} />
         <Route path="plots/:plotId" element={<PlotDetailScreen />} />
         <Route path="plots/:plotId/edit" element={<PlotFormScreen />} />
-        <Route path="money" element={<MoneyScreen />} />
+        <Route
+          path="money"
+          element={
+            shell.showMoney ? (
+              <MoneyScreen />
+            ) : shell.isWorker ? (
+              <Navigate to="/" replace />
+            ) : (
+              <div className="app-loading">{t('common.loading')}</div>
+            )
+          }
+        />
         <Route path="journal" element={<JournalScreen />} />
         <Route path="spray-log" element={<SprayLogScreen />} />
         <Route path="settings" element={<SettingsScreen />} />

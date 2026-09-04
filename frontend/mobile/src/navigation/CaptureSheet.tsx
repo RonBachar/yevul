@@ -6,7 +6,7 @@ import NotebookPen from 'lucide-react-native/icons/notebook-pen';
 import Mic from 'lucide-react-native/icons/mic';
 import CameraIcon from 'lucide-react-native/icons/camera';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { t, type VoiceKind } from '@yevul/shared';
+import { t, type CaptureKind, type VoiceKind } from '@yevul/shared';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 import { BottomSheet } from '../components/BottomSheet';
 import { VoiceCapturePanel } from '../components/VoiceCapturePanel';
@@ -69,6 +69,7 @@ export function CaptureSheet({
   supabase,
   farmId,
   visible,
+  kinds,
   onClose,
   onJournalPress,
   onExpensePress,
@@ -81,6 +82,11 @@ export function CaptureSheet({
   supabase: SupabaseClient;
   farmId: string | null;
   visible: boolean;
+  // Which rows to offer. Worker Mode, design.md: a worker gets only משימה and
+  // יומן, the הוצאה row is omitted entirely rather than shown disabled. The
+  // decision itself lives in @yevul/shared (workerModeShell); this component
+  // only renders the rows it is handed.
+  kinds: CaptureKind[];
   onClose: () => void;
   onJournalPress: () => void;
   onExpensePress: () => void;
@@ -106,6 +112,11 @@ export function CaptureSheet({
   // `as const` on each key so the array carries the VoiceKind literals rather
   // than widening to string. The three rows and the endpoint's three kinds are
   // the same three things, and the compiler should be the one saying so.
+  //
+  // Filtered by `kinds`: a worker never sees the הוצאה row (and with it, its
+  // camera and microphone), so the row is not rendered at all rather than shown
+  // disabled — the omission is at the render layer over a decision made in
+  // @yevul/shared, not a CSS hide.
   const options = [
     {
       key: 'expense' as const,
@@ -125,7 +136,7 @@ export function CaptureSheet({
       title: t('capture.journal'),
       hint: t('capture.journalHint'),
     },
-  ];
+  ].filter((option) => kinds.includes(option.key));
 
   function onOptionPress(key: VoiceKind) {
     if (key === 'journal') return onJournalPress();

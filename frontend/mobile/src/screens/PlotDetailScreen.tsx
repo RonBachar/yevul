@@ -21,16 +21,19 @@ import {
   updateCropCycle,
   updateForecast,
   useFarmSettings,
+  useMyRole,
   usePlotDetail,
   usePlotExpensesTotal,
   useLogEntries,
   openSafeHarvestDate,
   staleForecastSince,
   formatMonthName,
+  workerModeShell,
   yieldRateUnitLabel,
   type AreaUnit,
   type CropCycle,
   type Currency,
+  type PlotDetailTab,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import {
@@ -61,8 +64,9 @@ type Route = RouteProp<PlotsStackParamList, 'PlotDetail'>;
 // הפיצול הזה גם מייתר את מה שהיה קודם: ברגע שהסיכום לא יושב בתוך טאב,
 // מה שנשאר ב"רווחיות" הוא בדיוק תוכן טאב צפי ההכנסה, ואין עוד שני
 // מקומות שמדברים על הוצאות.
-const TABS = ['income', 'expenses', 'tasks', 'journal'] as const;
-type Tab = (typeof TABS)[number];
+// סדר הטאבים והתוויות. הרשימה הנראית עצמה (מלאה מול מצומצמת לעובד)
+// מגיעה מ-workerModeShell, וסוג הטאב חי ב-@yevul/shared כמקור אחד.
+type Tab = PlotDetailTab;
 const TAB_LABEL_KEY: Record<Tab, string> = {
   income: 'plots.tab.income',
   expenses: 'plots.tab.expenses',
@@ -84,7 +88,21 @@ export function PlotDetailScreen() {
   // רשומות הריסוס של החלקה, לצ'יפ "בטוח לקטיף". הסינון לפי סוג קורה
   // במסד ולא בקליינט, אותו עיקרון כמו במסך יומן הריסוס.
   const sprays = useLogEntries(supabase, plotId, 'spray');
+  // Worker Mode, design.md: "Plot Detail drops to two tabs, משימות and יומן.
+  // צפי הכנסה and הוצאות don't render." הרשימה נגזרת ב-workerModeShell, ועד
+  // שהתפקיד ידוע נוהגים כאילו זה עובד, כך שטאב הכנסה לא מהבהב לעובד.
+  const role = useMyRole(supabase);
+  const shell = workerModeShell(role.role, role.loading);
+  const tabs = shell.plotDetailTabs;
   const [tab, setTab] = useState<Tab>('income');
+  // הטאב הפעיל בפועל נגזר ולא נשמר: כשהטאב השמור אינו ברשימה הנראית
+  // (עובד עם ברירת מחדל 'income', או בזמן טעינת תפקיד) נופלים לראשון
+  // הנראה. כך בעל משק נוחת על 'income' ברגע שהתפקיד מוכרע, בלי לדרוס
+  // את ברירת המחדל שלו, ועובד לעולם לא רואה תוכן כספי אפילו לפריים.
+  // 'tasks' כברירת מחדל היא רק כדי לספק את הטיפוס (tabs לעולם לא ריק,
+  // 'tasks' קיים בשתי הרשימות). בפועל tabs[0] הוא 'income' לבעל משק ו-
+  // 'tasks' לעובד.
+  const activeTab: Tab = tabs.includes(tab) ? tab : (tabs[0] ?? 'tasks');
   const [forecastOpen, setForecastOpen] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
 
@@ -161,8 +179,8 @@ export function PlotDetailScreen() {
       />
 
       <View style={styles.tabTrack}>
-        {TABS.map((key) => {
-          const active = key === tab;
+        {tabs.map((key) => {
+          const active = key === activeTab;
           return (
             <Pressable
               key={key}
@@ -182,7 +200,7 @@ export function PlotDetailScreen() {
       {/* טאב ההכנסה נשאר ScrollView ולא הופך לרשימה: זה כרטיס אחד
           וכפתור, מספר קבוע של ילדים, ולא רשימה שגדלה עם הנתונים. רק
           המשיכה נוספה. */}
-      {tab === 'income' && (
+      {activeTab === 'income' && (
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.body}
@@ -287,19 +305,19 @@ export function PlotDetailScreen() {
         </ScrollView>
       )}
 
-      {tab === 'tasks' && (
+      {activeTab === 'tasks' && (
         <View style={styles.tasksBody}>
           <TaskBoard supabase={supabase} plotId={plotId} showPlotName={false} />
         </View>
       )}
 
-      {tab === 'journal' && (
+      {activeTab === 'journal' && (
         <View style={styles.tasksBody}>
           <JournalList supabase={supabase} plotId={plotId} showPlotName={false} />
         </View>
       )}
 
-      {tab === 'expenses' && (
+      {activeTab === 'expenses' && (
         <View style={styles.tasksBody}>
           <ExpenseList supabase={supabase} plotId={plotId} showPlotName={false} />
         </View>

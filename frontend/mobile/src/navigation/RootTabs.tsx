@@ -7,7 +7,7 @@ import House from 'lucide-react-native/icons/house';
 import LayoutGrid from 'lucide-react-native/icons/layout-grid';
 import Wallet from 'lucide-react-native/icons/wallet';
 import Ellipsis from 'lucide-react-native/icons/ellipsis';
-import { t, useCurrentFarm } from '@yevul/shared';
+import { t, useCurrentFarm, useMyRole, workerModeShell } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { LogEntrySheet } from '../components/LogEntrySheet';
 import { ExpenseSheet } from '../components/ExpenseSheet';
@@ -33,6 +33,12 @@ const Tab = createBottomTabNavigator();
 
 export function RootTabs() {
   const farmState = useCurrentFarm(supabase);
+  // Worker Mode, שלב 6, design.md: לעובד המעטפת מצטמצמת, בלי טאב כסף
+  // ובלי שורת הוצאה בגיליון הרישום. האכיפה עצמה במסד, כאן רק לא מציגים
+  // מעטפת כסף ריקה. עד שהתפקיד ידוע נוהגים כאילו זה עובד (הכסף מוסתר),
+  // ראה workerModeShell, כדי שעובד לא יראה את טאב הכסף אפילו לפריים.
+  const role = useMyRole(supabase);
+  const shell = workerModeShell(role.role, role.loading);
   const [captureOpen, setCaptureOpen] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
@@ -99,14 +105,19 @@ export function RootTabs() {
             ),
           }}
         />
-        <Tab.Screen
-          name="Money"
-          component={MoneyScreen}
-          options={{
-            title: t('nav.money'),
-            tabBarIcon: ({ color, size }) => <Wallet size={size} strokeWidth={2} color={color} />,
-          }}
-        />
+        {/* טאב הכסף לא מותקן בכלל לעובד, design.md: "Bottom tab bar drops
+            to three tabs: בית, חלקות, עוד. No כסף tab." לא מוסתר ב-CSS
+            אלא לא נבנה, כדי שלא יישאר מסך כסף נגיש בעקיפה. */}
+        {shell.showMoney && (
+          <Tab.Screen
+            name="Money"
+            component={MoneyScreen}
+            options={{
+              title: t('nav.money'),
+              tabBarIcon: ({ color, size }) => <Wallet size={size} strokeWidth={2} color={color} />,
+            }}
+          />
+        )}
         <Tab.Screen
           name="More"
           component={MoreStack}
@@ -121,6 +132,8 @@ export function RootTabs() {
         farmId={farmState.farm?.id ?? null}
         visible={captureOpen}
         onClose={closeCapture}
+        // לעובד הגיליון מציע רק משימה ויומן, שורת ההוצאה מושמטת לגמרי.
+        kinds={shell.captureKinds}
         onJournalPress={openJournal}
         onExpensePress={openExpense}
         onTaskPress={openTask}

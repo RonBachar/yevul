@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { House, LayoutGrid, NotebookPen, Settings, Wallet } from 'lucide-react';
 // ה-barrel תקין כאן, Rollup מבצע tree shaking בבנייה של Vite.
-import { t } from '@yevul/shared';
+import { t, useMyRole, workerModeShell } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthProvider';
 
@@ -22,6 +22,14 @@ const destinations = [
 
 export function Sidebar() {
   const { session } = useAuth();
+  // Worker Mode, שלב 6, design.md, Web Client Shell: "the web sidebar nav must
+  // drop the כסף destination for a worker" (לווב אין שורת טאבים תחתונה ולא
+  // כפתור רישום). ההחלטה טהורה ב-workerModeShell, וההסתרה כאן היא נוחות
+  // בלבד, ה-route עצמו שומר על עצמו ב-App.tsx וה-RLS חוסם את נתוני הכסף.
+  // עד שהתפקיד ידוע הכסף מוסתר, כדי שעובד לא יראה את היעד אפילו לפריים.
+  const role = useMyRole(supabase);
+  const shell = workerModeShell(role.role, role.loading);
+  const visibleDestinations = destinations.filter((d) => d.to !== '/money' || shell.showMoney);
   const [signOutFailed, setSignOutFailed] = useState(false);
   const email = session?.user.email ?? session?.user.id ?? '';
 
@@ -38,7 +46,7 @@ export function Sidebar() {
       <div className="sidebar__brand">{t('app.name')}</div>
 
       <ul className="sidebar__list">
-        {destinations.map(({ to, Icon, key, end }) => (
+        {visibleDestinations.map(({ to, Icon, key, end }) => (
           <li key={to}>
             <NavLink
               to={to}
