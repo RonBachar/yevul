@@ -55,6 +55,27 @@ export {
   type Locale,
 } from './settings';
 export { useFarmSettings, type FarmSettingsForm } from './useFarmSettings';
+// Farm sharing, stage 6. Reading the roster, inviting by email, changing a
+// role and removing a member. The schema and RLS carry the enforcement (owner
+// only, worker blocked from money); this is the shared read/write layer and
+// the pure email rules that must match the DB's own lower()-based matching.
+// See the header of members.ts.
+export {
+  useMembers,
+  inviteMember,
+  updateMemberRole,
+  removeMember,
+  normalizeInviteEmail,
+  isValidInviteEmail,
+  memberRoleLabelKey,
+  ASSIGNABLE_ROLES,
+  type MemberRole,
+  type MemberStatus,
+  type AssignableRole,
+  type FarmMember,
+  type MembersState,
+  type InviteResult,
+} from './members';
 export {
   currentFarmQuery,
   useCurrentFarm,
