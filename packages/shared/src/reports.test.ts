@@ -56,6 +56,7 @@ function plotRow(overrides: Partial<PlotProfitRow> = {}): PlotProfitRow {
     name: 'חלקה צפונית',
     area: 40,
     areaUnit: 'dunam',
+    responsibleUserId: null,
     cropCycle: null,
     expenses: 0,
     sprayCost: 0,

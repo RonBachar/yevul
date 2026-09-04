@@ -10,9 +10,9 @@ import { formatLocalDateOnly } from './safeHarvestDate';
 // טוענים וכותבים דרך הפונקציות וההוקים כאן.
 //
 // הטיפוס הזה חושף רק את השדות שהפיצ'ר הזה בפועל קורא או כותב. notes,
-// photo_url, voice_note_url, assigned_to, completed_by, created_log_id
-// ו-created_expense_id קיימים בטבלה לצורך קול, שיתוף ו-Completion
-// Prompts, שלושתם משימות רודמאפ נפרדות שעוד לא נבנו.
+// photo_url, voice_note_url, completed_by, created_log_id
+// ו-created_expense_id קיימים בטבלה לצורך קול ו-Completion Prompts,
+// משימות רודמאפ נפרדות. assigned_to נחשף עכשיו לשיתוף המשק (שלב 6).
 export type Task = {
   id: string;
   farmId: string;
@@ -20,6 +20,10 @@ export type Task = {
   title: string;
   dueDate: string | null;
   estimatedCost: number | null;
+  // המשתמש שהמשימה משויכת אליו, שלב 6, שיתוף המשק. prd.md סעיף 11:
+  // "לכל משימה למי היא מיועדת". null כשלא משויכת. tasks_view חושף את
+  // העמודה, ו-RLS מתיר עדכון לכל חבר פעיל.
+  assignedTo: string | null;
   completedAt: string | null;
   snoozedUntil: string | null;
   snoozeCount: number;
@@ -28,7 +32,7 @@ export type Task = {
 };
 
 const TASK_COLUMNS =
-  'id, farm_id, plot_id, title, due_date, estimated_cost, completed_at, snoozed_until, snooze_count, archived_at, created_at';
+  'id, farm_id, plot_id, title, due_date, estimated_cost, assigned_to, completed_at, snoozed_until, snooze_count, archived_at, created_at';
 
 type TaskRow = {
   id: string;
@@ -37,6 +41,7 @@ type TaskRow = {
   title: string;
   due_date: string | null;
   estimated_cost: number | null;
+  assigned_to: string | null;
   completed_at: string | null;
   snoozed_until: string | null;
   snooze_count: number;
@@ -52,6 +57,7 @@ function mapTask(row: TaskRow): Task {
     title: row.title,
     dueDate: row.due_date,
     estimatedCost: row.estimated_cost,
+    assignedTo: row.assigned_to,
     completedAt: row.completed_at,
     snoozedUntil: row.snoozed_until,
     snoozeCount: row.snooze_count,
@@ -329,6 +335,8 @@ export type TaskInput = {
   plotId: string | null;
   dueDate: string | null;
   estimatedCost: number | null;
+  // המשויך למשימה, שלב 6. null כשלא משויכת (ברירת המחדל בגיליון).
+  assignedTo: string | null;
 };
 
 export type TaskWriteResult =
@@ -350,6 +358,7 @@ export async function createTask(
       title,
       due_date: input.dueDate,
       estimated_cost: input.estimatedCost,
+      assigned_to: input.assignedTo,
     })
     .select('id');
   const outcome = writeOutcome(write);
@@ -375,6 +384,7 @@ export async function updateTask(
       title,
       due_date: input.dueDate,
       estimated_cost: input.estimatedCost,
+      assigned_to: input.assignedTo,
     })
     .eq('id', taskId)
     .select('id');

@@ -9,6 +9,7 @@ function makeTask(overrides: Partial<Task>): Task {
     title: 'משימה',
     dueDate: null,
     estimatedCost: null,
+    assignedTo: null,
     completedAt: null,
     snoozedUntil: null,
     snoozeCount: 0,

@@ -153,6 +153,14 @@ const strings: Record<string, string> = {
   'plots.noCrop': 'עדיין אין גידול מוגדר',
   'plots.seasonPrefix': 'עונה',
 
+  // אחראי חלקה, שלב 6, שיתוף המשק. prd.md סעיף 11: "לכל חלקה אפשר
+  // להגדיר אחראי". הבורר מופיע רק ל-owner/manager וכשיש חברי משק
+  // שאפשר להציב, ולכן נעלם לגמרי במשק של אדם אחד (design.md, Sharing:
+  // "invisible at a member count of one").
+  'plots.responsible.label': 'אחראי החלקה',
+  'plots.responsible.none': 'ללא אחראי',
+  'plots.responsible.saveError': 'לא הצלחנו לשמור את האחראי, נסו שוב',
+
   // מסך פרטי חלקה
   'plots.detail.back': 'חזרה',
   'plots.detail.edit': 'עריכת פרטי החלקה',
@@ -331,6 +339,13 @@ const strings: Record<string, string> = {
   'tasks.form.titleEdit': 'עריכת משימה',
   'tasks.form.titlePlaceholder': 'מה צריך לעשות?',
   'tasks.form.titleRequired': 'כותרת המשימה לא יכולה להיות ריקה',
+  // המשויך למשימה, שלב 6, שיתוף המשק. prd.md סעיף 11: "לכל משימה למי
+  // היא מיועדת". הבורר מופיע רק כשיש במשק חברים שאפשר להציב, ונעלם
+  // במשק של אדם אחד. "לא משויך" הוא ברירת המחדל.
+  'tasks.form.assignee': 'אחראי',
+  'tasks.form.assigneeNone': 'לא משויך',
+  // תווית נגישות לאווטאר החבר בשורת המשימה, design.md, Member Avatar.
+  'tasks.assignedTo': 'משויך ל',
   'tasks.form.due': 'תאריך יעד',
   'tasks.form.dueSomeday': 'מתישהו',
   'tasks.form.dueWeek': 'השבוע',

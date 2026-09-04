@@ -336,6 +336,7 @@ describe('a parsed record becoming the arguments of a create call', () => {
       plotId: null,
       dueDate: '2026-09-10',
       estimatedCost: 420,
+      assignedTo: null,
     });
   });
 

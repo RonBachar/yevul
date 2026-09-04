@@ -114,6 +114,7 @@ export {
   type PlotProfitForecast,
   createPlot,
   updatePlot,
+  setPlotResponsible,
   updateCropCycle,
   updateForecast,
   type Plot,
@@ -164,6 +165,25 @@ export {
   type PlotFormMode,
   type PlotFormBlocker,
 } from './plotForm';
+// Farm members, stage 6, farm sharing. The roster the plot-responsible picker
+// and the task-assignee picker choose from, and the initials/lookup helpers the
+// task-row avatar reads. Pure decision logic (initials, assignable filter,
+// lookup, the assign-to-someone-else rule) is tested; useMembers is the hook
+// both clients load the roster through. The roster comes from farm_members_view,
+// which is built by the member-invitations task (stage 6), not here.
+export {
+  useMembers,
+  memberInitials,
+  assignableMembers,
+  membersByUserId,
+  currentMember,
+  taskAssignee,
+  type Member,
+  type MemberRole,
+  type MemberStatus,
+  type MembersState,
+  type TaskAssignee,
+} from './members';
 export {
   useTasks,
   createTask,
