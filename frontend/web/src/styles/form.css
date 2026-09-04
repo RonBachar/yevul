@@ -101,6 +101,15 @@
   font-weight: var(--font-weight-regular);
 }
 
+/* A quiet hint under a field, e.g. that a cost was computed and can be edited.
+   Slate-600, the same muted role the remembered-value text uses. */
+.form__hint {
+  margin: 0;
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-slate-600);
+}
+
 .form__message--good {
   color: var(--color-profit-600);
 }

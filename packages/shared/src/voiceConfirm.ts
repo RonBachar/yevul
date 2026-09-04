@@ -444,6 +444,16 @@ export function voiceJournalInput(
     // and reading the parsed value here makes that structural rather than a
     // convention the screen has to remember.
     sprayPhiDays: isSpray ? edits.sprayPhiDays : value.sprayPhiDays,
+    // Spray cost is not captured by voice yet. The manual tile flow computes it
+    // from quantity and the remembered price, but VoiceJournal carries neither;
+    // adding them is a schema change to VoiceJournal and to the JSON schema the
+    // model is given, tracked in docs/open-items.md alongside the note that this
+    // schema is due to change for the pricelist. A voice spray therefore saves
+    // with no cost, exactly as it did before, until that change is made.
+    sprayQuantity: null,
+    sprayQuantityUnit: null,
+    sprayUnitPrice: null,
+    sprayCost: null,
     // Not in any of the three voice schemas. A harvest quantity spoken aloud
     // ("קטפתי שלושה טון") is a real thing to want, but adding it is a schema
     // change to VoiceJournal and to the JSON schema the model is given, not a

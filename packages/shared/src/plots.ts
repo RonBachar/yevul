@@ -79,6 +79,10 @@ export function plotSummaryLine(plot: Plot, cropCycle: CropCycle | null): string
 export type PlotProfitForecast = {
   expectedIncome: number;
   expenses: number;
+  // Spray material cost, frozen on the spray rows (20260904130000_spray_pricelist.sql).
+  // Kept separate from `expenses` so the money-expenses figure still matches the
+  // expense list; profit subtracts both. Founder's decision 2026-09-04.
+  sprayCost: number;
   expensesTracked: boolean;
   profit: number;
 };
@@ -103,6 +107,7 @@ export function plotProfitForecast(
   plotArea: number | null,
   cropCycle: CropCycle | null,
   expensesTotal: number | null,
+  sprayCost: number = 0,
 ): PlotProfitForecast | null {
   const expectedIncome = expectedIncomeFor(plotArea, cropCycle);
   if (expectedIncome == null) return null;
@@ -110,8 +115,9 @@ export function plotProfitForecast(
   return {
     expectedIncome,
     expenses,
+    sprayCost,
     expensesTracked: expensesTotal != null,
-    profit: expectedIncome - expenses,
+    profit: expectedIncome - expenses - sprayCost,
   };
 }
 

@@ -74,6 +74,20 @@ describe('plotProfitForecast', () => {
     expect(result?.profit).toBeLessThan(0);
   });
 
+  // Spray material cost is a distinct cost from money expenses; profit subtracts
+  // both, and the expenses figure stays what the expense list shows.
+  it('subtracts spray cost on top of expenses, as its own line', () => {
+    const result = plotProfitForecast(40, cropCycle(), 408000, 12000);
+    expect(result?.expenses).toBe(408000);
+    expect(result?.sprayCost).toBe(12000);
+    expect(result?.profit).toBe(720000 - 408000 - 12000);
+  });
+
+  it('defaults spray cost to zero when it is not given', () => {
+    const result = plotProfitForecast(40, cropCycle(), 408000);
+    expect(result?.sprayCost).toBe(0);
+  });
+
   // ההבחנה שמפעילה את חיווי ה-Wheat. "אין מעקב הוצאות" הוא חוסר ידיעה,
   // "אפס הוצאות" הוא עובדה, ושניהם נותנים אותו רווח מספרית.
   it('separates untracked expenses from genuinely zero expenses', () => {

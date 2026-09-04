@@ -2,11 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
+  applySprayCost,
   applySprayMaterial,
+  applySprayQuantity,
+  applySprayUnit,
+  applySprayUnitPrice,
   createLogEntry,
   formatCalendarDate,
   newSprayDraft,
   nextSprayStep,
+  parseSprayAmountInput,
   parseSprayPhiDaysInput,
   previousSprayStep,
   safeHarvestDate,
@@ -22,10 +27,13 @@ import {
   sprayStepFieldKey,
   sprayStepPosition,
   sprayStepTitleKey,
+  sprayUnitLabelKey,
   SPRAY_BLOCKER_MESSAGE_KEYS,
+  SPRAY_UNITS,
   t,
   updateLogEntry,
   usePlots,
+  useSprayPrices,
   useSpraySuggestions,
   type LogEntry,
   type SprayDraft,
@@ -135,6 +143,9 @@ export function SprayEntrySheet({
 }) {
   const plotsState = usePlots(supabase);
   const suggestions = useSpraySuggestions(supabase, farmId);
+  // The remembered per-material prices. applySprayMaterial reads them to pre-fill
+  // the unit and unit price when this farm has bought the material before.
+  const prices = useSprayPrices(supabase, farmId);
 
   const [step, setStep] = useState<SprayStep>('pest');
   const [draft, setDraft] = useState<SprayDraft>(() => newSprayDraft(new Date(), defaultPlotId));
@@ -277,7 +288,7 @@ export function SprayEntrySheet({
           // the dose and the waiting period from this farm's history, and that
           // rule is tested in the shared package rather than written here.
           onSelect={(value) =>
-            answered('material', applySprayMaterial(draft, value, suggestions.rows))
+            answered('material', applySprayMaterial(draft, value, suggestions.rows, prices))
           }
           actions={[{ key: 'add', label: t('spray.addMaterial'), onPress: () => setAdding(true) }]}
           emptyHint={t('spray.emptyMaterials')}
@@ -292,12 +303,28 @@ export function SprayEntrySheet({
                 onConfirm={() => {
                   const material = addText.trim();
                   if (material) {
-                    answered('material', applySprayMaterial(draft, material, suggestions.rows));
+                    answered(
+                      'material',
+                      applySprayMaterial(draft, material, suggestions.rows, prices),
+                    );
                   }
                 }}
               />
             ) : null
           }
+        />
+      ) : null}
+
+      {step === 'cost' ? (
+        <CostPanel
+          draft={draft}
+          setDraft={setDraft}
+          subtitle={subtitle}
+          disabled={busy}
+          // Cost has no single value to "select", so it advances on an explicit
+          // button. Every field on it is optional, so this can be pressed with
+          // nothing filled -- the founder's rule that the cost is never a cage.
+          onContinue={() => answered('cost', draft)}
         />
       ) : null}
 
@@ -511,6 +538,9 @@ function reviewTiles(
   const values: Record<Exclude<SprayStep, 'review'>, string> = {
     pest: draft.pest ?? t('spray.notSet'),
     material: draft.material ?? t('spray.notSet'),
+    // The plain number, no currency symbol: the review is a glance at what is
+    // about to be written, and the amount was typed as bare digits.
+    cost: draft.cost === null ? t('spray.notSet') : String(draft.cost),
     dose: draft.dose ?? t('spray.notSet'),
     phiDays:
       draft.phiDays === null
@@ -573,6 +603,174 @@ function FreeTextPanel({
   );
 }
 
+// A stored amount as the text its box shows: empty for "not stated", the plain
+// number otherwise. String() and not toFixed, so a whole price reads as "12"
+// rather than "12.00" and a half-typed "1." is never fought mid-keystroke.
+function amountToText(value: number | null): string {
+  return value === null ? '' : String(value);
+}
+
+// The cost step: a small form, not a tile grid, because a quantity and a price
+// are numbers a farmer types rather than a closed list to pick from -- the same
+// reason the date's calendar and the "another number" boxes are not tiles.
+//
+// **Every field is optional and the total is always directly typeable.** The
+// founder's rule: the pricelist is a pre-filled default, never a cage. So the
+// quantity and unit-price boxes recompute the total live through the shared
+// setters, but the total box wins the moment it is touched (applySprayCost), and
+// "continue" advances even with nothing entered.
+//
+// Local text state per box, mirroring FreeTextPanel: a controlled TextInput
+// bound straight to a number cannot hold "1." mid-type. Seeded from the draft on
+// mount, which is when this step is entered -- the material picked a step earlier
+// has already pre-filled the unit and price and recomputed the cost.
+function CostPanel({
+  draft,
+  setDraft,
+  subtitle,
+  disabled,
+  onContinue,
+}: {
+  draft: SprayDraft;
+  setDraft: (next: SprayDraft) => void;
+  subtitle?: string;
+  disabled: boolean;
+  onContinue: () => void;
+}) {
+  const [quantityText, setQuantityText] = useState(() => amountToText(draft.quantity));
+  const [unitPriceText, setUnitPriceText] = useState(() => amountToText(draft.unitPrice));
+  const [costText, setCostText] = useState(() => amountToText(draft.cost));
+
+  // undefined from the parser is "not a number" and must not become a null
+  // value, exactly as the phiDays panel guards it. The typed text stays on screen
+  // either way; only the draft is left alone until the box reads as empty or a
+  // number. When the total is still auto, the newly computed figure is mirrored
+  // into the cost box so it is never a stale number the farmer did not type.
+  function onChangeQuantity(text: string) {
+    setQuantityText(text);
+    const parsed = parseSprayAmountInput(text);
+    if (parsed === undefined) return;
+    const next = applySprayQuantity(draft, parsed);
+    setDraft(next);
+    if (!next.costEdited) setCostText(amountToText(next.cost));
+  }
+
+  function onChangeUnitPrice(text: string) {
+    setUnitPriceText(text);
+    const parsed = parseSprayAmountInput(text);
+    if (parsed === undefined) return;
+    const next = applySprayUnitPrice(draft, parsed);
+    setDraft(next);
+    if (!next.costEdited) setCostText(amountToText(next.cost));
+  }
+
+  function onChangeCost(text: string) {
+    setCostText(text);
+    const parsed = parseSprayAmountInput(text);
+    if (parsed === undefined) return;
+    setDraft(applySprayCost(draft, parsed));
+  }
+
+  // Per-unit wording once a unit is chosen, the neutral label before that.
+  const unitPriceLabel =
+    draft.quantityUnit === 'kg'
+      ? t('spray.unitPricePerKg')
+      : draft.quantityUnit === 'liter'
+        ? t('spray.unitPricePerLiter')
+        : t('spray.unitPrice');
+
+  return (
+    <View style={styles.costPanel}>
+      <View style={styles.costHeading}>
+        <Text style={styles.costTitle}>{t(sprayStepTitleKey('cost'))}</Text>
+        {subtitle ? <Text style={styles.costSubtitle}>{subtitle}</Text> : null}
+      </View>
+
+      <View style={formStyles.field}>
+        <Text style={formStyles.label}>{t('spray.quantity')}</Text>
+        <TextInput
+          style={formStyles.input}
+          value={quantityText}
+          onChangeText={onChangeQuantity}
+          editable={!disabled}
+          keyboardType="decimal-pad"
+          placeholder={t('spray.quantityPlaceholder')}
+          placeholderTextColor={colors.slate600}
+          textAlign="right"
+        />
+      </View>
+
+      <View style={formStyles.field}>
+        <Text style={formStyles.label}>{t('spray.unitLabel')}</Text>
+        <View style={formStyles.chips}>
+          {SPRAY_UNITS.map((unit) => {
+            const active = draft.quantityUnit === unit;
+            return (
+              <Pressable
+                key={unit}
+                style={[formStyles.chip, active && formStyles.chipActive]}
+                // Tapping the chosen unit again clears it: the unit is optional
+                // like everything else here, so it must be un-pickable.
+                onPress={() => setDraft(applySprayUnit(draft, active ? null : unit))}
+                disabled={disabled}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+              >
+                <Text style={[formStyles.chipText, active && formStyles.chipTextActive]}>
+                  {t(sprayUnitLabelKey(unit))}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      <View style={formStyles.field}>
+        <Text style={formStyles.label}>{unitPriceLabel}</Text>
+        <TextInput
+          style={formStyles.input}
+          value={unitPriceText}
+          onChangeText={onChangeUnitPrice}
+          editable={!disabled}
+          keyboardType="decimal-pad"
+          placeholder={t('spray.unitPricePlaceholder')}
+          placeholderTextColor={colors.slate600}
+          textAlign="right"
+        />
+      </View>
+
+      <View style={formStyles.field}>
+        <Text style={formStyles.label}>{t('spray.cost')}</Text>
+        <TextInput
+          style={formStyles.input}
+          value={costText}
+          onChangeText={onChangeCost}
+          editable={!disabled}
+          keyboardType="decimal-pad"
+          placeholder={t('spray.costPlaceholder')}
+          placeholderTextColor={colors.slate600}
+          textAlign="right"
+        />
+        {/* costComputed only while the number is still the formula's; costHint
+            always, so the manual path -- just type the amount -- is never hidden. */}
+        {!draft.costEdited && draft.cost !== null ? (
+          <Text style={styles.costNote}>{t('spray.costComputed')}</Text>
+        ) : null}
+        <Text style={styles.costNote}>{t('spray.costHint')}</Text>
+      </View>
+
+      <Pressable
+        style={[formStyles.save, disabled && formStyles.saveDisabled]}
+        onPress={onContinue}
+        disabled={disabled}
+        accessibilityRole="button"
+      >
+        <Text style={formStyles.saveText}>{t('spray.confirm')}</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
@@ -607,6 +805,37 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: fontSize.bodySm,
     color: colors.field700,
+    writingDirection: 'rtl',
+    textAlign: 'right',
+  },
+  // The cost step's form. A column of fields, spaced like the grid steps so the
+  // sheet reads as one flow whether the current step is tiles or inputs.
+  costPanel: {
+    gap: spacing.s16,
+  },
+  costHeading: {
+    gap: spacing.s4,
+  },
+  // The question, weighted like TilePicker's title so the two kinds of step
+  // carry the same header rather than looking like different screens.
+  costTitle: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.subheading,
+    color: colors.ink900,
+    writingDirection: 'rtl',
+    textAlign: 'right',
+  },
+  costSubtitle: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.caption,
+    color: colors.slate600,
+    writingDirection: 'rtl',
+    textAlign: 'right',
+  },
+  costNote: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.caption,
+    color: colors.slate600,
     writingDirection: 'rtl',
     textAlign: 'right',
   },

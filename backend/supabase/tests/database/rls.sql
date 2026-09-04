@@ -10,7 +10,7 @@ create extension if not exists pgtap;
 
 begin;
 
-select plan(56);
+select plan(65);
 
 -- ====================================================================
 -- הכנה, חמישה משתמשי בדיקה, שני משקים נפרדים
@@ -495,6 +495,76 @@ select is(
   (select note from public.log_entries where farm_id = (select value from fixture where key = 'farm_a') and type = 'fertilize'),
   'דישון יסוד, מנה שנייה',
   'the edit actually landed and did not silently no-op like the crop_cycles/tasks SELECT-for-UPDATE gap did before those fixes'
+);
+
+-- Spray cost columns (20260904130000). Frozen on the row at write time. They are
+-- NOT masked from a worker yet (worker-mode design decision, deferred to stage 6,
+-- see docs/open-items.md), so this group asserts the current behaviour on purpose:
+-- owner writes a full breakdown, and a worker can write and read one too.
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
+
+select lives_ok(
+  $$ insert into public.log_entries (farm_id, plot_id, date, type, source, spray_pest, spray_material, spray_quantity, spray_quantity_unit, spray_unit_price, spray_cost)
+     values ((select value from fixture where key = 'farm_a'), (select value from fixture where key = 'plot_a'), current_date, 'spray', 'manual', 'כנימה', 'קונפידור', 3, 'kg', 40, 120) $$,
+  'owner_a can write a spray with a quantity, unit, unit price and frozen cost'
+);
+select is(
+  (select spray_cost from public.log_entries where farm_id = (select value from fixture where key = 'farm_a') and spray_material = 'קונפידור'),
+  120::numeric,
+  'the frozen cost is stored on the spray row, not recomputed from a pricelist'
+);
+select throws_ok(
+  $$ insert into public.log_entries (farm_id, date, type, source, spray_pest, spray_material, spray_quantity_unit)
+     values ((select value from fixture where key = 'farm_a'), current_date, 'spray', 'manual', 'עש', 'שמן', 'gram') $$,
+  '23514',
+  null,
+  'a spray unit outside the liter/kg domain is rejected'
+);
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000003', 'role', 'authenticated')::text, true);
+select lives_ok(
+  $$ insert into public.log_entries (farm_id, plot_id, date, type, source, spray_pest, spray_material, spray_quantity, spray_quantity_unit, spray_cost)
+     values ((select value from fixture where key = 'farm_a'), (select value from fixture where key = 'plot_a'), current_date, 'spray', 'manual', 'עש', 'ביומקטין', 2, 'liter', 60) $$,
+  'worker_a can write a spray cost too, log_entries cost columns are not masked yet (deferred to stage 6)'
+);
+
+-- ====================================================================
+-- קבוצה 14, spray_material_prices (20260904130000). טבלת מחירון, מחיר
+-- ברירת מחדל לכל חומר, כסף ולכן worker חסום ברמת השורה בדיוק כמו
+-- task_cost_memory. upsert על אותו חומר מעדכן במקום, אין מחיקה.
+-- ====================================================================
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
+
+select lives_ok(
+  $$ insert into public.spray_material_prices (farm_id, material_normalized, unit_price, unit)
+     values ((select value from fixture where key = 'farm_a'), 'קונפידור', 40, 'kg') $$,
+  'owner_a can remember a material price'
+);
+select lives_ok(
+  $$ insert into public.spray_material_prices (farm_id, material_normalized, unit_price, unit)
+     values ((select value from fixture where key = 'farm_a'), 'קונפידור', 45, 'kg')
+     on conflict (farm_id, material_normalized) do update set unit_price = excluded.unit_price, unit = excluded.unit $$,
+  'upsert on the same normalized material updates in place, not a second row'
+);
+select is(
+  (select unit_price from public.spray_material_prices where farm_id = (select value from fixture where key = 'farm_a') and material_normalized = 'קונפידור'),
+  45::numeric,
+  'the upsert kept the newer price and exactly one row'
+);
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000003', 'role', 'authenticated')::text, true);
+select is(
+  (select count(*)::int from public.spray_material_prices where farm_id = (select value from fixture where key = 'farm_a')),
+  0,
+  'worker_a sees zero remembered prices, blocked at the row level like task_cost_memory'
+);
+select throws_ok(
+  $$ insert into public.spray_material_prices (farm_id, material_normalized, unit_price, unit)
+     values ((select value from fixture where key = 'farm_a'), 'עלסר', 10, 'liter') $$,
+  '42501',
+  null,
+  'worker_a cannot write a remembered price either'
 );
 
 select * from finish();

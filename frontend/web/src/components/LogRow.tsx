@@ -37,6 +37,11 @@ export function LogRow({
           sprayDetailed && entry.sprayPhiDays != null
             ? `${entry.sprayPhiDays} ${t('sprayLog.phiDaysSuffix')}`
             : null,
+          // The spray's cost, on the detail line of the Spray Log Screen only,
+          // so the farmer sees what each spray cost him. Frozen on the row.
+          sprayDetailed && entry.sprayCost != null
+            ? `${t('log.form.sprayCost')}: ${entry.sprayCost}`
+            : null,
         ]
           .filter(Boolean)
           .join(' · ')

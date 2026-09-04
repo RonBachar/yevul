@@ -1,18 +1,25 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
+  computeSprayCost,
   createLogEntry,
   formatLocalDateOnly,
   initialLogEntryType,
   logEntryTypeLabelKey,
   LOG_ENTRY_TYPES,
+  parseSprayAmountInput,
   safeHarvestDate,
+  sprayPriceMemory,
+  sprayUnitLabelKey,
+  SPRAY_UNITS,
   t,
   updateLogEntry,
   usePlots,
+  useSprayPrices,
   useSpraySuggestions,
   type LogEntry,
   type LogEntryType,
+  type SprayUnit,
 } from '@yevul/shared';
 import { DateField } from './DateField';
 import { Modal } from './Modal';
@@ -59,6 +66,7 @@ export function LogEntrySheet({
 }) {
   const plotsState = usePlots(supabase);
   const suggestions = useSpraySuggestions(supabase, farmId);
+  const prices = useSprayPrices(supabase, farmId);
 
   const [type, setType] = useState<LogEntryType>(initialLogEntryType(entry, defaultType));
   const [plotId, setPlotId] = useState<string | null>(null);
@@ -68,6 +76,17 @@ export function LogEntrySheet({
   const [sprayMaterial, setSprayMaterial] = useState('');
   const [sprayDose, setSprayDose] = useState('');
   const [sprayPhiDays, setSprayPhiDays] = useState('');
+  // The spray cost, founder's decision 2026-09-04. Quantity is typed per spray;
+  // the unit and unit price are remembered per material and pre-filled from the
+  // pricelist; the total is computed but always editable, and can be typed on
+  // its own with no quantity or price at all -- the farmer is never forced
+  // through the formula. `costEdited` marks a total the farmer typed himself, so
+  // a later tweak to quantity or price does not overwrite his number.
+  const [sprayQuantity, setSprayQuantity] = useState('');
+  const [sprayQuantityUnit, setSprayQuantityUnit] = useState<SprayUnit | ''>('');
+  const [sprayUnitPrice, setSprayUnitPrice] = useState('');
+  const [sprayCost, setSprayCost] = useState('');
+  const [costEdited, setCostEdited] = useState(false);
   const [harvestQty, setHarvestQty] = useState('');
   const [harvestUnit, setHarvestUnit] = useState('');
   const [status, setStatus] = useState<
@@ -89,6 +108,16 @@ export function LogEntrySheet({
       setSprayMaterial(entry.sprayMaterial ?? '');
       setSprayDose(entry.sprayDose ?? '');
       setSprayPhiDays(entry.sprayPhiDays != null ? String(entry.sprayPhiDays) : '');
+      setSprayQuantity(entry.sprayQuantity != null ? String(entry.sprayQuantity) : '');
+      setSprayQuantityUnit(entry.sprayQuantityUnit ?? '');
+      setSprayUnitPrice(entry.sprayUnitPrice != null ? String(entry.sprayUnitPrice) : '');
+      setSprayCost(entry.sprayCost != null ? String(entry.sprayCost) : '');
+      // A saved cost that is not quantity x price was typed by hand and must be
+      // kept; one that matches was computed and may recompute freely.
+      setCostEdited(
+        entry.sprayCost !== null &&
+          entry.sprayCost !== computeSprayCost(entry.sprayQuantity, entry.sprayUnitPrice),
+      );
       setHarvestQty(entry.harvestQty != null ? String(entry.harvestQty) : '');
       setHarvestUnit(entry.harvestUnit ?? '');
     } else {
@@ -99,6 +128,11 @@ export function LogEntrySheet({
       setSprayMaterial('');
       setSprayDose('');
       setSprayPhiDays('');
+      setSprayQuantity('');
+      setSprayQuantityUnit('');
+      setSprayUnitPrice('');
+      setSprayCost('');
+      setCostEdited(false);
       setHarvestQty('');
       setHarvestUnit('');
     }
@@ -110,6 +144,42 @@ export function LogEntrySheet({
     type === 'spray' && date && phiDaysNumber != null && Number.isFinite(phiDaysNumber)
       ? safeHarvestDate(date, phiDaysNumber)
       : null;
+
+  // A typed number, or null for an empty or unreadable box. parseSprayAmountInput
+  // returns undefined for "unreadable"; a cost is optional, so that collapses to
+  // null rather than blocking the save.
+  const amountOrNull = (text: string): number | null => {
+    const value = parseSprayAmountInput(text);
+    return typeof value === 'number' ? value : null;
+  };
+
+  // While the farmer has not typed a total himself, the cost follows quantity x
+  // unit price. The moment he types one (costEdited), it is left alone.
+  useEffect(() => {
+    if (costEdited) return;
+    const computed = computeSprayCost(amountOrNull(sprayQuantity), amountOrNull(sprayUnitPrice));
+    setSprayCost(computed === null ? '' : String(computed));
+    // Only the two inputs and the edited flag drive the recompute; amountOrNull
+    // is a pure local helper with no state of its own.
+  }, [sprayQuantity, sprayUnitPrice, costEdited]);
+
+  // Picking a material re-decides its unit and price from the pricelist, like
+  // the tile walk does, and returns the cost to auto so it recomputes. The
+  // farmer can still overwrite either field afterwards.
+  function onMaterialChange(value: string) {
+    setSprayMaterial(value);
+    const memory = sprayPriceMemory(prices, value);
+    setSprayUnitPrice(memory.unitPrice != null ? String(memory.unitPrice) : '');
+    setSprayQuantityUnit(memory.unit ?? '');
+    setCostEdited(false);
+  }
+
+  const unitPriceLabel =
+    sprayQuantityUnit === 'kg'
+      ? t('spray.unitPricePerKg')
+      : sprayQuantityUnit === 'liter'
+        ? t('spray.unitPricePerLiter')
+        : t('spray.unitPrice');
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -125,6 +195,10 @@ export function LogEntrySheet({
       sprayMaterial: sprayMaterial.trim() ? sprayMaterial.trim() : null,
       sprayDose: sprayDose.trim() ? sprayDose.trim() : null,
       sprayPhiDays: Number.isFinite(phiDaysNumber) ? phiDaysNumber : null,
+      sprayQuantity: amountOrNull(sprayQuantity),
+      sprayQuantityUnit: sprayQuantityUnit === '' ? null : sprayQuantityUnit,
+      sprayUnitPrice: amountOrNull(sprayUnitPrice),
+      sprayCost: amountOrNull(sprayCost),
       harvestQty:
         harvestQty.trim() && Number.isFinite(Number(harvestQty)) ? Number(harvestQty) : null,
       harvestUnit: harvestUnit.trim() ? harvestUnit.trim() : null,
@@ -195,7 +269,7 @@ export function LogEntrySheet({
                 list="log-spray-material-options"
                 value={sprayMaterial}
                 placeholder={t('log.form.sprayMaterialPlaceholder')}
-                onChange={(e) => setSprayMaterial(e.target.value)}
+                onChange={(e) => onMaterialChange(e.target.value)}
                 disabled={busy}
               />
               <datalist id="log-spray-material-options">
@@ -230,6 +304,81 @@ export function LogEntrySheet({
                 onChange={(e) => setSprayPhiDays(e.target.value)}
                 disabled={busy}
               />
+            </div>
+            <div className="form__row">
+              <label className="form__label" htmlFor="log-spray-quantity">
+                {t('spray.quantity')} · {t('common.optional')}
+              </label>
+              <input
+                id="log-spray-quantity"
+                className="form__input"
+                type="number"
+                step="any"
+                min="0"
+                placeholder={t('spray.quantityPlaceholder')}
+                value={sprayQuantity}
+                onChange={(e) => setSprayQuantity(e.target.value)}
+                disabled={busy}
+              />
+            </div>
+            <div className="form__row">
+              <label className="form__label" htmlFor="log-spray-unit">
+                {t('spray.unitLabel')} · {t('common.optional')}
+              </label>
+              <select
+                id="log-spray-unit"
+                className="form__input"
+                value={sprayQuantityUnit}
+                onChange={(e) => setSprayQuantityUnit(e.target.value as SprayUnit | '')}
+                disabled={busy}
+              >
+                <option value="">{t('spray.notSet')}</option>
+                {SPRAY_UNITS.map((unit) => (
+                  <option key={unit} value={unit}>
+                    {t(sprayUnitLabelKey(unit))}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="form__row">
+              <label className="form__label" htmlFor="log-spray-unit-price">
+                {unitPriceLabel} · {t('common.optional')}
+              </label>
+              <input
+                id="log-spray-unit-price"
+                className="form__input"
+                type="number"
+                step="any"
+                min="0"
+                placeholder={t('spray.unitPricePlaceholder')}
+                value={sprayUnitPrice}
+                onChange={(e) => setSprayUnitPrice(e.target.value)}
+                disabled={busy}
+              />
+            </div>
+            <div className="form__row">
+              <label className="form__label" htmlFor="log-spray-cost">
+                {t('log.form.sprayCost')} · {t('common.optional')}
+              </label>
+              <input
+                id="log-spray-cost"
+                className="form__input"
+                type="number"
+                step="any"
+                min="0"
+                placeholder={t('spray.costPlaceholder')}
+                value={sprayCost}
+                onChange={(e) => {
+                  const text = e.target.value;
+                  setSprayCost(text);
+                  // An empty box returns the cost to auto; anything typed wins.
+                  setCostEdited(text.trim() !== '');
+                }}
+                disabled={busy}
+              />
+              <p className="form__hint">
+                {!costEdited && sprayCost ? t('spray.costComputed') : t('spray.costHint')}
+              </p>
             </div>
             {safeHarvest && (
               <p className="form__message log-entry-sheet__safe-harvest">

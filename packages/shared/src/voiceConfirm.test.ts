@@ -357,6 +357,10 @@ describe('a parsed record becoming the arguments of a create call', () => {
       sprayMaterial: 'קונפידור',
       sprayDose: '50 סמ"ק',
       sprayPhiDays: 14,
+      sprayQuantity: null,
+      sprayQuantityUnit: null,
+      sprayUnitPrice: null,
+      sprayCost: null,
       harvestQty: null,
       harvestUnit: null,
     });

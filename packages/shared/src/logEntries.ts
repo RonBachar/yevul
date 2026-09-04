@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { currentFarmQuery } from './currentFarm';
 import { LOG_ENTRY_TYPES, type LogEntryType } from './logEntryTypes';
 import { writeOutcome } from './postgrest';
 import { useLoadCount } from './refresh';
-import { sprayMaterialOptions, sprayPestOptions, type SprayHistoryRow } from './sprayEntry';
+import {
+  normalizeSprayMaterial,
+  sprayMaterialOptions,
+  sprayPestOptions,
+  type SprayHistoryRow,
+  type SprayPriceRow,
+  type SprayUnit,
+} from './sprayEntry';
 
 // הסוגים עצמם חיים ב-logEntryTypes.ts, מודול טהור בלי ייבוא, כי
 // ה-Worker זקוק להם דרך voice.ts ואין לו צורך ב-react ולא ב-supabase-js
@@ -79,13 +86,20 @@ export type LogEntry = {
   sprayMaterial: string | null;
   sprayDose: string | null;
   sprayPhiDays: number | null;
+  // Spray cost, frozen on the row at write time. See the pricelist migration:
+  // the material's remembered price is only a default, the price and cost that
+  // count are the ones stored here and never re-valued from the pricelist.
+  sprayQuantity: number | null;
+  sprayQuantityUnit: SprayUnit | null;
+  sprayUnitPrice: number | null;
+  sprayCost: number | null;
   harvestQty: number | null;
   harvestUnit: string | null;
   createdAt: string;
 };
 
 const LOG_ENTRY_COLUMNS =
-  'id, farm_id, plot_id, date, type, note, source, spray_pest, spray_material, spray_dose, spray_phi_days, harvest_qty, harvest_unit, created_at';
+  'id, farm_id, plot_id, date, type, note, source, spray_pest, spray_material, spray_dose, spray_phi_days, spray_quantity, spray_quantity_unit, spray_unit_price, spray_cost, harvest_qty, harvest_unit, created_at';
 
 type LogEntryRow = {
   id: string;
@@ -99,6 +113,10 @@ type LogEntryRow = {
   spray_material: string | null;
   spray_dose: string | null;
   spray_phi_days: number | null;
+  spray_quantity: number | null;
+  spray_quantity_unit: SprayUnit | null;
+  spray_unit_price: number | null;
+  spray_cost: number | null;
   harvest_qty: number | null;
   harvest_unit: string | null;
   created_at: string;
@@ -117,6 +135,10 @@ function mapLogEntry(row: LogEntryRow): LogEntry {
     sprayMaterial: row.spray_material,
     sprayDose: row.spray_dose,
     sprayPhiDays: row.spray_phi_days,
+    sprayQuantity: row.spray_quantity,
+    sprayQuantityUnit: row.spray_quantity_unit,
+    sprayUnitPrice: row.spray_unit_price,
+    sprayCost: row.spray_cost,
     harvestQty: row.harvest_qty,
     harvestUnit: row.harvest_unit,
     createdAt: row.created_at,
@@ -235,6 +257,113 @@ export function useLogEntries(
 }
 
 // ============================================================
+// Spray costs, for the profit number. A spray's cost is frozen on its row (see
+// 20260904130000_spray_pricelist.sql), and the founder's decision of 2026-09-04
+// is that it lowers the plot's profit -- counted straight from the spray row,
+// not turned into an expense, so it stays clear of the still-open "money =
+// invoices only" question in docs/open-items.md.
+//
+// plotId filters to one plot (its detail profit header); without it the whole
+// farm, split into per-plot costs and the whole-farm sprays (plot_id null) that
+// join the general costs, exactly as expenses are split in useFarmProfit.
+// ============================================================
+
+export type SprayCostsState = {
+  loading: boolean;
+  failed: boolean;
+  farmId: string | null;
+  total: number;
+  byPlot: Map<string, number>;
+  general: number;
+  // Whether any spray with a cost exists at all: the same "tracked vs a real
+  // zero" distinction expenses carry.
+  tracked: boolean;
+  refresh: () => void;
+  loadCount: number;
+};
+
+export function useSprayCosts(supabase: SupabaseClient, plotId?: string): SprayCostsState {
+  const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
+  const [farmId, setFarmId] = useState<string | null>(null);
+  const [rows, setRows] = useState<{ plotId: string | null; cost: number }[]>([]);
+  const [tick, setTick] = useState(0);
+  const { loadCount, settle } = useLoadCount();
+
+  const refresh = useCallback(() => setTick((value) => value + 1), []);
+
+  useEffect(() => {
+    let active = true;
+
+    async function load() {
+      const { data: farmRows, error: farmError } = await currentFarmQuery(supabase);
+      const farm = (farmRows as { id: string }[] | null)?.[0];
+      if (!active) return;
+      if (farmError || !farm) {
+        setFailed(true);
+        setLoading(false);
+        settle();
+        return;
+      }
+      setFarmId(farm.id);
+
+      let query = supabase
+        .from('log_entries')
+        .select('plot_id, spray_cost')
+        .eq('farm_id', farm.id)
+        .eq('type', 'spray')
+        .is('deleted_at', null)
+        .not('spray_cost', 'is', null);
+      if (plotId) query = query.eq('plot_id', plotId);
+
+      const result = await query;
+      if (!active) return;
+      if (result.error) {
+        setFailed(true);
+        setLoading(false);
+        settle();
+        return;
+      }
+
+      const raw = (result.data ?? []) as { plot_id: string | null; spray_cost: number }[];
+      setRows(raw.map((row) => ({ plotId: row.plot_id, cost: row.spray_cost })));
+      setFailed(false);
+      setLoading(false);
+      settle();
+    }
+
+    void load();
+    return () => {
+      active = false;
+    };
+  }, [supabase, plotId, tick, settle]);
+
+  const state = useMemo(() => {
+    const byPlot = new Map<string, number>();
+    let general = 0;
+    let total = 0;
+    for (const row of rows) {
+      total += row.cost;
+      if (row.plotId) byPlot.set(row.plotId, (byPlot.get(row.plotId) ?? 0) + row.cost);
+      else general += row.cost;
+    }
+    return { byPlot, general, total, tracked: rows.length > 0 };
+  }, [rows]);
+
+  return {
+    loading,
+    failed,
+    farmId,
+    total: state.total,
+    byPlot: state.byPlot,
+    general: state.general,
+    tracked: state.tracked,
+    refresh,
+    loadCount,
+  };
+}
+
+// ============================================================
 // הצעות אוטומטיות למזיק ולחומר מתוך היסטוריית המשק, prd.md סעיף 8:
 // "שם החומר והמזיק מוצעים מתוך היסטוריית המשק, כדי שלא יקלידו את אותו
 // שם בכל פעם מחדש". שתי רשימות נפרדות, כל אחת בסדר מהאחרון לשימוש,
@@ -320,6 +449,10 @@ export type LogEntryInput = {
   sprayMaterial: string | null;
   sprayDose: string | null;
   sprayPhiDays: number | null;
+  sprayQuantity: number | null;
+  sprayQuantityUnit: SprayUnit | null;
+  sprayUnitPrice: number | null;
+  sprayCost: number | null;
   harvestQty: number | null;
   harvestUnit: string | null;
 };
@@ -349,6 +482,10 @@ function writePayload(input: LogEntryInput) {
     spray_material: isSpray ? (input.sprayMaterial?.trim() ?? null) : null,
     spray_dose: isSpray ? (input.sprayDose?.trim() ? input.sprayDose.trim() : null) : null,
     spray_phi_days: isSpray ? input.sprayPhiDays : null,
+    spray_quantity: isSpray ? input.sprayQuantity : null,
+    spray_quantity_unit: isSpray ? input.sprayQuantityUnit : null,
+    spray_unit_price: isSpray ? input.sprayUnitPrice : null,
+    spray_cost: isSpray ? input.sprayCost : null,
     harvest_qty: isHarvest ? input.harvestQty : null,
     harvest_unit: isHarvest ? (input.harvestUnit?.trim() ? input.harvestUnit.trim() : null) : null,
   };
@@ -367,7 +504,11 @@ export async function createLogEntry(
     .from('log_entries')
     .insert({ farm_id: farmId, source, ...writePayload(input) })
     .select('id');
-  return writeOutcome(write);
+  const outcome = writeOutcome(write);
+  // Remember the material's price for next time, only once the spray itself is
+  // safely written. Best-effort, never blocks the save. See below.
+  if (outcome.ok) await rememberSprayMaterialPrice(supabase, farmId, input).catch(() => {});
+  return outcome;
 }
 
 export async function updateLogEntry(
@@ -384,4 +525,80 @@ export async function updateLogEntry(
     .eq('id', logEntryId)
     .select('id');
   return writeOutcome(write);
+}
+
+// ============================================================
+// The spray material pricelist: a per-farm default, never the source of truth
+// for a saved spray's cost. See 20260904130000_spray_pricelist.sql.
+// ============================================================
+
+// Remember what the farm paid for a material, so the next spray of it pre-fills
+// the price. Upserted like task_cost_memory (rememberTaskCost): best-effort,
+// never blocks or reports, awaited *inside* an async function so the query is
+// actually sent and not left an unfired thenable. A worker is blocked from the
+// money table by RLS and simply leaves it unpopulated. Only a spray that carries
+// both a unit price and a unit is remembered; a cost typed as a bare total has
+// no per-unit price to store.
+export async function rememberSprayMaterialPrice(
+  supabase: SupabaseClient,
+  farmId: string,
+  input: LogEntryInput,
+): Promise<void> {
+  if (input.type !== 'spray') return;
+  const material = input.sprayMaterial?.trim();
+  if (!material) return;
+  if (input.sprayUnitPrice === null || input.sprayQuantityUnit === null) return;
+  await supabase.from('spray_material_prices').upsert(
+    {
+      farm_id: farmId,
+      material_normalized: normalizeSprayMaterial(material),
+      unit_price: input.sprayUnitPrice,
+      unit: input.sprayQuantityUnit,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: 'farm_id,material_normalized' },
+  );
+}
+
+type SprayPriceRowResult = {
+  material_normalized: string;
+  unit_price: number;
+  unit: SprayUnit;
+};
+
+// The farm's remembered material prices, for the spray entry flow to pre-fill a
+// default. Worker gets zero rows (money table), which is fine: the tile flow
+// then simply asks for the price like a first-ever spray.
+export function useSprayPrices(supabase: SupabaseClient, farmId: string | null): SprayPriceRow[] {
+  const [prices, setPrices] = useState<SprayPriceRow[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    if (!farmId) {
+      setPrices([]);
+      return;
+    }
+
+    void supabase
+      .from('spray_material_prices')
+      .select('material_normalized, unit_price, unit')
+      .eq('farm_id', farmId)
+      .then(({ data }) => {
+        if (!active) return;
+        const raw = (data ?? []) as SprayPriceRowResult[];
+        setPrices(
+          raw.map((row) => ({
+            materialNormalized: row.material_normalized,
+            unitPrice: row.unit_price,
+            unit: row.unit,
+          })),
+        );
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [supabase, farmId]);
+
+  return prices;
 }

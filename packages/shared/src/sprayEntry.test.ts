@@ -3,9 +3,16 @@ import { createLogEntry, type LogEntry } from './logEntries';
 import { t } from './i18n';
 import { safeHarvestDate } from './safeHarvestDate';
 import {
+  applySprayCost,
   applySprayMaterial,
+  applySprayQuantity,
+  applySprayUnit,
+  applySprayUnitPrice,
+  computeSprayCost,
   newSprayDraft,
   nextSprayStep,
+  normalizeSprayMaterial,
+  parseSprayAmountInput,
   parseSprayPhiDaysInput,
   previousSprayStep,
   recentValues,
@@ -19,6 +26,7 @@ import {
   sprayPestOptions,
   sprayPhiOptions,
   sprayPlotOptions,
+  sprayPriceMemory,
   sprayStepFieldKey,
   sprayStepPosition,
   sprayStepRequired,
@@ -29,6 +37,7 @@ import {
   SPRAY_STEPS,
   SPRAY_TILE_LIMIT,
   type SprayHistoryRow,
+  type SprayPriceRow,
 } from './sprayEntry';
 
 // Newest first, which is the order useSpraySuggestions asks the database for
@@ -50,6 +59,10 @@ function entry(overrides: Partial<LogEntry> = {}): LogEntry {
     sprayMaterial: 'קונפידור',
     sprayDose: '50 סמ"ק',
     sprayPhiDays: 14,
+    sprayQuantity: null,
+    sprayQuantityUnit: null,
+    sprayUnitPrice: null,
+    sprayCost: null,
     harvestQty: null,
     harvestUnit: null,
     createdAt: '2026-08-25T06:00:00.000Z',
@@ -236,8 +249,17 @@ describe('sprayDateOptions', () => {
 // ============================================================
 
 describe('the steps', () => {
-  it('asks the six fields the founder named, in his order, then the review', () => {
-    expect(SPRAY_STEPS).toEqual(['pest', 'material', 'dose', 'phiDays', 'plot', 'date', 'review']);
+  it('asks the fields in order, cost right after material, then the review', () => {
+    expect(SPRAY_STEPS).toEqual([
+      'pest',
+      'material',
+      'cost',
+      'dose',
+      'phiDays',
+      'plot',
+      'date',
+      'review',
+    ]);
   });
 
   it('gives every step a distinct question and a distinct field label', () => {
@@ -260,6 +282,11 @@ describe('newSprayDraft', () => {
       material: null,
       dose: null,
       phiDays: null,
+      quantity: null,
+      quantityUnit: null,
+      unitPrice: null,
+      cost: null,
+      costEdited: false,
       plotId: null,
       date: '2026-09-03',
       prefilled: [],
@@ -287,21 +314,31 @@ describe('applySprayMaterial', () => {
     const draft = applySprayMaterial(newSprayDraft(new Date(2026, 8, 3), null), 'קונפידור', rows);
     expect(draft.dose).toBe('50 סמ"ק');
     expect(draft.phiDays).toBe(14);
-    expect(nextSprayStep('material', draft)).toBe('plot');
-    expect(sprayVisibleSteps(draft)).toEqual(['pest', 'material', 'plot', 'date', 'review']);
+    // cost is never skipped, so it is what comes after material even when the
+    // dose and the waiting period are remembered.
+    expect(nextSprayStep('material', draft)).toBe('cost');
+    expect(sprayVisibleSteps(draft)).toEqual([
+      'pest',
+      'material',
+      'cost',
+      'plot',
+      'date',
+      'review',
+    ]);
   });
 
   it('asks for both when the farm has never used this material', () => {
     const draft = applySprayMaterial(newSprayDraft(new Date(2026, 8, 3), null), 'עלסר', rows);
     expect(draft.dose).toBeNull();
     expect(draft.phiDays).toBeNull();
-    expect(nextSprayStep('material', draft)).toBe('dose');
+    expect(nextSprayStep('cost', draft)).toBe('dose');
+    expect(sprayVisibleSteps(draft)).toContain('dose');
   });
 
   it('skips only the half it remembers', () => {
     const partial = [row({ material: 'עלסר', dose: '1%', phiDays: null })];
     const draft = applySprayMaterial(newSprayDraft(new Date(2026, 8, 3), null), 'עלסר', partial);
-    expect(nextSprayStep('material', draft)).toBe('phiDays');
+    expect(nextSprayStep('cost', draft)).toBe('phiDays');
     expect(sprayVisibleSteps(draft)).not.toContain('dose');
   });
 
@@ -319,9 +356,10 @@ describe('applySprayMaterial', () => {
 describe('moving between steps', () => {
   const draft = newSprayDraft(new Date(2026, 8, 3), null);
 
-  it('walks the six questions in order and ends on the review', () => {
+  it('walks the questions in order and ends on the review', () => {
     expect(nextSprayStep('pest', draft)).toBe('material');
-    expect(nextSprayStep('material', draft)).toBe('dose');
+    expect(nextSprayStep('material', draft)).toBe('cost');
+    expect(nextSprayStep('cost', draft)).toBe('dose');
     expect(nextSprayStep('dose', draft)).toBe('phiDays');
     expect(nextSprayStep('phiDays', draft)).toBe('plot');
     expect(nextSprayStep('plot', draft)).toBe('date');
@@ -343,9 +381,9 @@ describe('moving between steps', () => {
   });
 
   it('counts the steps that will actually be asked, not the ones that exist', () => {
-    expect(sprayStepPosition('pest', draft)).toEqual({ index: 1, total: 7 });
+    expect(sprayStepPosition('pest', draft)).toEqual({ index: 1, total: 8 });
     const shorter = newSprayDraft(new Date(2026, 8, 3), 'plot-1');
-    expect(sprayStepPosition('date', shorter)).toEqual({ index: 5, total: 6 });
+    expect(sprayStepPosition('date', shorter)).toEqual({ index: 6, total: 7 });
   });
 });
 
@@ -415,6 +453,10 @@ describe('sprayEntryInput', () => {
       sprayMaterial: 'קונפידור',
       sprayDose: '50 סמ"ק',
       sprayPhiDays: 14,
+      sprayQuantity: null,
+      sprayQuantityUnit: null,
+      sprayUnitPrice: null,
+      sprayCost: null,
       harvestQty: null,
       harvestUnit: null,
     });
@@ -446,16 +488,34 @@ describe('sprayEntryInput', () => {
 });
 
 describe('sprayDraftFromEntry', () => {
-  it('opens an existing spray on all six of its own values', () => {
+  it('opens an existing spray on all of its own values', () => {
     expect(sprayDraftFromEntry(entry())).toEqual({
       pest: 'כנימה',
       material: 'קונפידור',
       dose: '50 סמ"ק',
       phiDays: 14,
+      quantity: null,
+      quantityUnit: null,
+      unitPrice: null,
+      cost: null,
+      costEdited: false,
       plotId: 'plot-1',
       date: '2026-08-25',
       prefilled: [],
     });
+  });
+
+  // A saved cost that equals quantity x unit price was computed and may still
+  // recompute; anything else was typed and must be left alone.
+  it('marks a saved cost as edited only when it is not the quantity x price', () => {
+    const computed = sprayDraftFromEntry(
+      entry({ sprayQuantity: 3, sprayQuantityUnit: 'kg', sprayUnitPrice: 40, sprayCost: 120 }),
+    );
+    expect(computed.costEdited).toBe(false);
+    const typed = sprayDraftFromEntry(
+      entry({ sprayQuantity: 3, sprayQuantityUnit: 'kg', sprayUnitPrice: 40, sprayCost: 200 }),
+    );
+    expect(typed.costEdited).toBe(true);
   });
 
   // A YYYY-MM-DD string put through a Date and back is the day-early bug from
@@ -487,6 +547,137 @@ describe('parseSprayPhiDaysInput', () => {
 
   it('accepts a same-day material as zero days rather than as no answer', () => {
     expect(parseSprayPhiDaysInput('0')).toBe(0);
+  });
+});
+
+// ============================================================
+// The cost: quantity, unit and a remembered price, and the rule that the
+// farmer's own number always wins. A price is a default, never a cage.
+// ============================================================
+
+describe('normalizeSprayMaterial', () => {
+  it('folds spacing and case so two spellings share one price', () => {
+    expect(normalizeSprayMaterial('  קונפידור  ')).toBe('קונפידור');
+    expect(normalizeSprayMaterial('Confidor  Extra')).toBe('confidor extra');
+  });
+});
+
+describe('computeSprayCost', () => {
+  it('multiplies quantity by unit price', () => {
+    expect(computeSprayCost(3, 40)).toBe(120);
+  });
+
+  it('is null when either side is missing, so a cost is never invented', () => {
+    expect(computeSprayCost(null, 40)).toBeNull();
+    expect(computeSprayCost(3, null)).toBeNull();
+    expect(computeSprayCost(null, null)).toBeNull();
+  });
+
+  it('refuses a negative or unreadable input rather than a wrong number', () => {
+    expect(computeSprayCost(-1, 40)).toBeNull();
+    expect(computeSprayCost(3, Number.NaN)).toBeNull();
+  });
+});
+
+describe('parseSprayAmountInput', () => {
+  it('reads a quantity or a price, and allows a decimal', () => {
+    expect(parseSprayAmountInput('3')).toBe(3);
+    expect(parseSprayAmountInput(' 2.5 ')).toBe(2.5);
+  });
+
+  it('tells an empty box apart from an unreadable one', () => {
+    expect(parseSprayAmountInput('')).toBeNull();
+    expect(parseSprayAmountInput('הרבה')).toBeUndefined();
+    expect(parseSprayAmountInput('-5')).toBeUndefined();
+  });
+});
+
+describe('sprayPriceMemory', () => {
+  const prices: SprayPriceRow[] = [
+    { materialNormalized: 'קונפידור', unitPrice: 40, unit: 'kg' },
+    { materialNormalized: 'שמן', unitPrice: 12, unit: 'liter' },
+  ];
+
+  it('returns the remembered price and unit for a material', () => {
+    expect(sprayPriceMemory(prices, 'קונפידור')).toEqual({ unitPrice: 40, unit: 'kg' });
+    expect(sprayPriceMemory(prices, '  שמן ')).toEqual({ unitPrice: 12, unit: 'liter' });
+  });
+
+  it('returns nulls for a material the farm has no price for', () => {
+    expect(sprayPriceMemory(prices, 'עלסר')).toEqual({ unitPrice: null, unit: null });
+    expect(sprayPriceMemory(prices, null)).toEqual({ unitPrice: null, unit: null });
+  });
+});
+
+describe('the cost as the farmer builds it', () => {
+  const base = newSprayDraft(new Date(2026, 8, 3), null);
+  const prices: SprayPriceRow[] = [{ materialNormalized: 'קונפידור', unitPrice: 40, unit: 'kg' }];
+
+  it('pre-fills the unit and price from the pricelist when the material is picked', () => {
+    const draft = applySprayMaterial(base, 'קונפידור', [], prices);
+    expect(draft.unitPrice).toBe(40);
+    expect(draft.quantityUnit).toBe('kg');
+  });
+
+  it('computes the cost from quantity once a price is known', () => {
+    const withPrice = applySprayMaterial(base, 'קונפידור', [], prices);
+    const withQty = applySprayQuantity(withPrice, 3);
+    expect(withQty.cost).toBe(120);
+  });
+
+  it('recomputes the cost when the price is corrected, as long as it was not typed', () => {
+    const draft = applySprayUnitPrice(applySprayQuantity(base, 2), 10);
+    expect(draft.cost).toBe(20);
+    expect(applySprayUnitPrice(draft, 15).cost).toBe(30);
+  });
+
+  // The founder's rule: always let the farmer type the number himself. A typed
+  // total wins over the formula and is not overwritten by later tweaks.
+  it('lets a typed total win and stops recomputing it', () => {
+    const auto = applySprayUnitPrice(applySprayQuantity(base, 2), 10);
+    const typed = applySprayCost(auto, 55);
+    expect(typed.cost).toBe(55);
+    expect(applySprayQuantity(typed, 9).cost).toBe(55);
+  });
+
+  it('returns a typed total to auto when it is cleared', () => {
+    const typed = applySprayCost(applySprayUnitPrice(applySprayQuantity(base, 2), 10), 55);
+    const cleared = applySprayCost(typed, null);
+    expect(applySprayQuantity(cleared, 3).cost).toBe(30);
+  });
+
+  // Manual entry with no pricelist at all: the farmer just types what it cost.
+  it('accepts a bare total with no quantity and no price', () => {
+    const draft = applySprayCost({ ...base, pest: 'כנימה', material: 'עלסר' }, 250);
+    const input = sprayEntryInput(draft);
+    expect(input.sprayCost).toBe(250);
+    expect(input.sprayQuantity).toBeNull();
+    expect(input.sprayUnitPrice).toBeNull();
+  });
+
+  it('carries quantity, unit, price and cost into the write', () => {
+    const draft = applySprayCost(
+      applySprayUnit(
+        applySprayQuantity(applySprayUnitPrice({ ...base, pest: 'כ', material: 'ק' }, 40), 3),
+        'kg',
+      ),
+      120,
+    );
+    const input = sprayEntryInput(draft);
+    expect(input.sprayQuantity).toBe(3);
+    expect(input.sprayQuantityUnit).toBe('kg');
+    expect(input.sprayUnitPrice).toBe(40);
+    expect(input.sprayCost).toBe(120);
+  });
+
+  // Picking a different material re-decides the price, like the dose, and the
+  // cost follows the new price rather than the old one.
+  it('re-decides the price when the material changes', () => {
+    const first = applySprayQuantity(applySprayMaterial(base, 'קונפידור', [], prices), 2);
+    expect(first.cost).toBe(80);
+    const second = applySprayMaterial(first, 'עלסר', [], prices);
+    expect(second.unitPrice).toBeNull();
+    expect(second.cost).toBeNull();
   });
 });
 

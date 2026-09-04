@@ -212,6 +212,81 @@ export function sprayMaterialMemory(
 }
 
 // ============================================================
+// The material pricelist: what this farm last paid for a material.
+//
+// **A price is history, not a value** (see 20260904130000_spray_pricelist.sql).
+// The pricelist only pre-fills the next entry's suggestion; the price and cost
+// that matter are frozen onto the spray row at write time and never read back
+// from here. A farmer updating a material's price today touches no past spray.
+//
+// Kept out of SprayHistoryRow on purpose: the tile history is the last 50 spray
+// rows, while a price is one remembered row per material in a separate,
+// worker-blocked table. normalizeSprayMaterial matches the material_normalized
+// column the upsert writes, exactly as normalizeTaskTitle backs task_cost_memory.
+// ============================================================
+
+export type SprayUnit = 'liter' | 'kg';
+
+// Mirrors public.spray_unit in the migration. Keep the two lists in sync.
+export const SPRAY_UNITS: readonly SprayUnit[] = ['liter', 'kg'];
+
+export function sprayUnitLabelKey(unit: SprayUnit): string {
+  return `spray.unit.${unit}`;
+}
+
+export function isSprayUnit(value: string | null): value is SprayUnit {
+  return value === 'liter' || value === 'kg';
+}
+
+// Trim, lowercase, collapse inner whitespace, so two spellings of one material
+// ("קונפידור", " קונפידור ") share a single remembered price.
+export function normalizeSprayMaterial(material: string): string {
+  return material.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+export type SprayPriceRow = {
+  materialNormalized: string;
+  unitPrice: number;
+  unit: SprayUnit;
+};
+
+export type SprayPriceMemory = { unitPrice: number | null; unit: SprayUnit | null };
+
+const NO_PRICE_MEMORY: SprayPriceMemory = { unitPrice: null, unit: null };
+
+// The remembered price for a material, or nulls when the farm has none. A
+// default the farmer can always overwrite, never a value forced onto the spray.
+export function sprayPriceMemory(
+  prices: readonly SprayPriceRow[],
+  material: string | null,
+): SprayPriceMemory {
+  const wanted = material === null ? '' : normalizeSprayMaterial(material);
+  if (wanted === '') return NO_PRICE_MEMORY;
+  const match = prices.find((row) => row.materialNormalized === wanted);
+  return match ? { unitPrice: match.unitPrice, unit: match.unit } : NO_PRICE_MEMORY;
+}
+
+// Quantity times unit price, or null when either is missing or unusable. Null is
+// a real state: a spray with no cost, or a cost the farmer will type directly.
+export function computeSprayCost(quantity: number | null, unitPrice: number | null): number | null {
+  if (quantity === null || unitPrice === null) return null;
+  if (!Number.isFinite(quantity) || !Number.isFinite(unitPrice)) return null;
+  if (quantity < 0 || unitPrice < 0) return null;
+  return quantity * unitPrice;
+}
+
+// Reading a number the farmer typed into the quantity, unit-price or cost box.
+// Same convention as parseSprayPhiDaysInput: an empty box is "not stated" (null),
+// an unreadable box must not quietly become one (undefined).
+export function parseSprayAmountInput(text: string): number | null | undefined {
+  const trimmed = text.trim();
+  if (trimmed === '') return null;
+  const value = Number(trimmed);
+  if (!Number.isFinite(value) || value < 0) return undefined;
+  return value;
+}
+
+// ============================================================
 // The plot tiles.
 //
 // The whole-farm tile is last and is always offered. Last because a spray is
@@ -262,11 +337,17 @@ export function sprayDateOptions(now: Date): SprayDateOption[] {
 // goes back to the screen that set it.
 // ============================================================
 
-export type SprayStep = 'pest' | 'material' | 'dose' | 'phiDays' | 'plot' | 'date' | 'review';
+export type SprayStep =
+  'pest' | 'material' | 'cost' | 'dose' | 'phiDays' | 'plot' | 'date' | 'review';
 
+// **cost sits right after material**, the founder's words: quantity is a natural
+// continuation of picking the material. It is one screen and not tiles, like the
+// date's calendar and the "another number" boxes already are, because a quantity
+// and a price are numbers a farmer types, not a closed list to pick from.
 export const SPRAY_STEPS: readonly SprayStep[] = [
   'pest',
   'material',
+  'cost',
   'dose',
   'phiDays',
   'plot',
@@ -277,6 +358,7 @@ export const SPRAY_STEPS: readonly SprayStep[] = [
 const SPRAY_STEP_TITLE_KEYS: Record<SprayStep, string> = {
   pest: 'spray.step.pest',
   material: 'spray.step.material',
+  cost: 'spray.step.cost',
   dose: 'spray.step.dose',
   phiDays: 'spray.step.phiDays',
   plot: 'spray.step.plot',
@@ -294,6 +376,7 @@ export function sprayStepTitleKey(step: SprayStep): string {
 const SPRAY_STEP_FIELD_KEYS: Record<SprayStep, string> = {
   pest: 'log.form.sprayPest',
   material: 'log.form.sprayMaterial',
+  cost: 'log.form.sprayCost',
   dose: 'log.form.sprayDose',
   phiDays: 'log.form.sprayPhiDays',
   plot: 'plots.form.name',
@@ -319,6 +402,18 @@ export type SprayDraft = {
   material: string | null;
   dose: string | null;
   phiDays: number | null;
+  // Quantity used this spray, its unit, and the per-unit price. quantity is
+  // per-spray; unit and unitPrice are properties of the material, pre-filled
+  // from the pricelist when known and always overwritable.
+  quantity: number | null;
+  quantityUnit: SprayUnit | null;
+  unitPrice: number | null;
+  // The total cost, frozen onto the row on save. Auto = quantity x unitPrice,
+  // until the farmer types a total directly, from which point costEdited is true
+  // and his number wins over the formula, exactly the "remembered vs touched"
+  // rule TaskCostMemory uses. Typing a cost with no quantity or price is allowed.
+  cost: number | null;
+  costEdited: boolean;
   plotId: string | null;
   date: string;
   // **Steps that already carry an answer and are therefore not asked.** Two
@@ -335,6 +430,11 @@ export function newSprayDraft(now: Date, defaultPlotId: string | null): SprayDra
     material: null,
     dose: null,
     phiDays: null,
+    quantity: null,
+    quantityUnit: null,
+    unitPrice: null,
+    cost: null,
+    costEdited: false,
     plotId: defaultPlotId,
     date: formatLocalDateOnly(now),
     // A farmer who filtered the spray log to a plot and then pressed "new
@@ -356,6 +456,16 @@ export function sprayDraftFromEntry(entry: LogEntry): SprayDraft {
     material: entry.sprayMaterial,
     dose: entry.sprayDose,
     phiDays: entry.sprayPhiDays,
+    quantity: entry.sprayQuantity,
+    quantityUnit: entry.sprayQuantityUnit,
+    unitPrice: entry.sprayUnitPrice,
+    cost: entry.sprayCost,
+    // A saved cost that equals quantity x unit price was computed; anything else
+    // was typed by hand. Treating a typed cost as edited stops a later tweak to
+    // the quantity from silently overwriting the farmer's own number.
+    costEdited:
+      entry.sprayCost !== null &&
+      entry.sprayCost !== computeSprayCost(entry.sprayQuantity, entry.sprayUnitPrice),
     plotId: entry.plotId,
     date: entry.date,
     prefilled: [],
@@ -372,20 +482,56 @@ export function applySprayMaterial(
   draft: SprayDraft,
   material: string,
   rows: readonly SprayHistoryRow[],
+  prices: readonly SprayPriceRow[] = [],
 ): SprayDraft {
   const memory = sprayMaterialMemory(rows, material);
+  const price = sprayPriceMemory(prices, material);
   const prefilled = draft.prefilled.filter((step) => step !== 'dose' && step !== 'phiDays');
-  return {
+  const next: SprayDraft = {
     ...draft,
     material,
     dose: memory.dose,
     phiDays: memory.phiDays,
+    // Unit and price belong to the material and are re-decided on every pick,
+    // like the dose. The quantity is per-spray and is left as it was. The cost
+    // returns to auto (costEdited false), so it recomputes from the new price.
+    quantityUnit: price.unit ?? draft.quantityUnit,
+    unitPrice: price.unitPrice,
+    costEdited: false,
     prefilled: [
       ...prefilled,
       ...(memory.dose === null ? [] : (['dose'] as const)),
       ...(memory.phiDays === null ? [] : (['phiDays'] as const)),
     ],
   };
+  return { ...next, cost: recomputedCost(next) };
+}
+
+// The cost the walk should show now: the farmer's own number once he has typed
+// one, otherwise quantity x unit price. Kept here, tested, so neither client
+// re-decides when a cost is auto and when it is frozen.
+function recomputedCost(draft: SprayDraft): number | null {
+  return draft.costEdited ? draft.cost : computeSprayCost(draft.quantity, draft.unitPrice);
+}
+
+export function applySprayQuantity(draft: SprayDraft, quantity: number | null): SprayDraft {
+  const next = { ...draft, quantity };
+  return { ...next, cost: recomputedCost(next) };
+}
+
+export function applySprayUnit(draft: SprayDraft, unit: SprayUnit | null): SprayDraft {
+  return { ...draft, quantityUnit: unit };
+}
+
+export function applySprayUnitPrice(draft: SprayDraft, unitPrice: number | null): SprayDraft {
+  const next = { ...draft, unitPrice };
+  return { ...next, cost: recomputedCost(next) };
+}
+
+// The farmer typed a total directly. From now on quantity and price changes
+// leave it alone; clearing it (null) returns the cost to auto.
+export function applySprayCost(draft: SprayDraft, cost: number | null): SprayDraft {
+  return { ...draft, cost, costEdited: cost !== null };
 }
 
 // The steps this draft will actually put on screen, review included. The
@@ -465,6 +611,10 @@ export function sprayEntryInput(draft: SprayDraft): LogEntryInput {
     sprayMaterial: draft.material?.trim() ? draft.material.trim() : null,
     sprayDose: draft.dose?.trim() ? draft.dose.trim() : null,
     sprayPhiDays: draft.phiDays,
+    sprayQuantity: draft.quantity,
+    sprayQuantityUnit: draft.quantityUnit,
+    sprayUnitPrice: draft.unitPrice,
+    sprayCost: draft.cost,
     harvestQty: null,
     harvestUnit: null,
   };

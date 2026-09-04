@@ -375,6 +375,7 @@ const strings: Record<string, string> = {
   'log.form.sprayMaterialPlaceholder': 'למשל, קונפידור',
   'log.form.sprayDose': 'מינון',
   'log.form.sprayPhiDays': 'ימי המתנה עד קטיף',
+  'log.form.sprayCost': 'עלות',
   'log.form.harvestQty': 'כמות',
   'log.form.harvestUnit': 'יחידה',
   'log.form.harvestUnitPlaceholder': 'למשל, ק"ג',
@@ -408,6 +409,7 @@ const strings: Record<string, string> = {
   // מה ריססתם?" הוא שיחה, וזה מה שהסקיצה של היזם מתארת.
   'spray.step.pest': 'נגד מה ריססתם?',
   'spray.step.material': 'באיזה חומר?',
+  'spray.step.cost': 'כמה זה עלה?',
   'spray.step.dose': 'איזה מינון?',
   'spray.step.phiDays': 'כמה ימי המתנה עד קטיף?',
   'spray.step.plot': 'איזו חלקה?',
@@ -435,6 +437,25 @@ const strings: Record<string, string> = {
   'spray.newTitle': 'ריסוס חדש',
   'spray.editTitle': 'עריכת ריסוס',
   'spray.save': 'שמירת הריסוס',
+
+  // The cost step. Quantity is per-spray and typed; the unit and price are
+  // remembered per material and pre-filled; the total is computed but always
+  // editable, and can be typed on its own with no quantity or price at all,
+  // because the farmer is never forced through the formula (founder, 2026-09-04).
+  'spray.unit.liter': 'ליטר',
+  'spray.unit.kg': 'קילו',
+  'spray.quantity': 'כמות',
+  'spray.quantityPlaceholder': 'כמה השתמשתם',
+  'spray.unitLabel': 'יחידה',
+  'spray.unitPrice': 'מחיר ליחידה',
+  'spray.unitPricePerLiter': 'מחיר לליטר',
+  'spray.unitPricePerKg': 'מחיר לקילו',
+  'spray.unitPricePlaceholder': 'מחיר',
+  'spray.cost': 'עלות',
+  'spray.costPlaceholder': 'סכום',
+  'spray.costComputed': 'מחושב אוטומטית, אפשר לשנות',
+  'spray.costHint': 'אפשר גם פשוט להקליד את הסכום',
+  'spray.skipCost': 'בלי עלות',
 
   // Completion Prompts, design.md. שתי שאלות עצמאיות בסיום משימה.
   'completion.donePrefix': 'בוצע',

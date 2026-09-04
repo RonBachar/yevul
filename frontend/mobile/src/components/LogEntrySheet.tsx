@@ -128,6 +128,13 @@ export function LogEntrySheet({
       sprayMaterial: sprayMaterial.trim() ? sprayMaterial.trim() : null,
       sprayDose: sprayDose.trim() ? sprayDose.trim() : null,
       sprayPhiDays: Number.isFinite(phiDaysNumber) ? phiDaysNumber : null,
+      // The generic journal sheet has no cost UI -- spray cost is entered through
+      // SprayEntrySheet's cost step. These are null only to satisfy the four
+      // fields LogEntryInput gained; createLogEntry treats them as "not stated".
+      sprayQuantity: null,
+      sprayQuantityUnit: null,
+      sprayUnitPrice: null,
+      sprayCost: null,
       harvestQty:
         harvestQty.trim() && Number.isFinite(Number(harvestQty)) ? Number(harvestQty) : null,
       harvestUnit: harvestUnit.trim() ? harvestUnit.trim() : null,

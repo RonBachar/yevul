@@ -70,4 +70,20 @@ describe('farmProfitForecast', () => {
     expect(result.profit).toBe(0);
     expect(result.plotsWithForecast).toBe(0);
   });
+
+  // Spray material cost lowers the profit (founder's decision 2026-09-04), as a
+  // distinct line so `expenses` still equals the expense list and does not
+  // double-count.
+  it('subtracts spray costs from profit without folding them into expenses', () => {
+    const result = farmProfitForecast([plot(100000, 20000)], 5000, true, 8000);
+    expect(result.expenses).toBe(25000);
+    expect(result.sprayCosts).toBe(8000);
+    expect(result.profit).toBe(100000 - 25000 - 8000);
+  });
+
+  it('leaves spray costs at zero when none are passed', () => {
+    const result = farmProfitForecast([plot(100000, 0)], 0, true);
+    expect(result.sprayCosts).toBe(0);
+    expect(result.profit).toBe(100000);
+  });
 });
