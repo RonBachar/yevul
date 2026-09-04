@@ -417,6 +417,9 @@ export function voiceTaskInput(
     // Written as extracted, shown read-only on the sheet. See voiceEditableFields
     // for why this is not an edit box.
     estimatedCost: value.estimatedCost,
+    // Voice never assigns a member; the extraction schema has no such field.
+    // Assignment is a deliberate choice made in the task sheet (stage 6).
+    assignedTo: null,
   };
 }
 

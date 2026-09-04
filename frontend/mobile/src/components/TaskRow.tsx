@@ -3,7 +3,14 @@ import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react
 import type { LayoutChangeEvent } from 'react-native';
 import Check from 'lucide-react-native/icons/check';
 import Trash2 from 'lucide-react-native/icons/trash-2';
-import { formatAmount, t, taskDueDisplay, type Currency, type Task } from '@yevul/shared';
+import {
+  formatAmount,
+  t,
+  taskDueDisplay,
+  type Currency,
+  type Task,
+  type TaskAssignee,
+} from '@yevul/shared';
 import { colors, fonts, fontSize, radius, spacing } from '../theme/tokens';
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -27,6 +34,7 @@ export function TaskRow({
   task,
   plotName,
   currency,
+  assignee = null,
   onPress,
   onCompleteCommit,
   onDeleteCommit,
@@ -34,6 +42,10 @@ export function TaskRow({
   task: Task;
   plotName: string | null;
   currency: Currency;
+  // אווטאר החבר, שלב 6, design.md, Member Avatar. מגיע מוכן מ-TaskBoard
+  // (הרוסטר נטען פעם אחת ללוח), ו-null כשהמשימה לא משויכת או משויכת
+  // למשתמש המחובר, שאז לא מוצג כלום.
+  assignee?: TaskAssignee | null;
   onPress: () => void;
   onCompleteCommit: () => void;
   onDeleteCommit: () => void;
@@ -153,6 +165,16 @@ export function TaskRow({
             </Text>
           )}
         </Pressable>
+        {/* אווטאר החבר, design.md, Member Avatar: עיגול 32px, מילוי
+            Field-100, ראשי תיבות ב-Field-700, באזור ה-trailing בלבד. */}
+        {assignee && (
+          <View
+            style={styles.avatar}
+            accessibilityLabel={`${t('tasks.assignedTo')} ${assignee.label}`}
+          >
+            <Text style={styles.avatarText}>{assignee.initials}</Text>
+          </View>
+        )}
         <View style={styles.buttons}>
           <Pressable
             style={[styles.iconButton, styles.completeButton]}
@@ -243,6 +265,21 @@ const styles = StyleSheet.create({
   metaOverdue: {
     fontFamily: fonts.bold,
     color: colors.wheat800,
+  },
+  // אווטאר החבר, design.md, Member Avatar: 32px, Field-100, ראשי תיבות
+  // ב-Field-700. יושב באזור ה-trailing, לפני כפתורי הפעולה.
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+    backgroundColor: colors.field100,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.caption,
+    color: colors.field700,
   },
   buttons: {
     flexDirection: 'row',

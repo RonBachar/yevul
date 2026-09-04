@@ -1,12 +1,15 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   completeTask,
   completionPromptVisibility,
   deleteTask,
   groupTasksByUrgency,
+  membersByUserId,
   t,
+  taskAssignee,
   useFarmSettings,
+  useMembers,
   useTasks,
   type Task,
 } from '@yevul/shared';
@@ -35,6 +38,10 @@ export function TaskBoard({
   const settings = useFarmSettings(supabase);
   const currency = settings.form?.currency ?? 'ILS';
   const tasksState = useTasks(supabase, plotId);
+  // הרוסטר נטען פעם אחת ללוח ומומר למיפוי, כדי ששורת המשימה תפתור את
+  // assigned_to לראשי תיבות בלי שאילתה לכל שורה, design.md, Member Avatar.
+  const membersState = useMembers(supabase);
+  const byUserId = useMemo(() => membersByUserId(membersState.members), [membersState.members]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [completingTask, setCompletingTask] = useState<Task | null>(null);
@@ -103,6 +110,7 @@ export function TaskBoard({
                       showPlotName ? (tasksState.plotNames.get(task.plotId ?? '') ?? null) : null
                     }
                     currency={currency}
+                    assignee={taskAssignee(task.assignedTo, membersState.currentUserId, byUserId)}
                     onEdit={() => openEdit(task)}
                     onCompleteCommit={() => handleComplete(task.id)}
                     onDeleteCommit={() => handleDelete(task.id)}

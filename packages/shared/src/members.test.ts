@@ -1,27 +1,33 @@
 // Tests for farm sharing, packages/shared/src/members.ts.
 //
-// Two things are pinned here. First, the pure email rules, because the DB
+// Three concerns are pinned here. (1) The pure email rules, because the DB
 // depends on them: the sign-in trigger matches on lower(invited_email) and the
-// unique index is on lower(invited_email), so a client that stored a
-// mixed-case address would create an invite the trigger could still match but a
-// human comparing the two would think differed. Second, the write functions'
-// mapping of a PostgREST answer to an outcome, because invite (INSERT) and
-// remove/role-change (UPDATE) fail in two different ways: an INSERT blocked by
-// RLS throws with a code, an UPDATE blocked by RLS returns zero rows and no
-// error. Getting either mapping wrong tells the owner an action worked when it
-// did not. What stays untested is the hook and the screens: neither client has
-// a test runner, so useMembers and the settings UI are verified by running the
-// app, not here.
+// unique index is on lower(invited_email). (2) The write functions' mapping of
+// a PostgREST answer to an outcome, because invite (INSERT) and role-change /
+// remove (UPDATE) fail in two different ways. (3) The pure assignment and
+// worker-mode policy — initials, assignable filter, the assign-to-someone-else
+// rule, and the shell a role gets — since the two clients have no test runner.
 
 import { describe, expect, it } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
+  assignableMembers,
+  currentMember,
   inviteMember,
   isValidInviteEmail,
+  memberInitials,
+  membersByUserId,
   normalizeInviteEmail,
   removeMember,
+  taskAssignee,
   updateMemberRole,
+  workerModeShell,
+  type Member,
 } from './members';
+
+// ============================================================
+// Invite / role / remove — the write path (fake supabase).
+// ============================================================
 
 type WriteResult = {
   data: { id: string }[] | null;
@@ -52,7 +58,6 @@ function fakeSupabase(result: WriteResult) {
       recorded.filters.push(`${column} = ${value}`);
       return builder;
     },
-    // Last link in every chain here, so this is where the write resolves.
     select(columns: string) {
       recorded.selected = columns;
       return Promise.resolve(result);
@@ -95,18 +100,14 @@ describe('isValidInviteEmail', () => {
 describe('inviteMember', () => {
   it('rejects an invalid email before touching the database', async () => {
     const { supabase, recorded } = fakeSupabase(ONE_ROW);
-
     const result = await inviteMember(supabase, 'farm-1', 'not-an-email', 'worker');
-
     expect(result).toEqual({ ok: false, reason: 'invalidEmail' });
     expect(recorded.tables).toEqual([]);
   });
 
   it('inserts a pending invite with a normalized email and returns its id', async () => {
     const { supabase, recorded } = fakeSupabase(ONE_ROW);
-
     const result = await inviteMember(supabase, 'farm-1', '  Son@Test.Yevul ', 'worker');
-
     expect(result).toEqual({ ok: true, id: 'member-1' });
     expect(recorded.tables).toEqual(['farm_members']);
     expect(recorded.inserts[0]).toEqual({
@@ -120,25 +121,19 @@ describe('inviteMember', () => {
 
   it('maps a unique-violation to duplicate', async () => {
     const { supabase } = fakeSupabase({ data: null, error: { code: '23505', message: 'dup' } });
-
     const result = await inviteMember(supabase, 'farm-1', 'son@test.yevul', 'worker');
-
     expect(result).toEqual({ ok: false, reason: 'duplicate' });
   });
 
   it('maps an RLS refusal to forbidden', async () => {
     const { supabase } = fakeSupabase({ data: null, error: { code: '42501', message: 'rls' } });
-
     const result = await inviteMember(supabase, 'farm-1', 'son@test.yevul', 'worker');
-
     expect(result).toEqual({ ok: false, reason: 'forbidden' });
   });
 
   it('maps any other error to error', async () => {
     const { supabase } = fakeSupabase({ data: null, error: { code: '08006', message: 'network' } });
-
     const result = await inviteMember(supabase, 'farm-1', 'son@test.yevul', 'worker');
-
     expect(result).toEqual({ ok: false, reason: 'error' });
   });
 });
@@ -146,22 +141,16 @@ describe('inviteMember', () => {
 describe('updateMemberRole', () => {
   it('updates the role and asks for the row back', async () => {
     const { supabase, recorded } = fakeSupabase(ONE_ROW);
-
     const result = await updateMemberRole(supabase, 'member-1', 'manager');
-
     expect(result).toEqual({ ok: true });
     expect(recorded.updates[0]).toEqual({ role: 'manager' });
     expect(recorded.filters).toEqual(['id = member-1']);
     expect(recorded.selected).toBe('id');
   });
 
-  // A manager's attempt is refused by RLS as zero rows, never an error. Without
-  // the select there would be no way to tell that from success. See postgrest.ts.
   it('reports forbidden when RLS refuses the update, zero rows and no error', async () => {
     const { supabase } = fakeSupabase(NO_ROWS);
-
     const result = await updateMemberRole(supabase, 'member-1', 'manager');
-
     expect(result).toEqual({ ok: false, reason: 'forbidden' });
   });
 });
@@ -169,9 +158,7 @@ describe('updateMemberRole', () => {
 describe('removeMember', () => {
   it('soft-deletes with an ISO instant scoped to the one member', async () => {
     const { supabase, recorded } = fakeSupabase(ONE_ROW);
-
     const result = await removeMember(supabase, 'member-1');
-
     expect(result).toEqual({ ok: true });
     expect(Object.keys(recorded.updates[0] ?? {})).toEqual(['deleted_at']);
     expect(String(recorded.updates[0]?.deleted_at)).toMatch(
@@ -182,9 +169,158 @@ describe('removeMember', () => {
 
   it('reports forbidden when a non-owner attempt returns zero rows', async () => {
     const { supabase } = fakeSupabase(NO_ROWS);
-
     const result = await removeMember(supabase, 'member-1');
-
     expect(result).toEqual({ ok: false, reason: 'forbidden' });
+  });
+});
+
+// ============================================================
+// Assignment helpers — initials, assignable filter, lookup, avatar rule.
+// ============================================================
+
+function makeMember(overrides: Partial<Member>): Member {
+  return {
+    id: 'm1',
+    userId: 'u1',
+    role: 'worker',
+    status: 'active',
+    email: 'avi@example.com',
+    isSelf: false,
+    ...overrides,
+  };
+}
+
+describe('memberInitials', () => {
+  it('takes the first two characters of the email local-part, uppercased', () => {
+    expect(memberInitials('avi@example.com')).toBe('AV');
+  });
+
+  it('strips a dot separator so a two-word local-part reads its two words', () => {
+    expect(memberInitials('avi.cohen@example.com')).toBe('AV');
+  });
+
+  it('returns a single letter when the local-part has only one character', () => {
+    expect(memberInitials('a@example.com')).toBe('A');
+  });
+
+  it('returns an empty string for a null or empty email', () => {
+    expect(memberInitials(null)).toBe('');
+    expect(memberInitials(undefined)).toBe('');
+    expect(memberInitials('')).toBe('');
+  });
+});
+
+describe('assignableMembers', () => {
+  it('keeps active members that have a user id', () => {
+    const active = makeMember({ id: 'a', userId: 'ua' });
+    expect(assignableMembers([active])).toEqual([active]);
+  });
+
+  it('drops invited members with no user id yet', () => {
+    const invited = makeMember({ id: 'b', userId: null, status: 'invited', email: 'b@x.com' });
+    expect(assignableMembers([invited])).toEqual([]);
+  });
+
+  it('drops active rows that never got a user id', () => {
+    const orphan = makeMember({ id: 'c', userId: null, status: 'active' });
+    expect(assignableMembers([orphan])).toEqual([]);
+  });
+});
+
+describe('membersByUserId', () => {
+  it('maps each member by its user id and skips those without one', () => {
+    const withId = makeMember({ id: 'a', userId: 'ua' });
+    const withoutId = makeMember({ id: 'b', userId: null });
+    const map = membersByUserId([withId, withoutId]);
+    expect(map.get('ua')).toBe(withId);
+    expect(map.size).toBe(1);
+  });
+});
+
+describe('currentMember', () => {
+  it('finds the member whose user id is the current user', () => {
+    const me = makeMember({ id: 'me', userId: 'u-me' });
+    const other = makeMember({ id: 'other', userId: 'u-other' });
+    expect(currentMember([me, other], 'u-me')).toBe(me);
+  });
+
+  it('returns null when there is no current user', () => {
+    expect(currentMember([makeMember({})], null)).toBe(null);
+  });
+});
+
+describe('taskAssignee', () => {
+  const me = makeMember({ id: 'me', userId: 'u-me', email: 'me@example.com' });
+  const dan = makeMember({ id: 'dan', userId: 'u-dan', email: 'dan.levi@example.com' });
+  const byUserId = membersByUserId([me, dan]);
+
+  it('returns the assignee initials and label for a task assigned to someone else', () => {
+    expect(taskAssignee('u-dan', 'u-me', byUserId)).toEqual({
+      initials: 'DA',
+      label: 'dan.levi@example.com',
+    });
+  });
+
+  it('returns null for a task assigned to the current user', () => {
+    expect(taskAssignee('u-me', 'u-me', byUserId)).toBe(null);
+  });
+
+  it('returns null for an unassigned task', () => {
+    expect(taskAssignee(null, 'u-me', byUserId)).toBe(null);
+  });
+
+  it('returns null when the assignee is no longer in the roster', () => {
+    expect(taskAssignee('u-gone', 'u-me', byUserId)).toBe(null);
+  });
+});
+
+// ============================================================
+// Worker Mode shell — a worker, and any unknown/loading role, never gets money.
+// ============================================================
+
+describe('workerModeShell', () => {
+  it('gives owner the full shell', () => {
+    expect(workerModeShell('owner', false)).toEqual({
+      isWorker: false,
+      showMoney: true,
+      captureKinds: ['expense', 'task', 'journal'],
+      plotDetailTabs: ['income', 'expenses', 'tasks', 'journal'],
+      showExpenseCompletionPrompt: true,
+    });
+  });
+
+  it('gives manager the full shell too', () => {
+    expect(workerModeShell('manager', false)).toEqual({
+      isWorker: false,
+      showMoney: true,
+      captureKinds: ['expense', 'task', 'journal'],
+      plotDetailTabs: ['income', 'expenses', 'tasks', 'journal'],
+      showExpenseCompletionPrompt: true,
+    });
+  });
+
+  it('strips every money surface for a worker', () => {
+    expect(workerModeShell('worker', false)).toEqual({
+      isWorker: true,
+      showMoney: false,
+      captureKinds: ['task', 'journal'],
+      plotDetailTabs: ['tasks', 'journal'],
+      showExpenseCompletionPrompt: false,
+    });
+  });
+
+  it('hides money while the role is still loading, so a worker never sees it for a frame', () => {
+    const shell = workerModeShell(null, true);
+    expect(shell.showMoney).toBe(false);
+    expect(shell.captureKinds).toEqual(['task', 'journal']);
+    expect(shell.plotDetailTabs).toEqual(['tasks', 'journal']);
+    expect(shell.showExpenseCompletionPrompt).toBe(false);
+    expect(shell.isWorker).toBe(false);
+  });
+
+  it('treats an unknown role (load finished, no membership) as money-hidden', () => {
+    const shell = workerModeShell(null, false);
+    expect(shell.showMoney).toBe(false);
+    expect(shell.isWorker).toBe(false);
   });
 });

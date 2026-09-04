@@ -1,7 +1,16 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createTask, formatLocalDateOnly, t, updateTask, usePlots, type Task } from '@yevul/shared';
+import {
+  assignableMembers,
+  createTask,
+  formatLocalDateOnly,
+  t,
+  updateTask,
+  useMembers,
+  usePlots,
+  type Task,
+} from '@yevul/shared';
 import { colors } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from './BottomSheet';
@@ -65,9 +74,14 @@ export function TaskSheet({
   onSaved: () => void;
 }) {
   const plotsState = usePlots(supabase);
+  // הרוסטר לבורר האחראי, שלב 6. הבורר מופיע רק כשיש חברים שאפשר
+  // להציב, ולכן נעלם לגמרי במשק של אדם אחד (design.md, Sharing).
+  const membersState = useMembers(supabase);
+  const assignable = assignableMembers(membersState.members);
 
   const [title, setTitle] = useState('');
   const [plotId, setPlotId] = useState<string | null>(null);
+  const [assignedTo, setAssignedTo] = useState<string | null>(null);
   const [dueMode, setDueMode] = useState<DueMode>('someday');
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'saving' | 'titleRequired' | 'forbidden' | 'error'>(
@@ -82,6 +96,7 @@ export function TaskSheet({
     if (task) {
       setTitle(task.title);
       setPlotId(task.plotId);
+      setAssignedTo(task.assignedTo);
       if (task.dueDate) {
         setDueMode('date');
         // **Passed through as the string it already is.** tasks.due_date is a
@@ -96,6 +111,7 @@ export function TaskSheet({
     } else {
       setTitle('');
       setPlotId(defaultPlotId);
+      setAssignedTo(null);
       setDueMode('someday');
       setDueDate(null);
     }
@@ -112,6 +128,8 @@ export function TaskSheet({
       // עלות משוערת ירדה מהגיליון: היא שאלה ששייכת ל"בוצע", לא ליצירה.
       // ראה ההערה למעלה ליד TaskSheet.
       estimatedCost: null,
+      // אם אין חברים שאפשר להציב, הבורר לא מוצג וזה נשאר null.
+      assignedTo: assignable.length > 0 ? assignedTo : null,
     };
     const result = task
       ? await updateTask(supabase, task.id, farmId, input)
@@ -174,6 +192,48 @@ export function TaskSheet({
           </View>
         </ScrollView>
       </View>
+
+      {/* בורר האחראי, שלב 6. מופיע רק כשיש במשק חברים שאפשר להציב,
+          ולכן נעלם לגמרי במשק של אדם אחד, design.md, Sharing. */}
+      {assignable.length > 0 && (
+        <View style={[formStyles.field, sheetGap]}>
+          <Text style={formStyles.label}>{t('tasks.form.assignee')}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            <View style={formStyles.chips}>
+              <Pressable
+                style={[formStyles.chip, assignedTo === null && formStyles.chipActive]}
+                onPress={() => setAssignedTo(null)}
+                disabled={busy}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: assignedTo === null }}
+              >
+                <Text
+                  style={[formStyles.chipText, assignedTo === null && formStyles.chipTextActive]}
+                >
+                  {t('tasks.form.assigneeNone')}
+                </Text>
+              </Pressable>
+              {assignable.map((member) => {
+                const active = assignedTo === member.userId;
+                return (
+                  <Pressable
+                    key={member.id}
+                    style={[formStyles.chip, active && formStyles.chipActive]}
+                    onPress={() => setAssignedTo(member.userId)}
+                    disabled={busy}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                  >
+                    <Text style={[formStyles.chipText, active && formStyles.chipTextActive]}>
+                      {member.email ?? member.userId}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
+        </View>
+      )}
 
       <View style={[formStyles.field, sheetGap]}>
         <Text style={formStyles.label}>{t('tasks.form.due')}</Text>

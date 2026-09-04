@@ -30,6 +30,7 @@ function plot(overrides: Partial<Plot> = {}): Plot {
     name: 'החלקה הדרומית',
     area: 40,
     areaUnit: 'dunam',
+    responsibleUserId: null,
     ...overrides,
   };
 }

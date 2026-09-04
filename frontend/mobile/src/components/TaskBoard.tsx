@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import Plus from 'lucide-react-native/icons/plus';
@@ -7,8 +7,11 @@ import {
   completionPromptVisibility,
   deleteTask,
   groupTasksByUrgency,
+  membersByUserId,
   t,
+  taskAssignee,
   useFarmSettings,
+  useMembers,
   useTasks,
   type RefreshSource,
   type Task,
@@ -64,6 +67,10 @@ export function TaskBoard({
   const settings = useFarmSettings(supabase);
   const currency = settings.form?.currency ?? 'ILS';
   const tasksState = useTasks(supabase, plotId);
+  // הרוסטר נטען פעם אחת ללוח ומומר למיפוי, כדי ששורת המשימה תפתור את
+  // assigned_to לראשי תיבות בלי שאילתה לכל שורה, design.md, Member Avatar.
+  const membersState = useMembers(supabase);
+  const byUserId = useMemo(() => membersByUserId(membersState.members), [membersState.members]);
   const refreshControl = usePullToRefresh([tasksState, ...alsoRefresh]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -140,6 +147,7 @@ export function TaskBoard({
             task={item}
             plotName={showPlotName ? (tasksState.plotNames.get(item.plotId ?? '') ?? null) : null}
             currency={currency}
+            assignee={taskAssignee(item.assignedTo, membersState.currentUserId, byUserId)}
             onPress={() => openEdit(item)}
             onCompleteCommit={() => handleComplete(item.id)}
             onDeleteCommit={() => handleDelete(item.id)}

@@ -2,14 +2,18 @@ import { useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { SprayCan } from 'lucide-react';
 import {
+  assignableMembers,
+  currentMember,
   expectedPriceDisplay,
   expectedYieldDisplay,
   fontSize,
   formatAmount,
   formatSignedAmount,
   plotProfitForecast,
+  setPlotResponsible,
   usePlotExpensesTotal,
   useLogEntries,
+  useMembers,
   openSafeHarvestDate,
   staleForecastSince,
   formatMonthName,
@@ -156,6 +160,15 @@ export function PlotDetailScreen() {
             <SprayCan size={18} strokeWidth={2} aria-hidden="true" />
             <span>{t('sprayLog.title')}</span>
           </Link>
+
+          {/* אחראי החלקה, שלב 6, prd.md סעיף 11. הבורר מנהל את עצמו:
+              נעלם לגמרי אם אין חברים שאפשר להציב או שהמשתמש אינו
+              owner/manager, design.md, Sharing. */}
+          <ResponsibleMemberCard
+            plotId={plot.id}
+            responsibleUserId={plot.responsibleUserId}
+            onSaved={detail.refresh}
+          />
         </div>
       )}
 
@@ -587,6 +600,66 @@ function ProfitabilityCard({
             </>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+// בורר האחראי לחלקה, שלב 6, prd.md סעיף 11. עריכת שדה יחיד בשמירה
+// מיידית בעת הבחירה, בלי כפתור נפרד, כמו שאר העריכות המהירות בווב.
+// **מנהל את הנראות של עצמו**: נעלם כשאין חברים שאפשר להציב (משק של
+// אדם אחד) או כשהמשתמש אינו owner/manager, design.md, Sharing. RLS
+// אוכף את ההרשאה ממילא, זו רק הסתרת ה-UI מהמי שלא יכול.
+function ResponsibleMemberCard({
+  plotId,
+  responsibleUserId,
+  onSaved,
+}: {
+  plotId: string;
+  responsibleUserId: string | null;
+  onSaved: () => void;
+}) {
+  const membersState = useMembers(supabase);
+  const assignable = assignableMembers(membersState.members);
+  const myRole = currentMember(membersState.members, membersState.currentUserId)?.role;
+  const [failed, setFailed] = useState(false);
+
+  if (assignable.length === 0 || (myRole !== 'owner' && myRole !== 'manager')) {
+    return null;
+  }
+
+  async function onChange(value: string) {
+    setFailed(false);
+    const result = await setPlotResponsible(supabase, plotId, value === '' ? null : value);
+    if (result.ok) {
+      onSaved();
+      return;
+    }
+    setFailed(true);
+  }
+
+  return (
+    <div className="form__row">
+      <label className="form__label" htmlFor="plot-responsible">
+        {t('plots.responsible.label')}
+      </label>
+      <select
+        id="plot-responsible"
+        className="form__input"
+        value={responsibleUserId ?? ''}
+        onChange={(e) => onChange(e.target.value)}
+      >
+        <option value="">{t('plots.responsible.none')}</option>
+        {assignable.map((member) => (
+          <option key={member.id} value={member.userId ?? ''}>
+            {member.email ?? member.userId}
+          </option>
+        ))}
+      </select>
+      {failed && (
+        <p className="form__message form__message--bad" role="alert">
+          {t('plots.responsible.saveError')}
+        </p>
       )}
     </div>
   );

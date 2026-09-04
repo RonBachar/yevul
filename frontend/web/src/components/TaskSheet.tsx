@@ -1,6 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { createTask, formatLocalDateOnly, t, updateTask, usePlots, type Task } from '@yevul/shared';
+import {
+  assignableMembers,
+  createTask,
+  formatLocalDateOnly,
+  t,
+  updateTask,
+  useMembers,
+  usePlots,
+  type Task,
+} from '@yevul/shared';
 import { DateField } from './DateField';
 import { Modal } from './Modal';
 
@@ -46,9 +55,14 @@ export function TaskSheet({
   onSaved: () => void;
 }) {
   const plotsState = usePlots(supabase);
+  // הרוסטר לבורר האחראי, שלב 6. הבורר מופיע רק כשיש חברים שאפשר
+  // להציב, ולכן נעלם לגמרי במשק של אדם אחד (design.md, Sharing).
+  const membersState = useMembers(supabase);
+  const assignable = assignableMembers(membersState.members);
 
   const [title, setTitle] = useState('');
   const [plotId, setPlotId] = useState<string | null>(null);
+  const [assignedTo, setAssignedTo] = useState<string | null>(null);
   const [dueMode, setDueMode] = useState<DueMode>('someday');
   const [customDate, setCustomDate] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'saving' | 'titleRequired' | 'forbidden' | 'error'>(
@@ -61,6 +75,7 @@ export function TaskSheet({
     if (task) {
       setTitle(task.title);
       setPlotId(task.plotId);
+      setAssignedTo(task.assignedTo);
       if (task.dueDate) {
         setDueMode('date');
         setCustomDate(task.dueDate);
@@ -71,6 +86,7 @@ export function TaskSheet({
     } else {
       setTitle('');
       setPlotId(defaultPlotId);
+      setAssignedTo(null);
       setDueMode('someday');
       setCustomDate(null);
     }
@@ -88,6 +104,8 @@ export function TaskSheet({
       // עלות משוערת ירדה מהגיליון: היא שאלה ששייכת ל"בוצע", לא ליצירה.
       // ראה ההערה למעלה ליד TaskSheet.
       estimatedCost: null,
+      // אם אין חברים שאפשר להציב, הבורר לא מוצג וזה נשאר null.
+      assignedTo: assignable.length > 0 ? assignedTo : null,
     };
     const result = task
       ? await updateTask(supabase, task.id, farmId, input)
@@ -140,6 +158,30 @@ export function TaskSheet({
             ))}
           </select>
         </div>
+
+        {/* בורר האחראי, שלב 6. מופיע רק כשיש במשק חברים שאפשר להציב,
+            ולכן נעלם לגמרי במשק של אדם אחד, design.md, Sharing. */}
+        {assignable.length > 0 && (
+          <div className="form__row">
+            <label className="form__label" htmlFor="task-assignee">
+              {t('tasks.form.assignee')}
+            </label>
+            <select
+              id="task-assignee"
+              className="form__input"
+              value={assignedTo ?? ''}
+              onChange={(e) => setAssignedTo(e.target.value === '' ? null : e.target.value)}
+              disabled={busy || membersState.loading}
+            >
+              <option value="">{t('tasks.form.assigneeNone')}</option>
+              {assignable.map((member) => (
+                <option key={member.id} value={member.userId ?? ''}>
+                  {member.email ?? member.userId}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="form__row">
           <label className="form__label" htmlFor="task-due-mode">

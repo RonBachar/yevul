@@ -1,6 +1,13 @@
 import { useRef, useState } from 'react';
 import { Check, Trash2 } from 'lucide-react';
-import { formatAmount, t, taskDueDisplay, type Currency, type Task } from '@yevul/shared';
+import {
+  formatAmount,
+  t,
+  taskDueDisplay,
+  type Currency,
+  type Task,
+  type TaskAssignee,
+} from '@yevul/shared';
 import { ConfirmDialog } from './ConfirmDialog';
 import './TaskRow.css';
 
@@ -17,6 +24,7 @@ export function TaskRow({
   task,
   plotName,
   currency,
+  assignee = null,
   onEdit,
   onCompleteCommit,
   onDeleteCommit,
@@ -24,6 +32,10 @@ export function TaskRow({
   task: Task;
   plotName: string | null;
   currency: Currency;
+  // אווטאר החבר, שלב 6, design.md, Member Avatar. מגיע מוכן מ-TaskBoard
+  // (הרוסטר נטען פעם אחת ללוח), ו-null כשהמשימה לא משויכת או משויכת
+  // למשתמש המחובר, שאז לא מוצג כלום.
+  assignee?: TaskAssignee | null;
   onEdit: () => void;
   onCompleteCommit: () => void;
   onDeleteCommit: () => void;
@@ -77,6 +89,17 @@ export function TaskRow({
           </span>
         )}
       </button>
+      {/* אווטאר החבר, design.md, Member Avatar: עיגול 32px, מילוי
+          Field-100, ראשי תיבות ב-Field-700, באזור ה-trailing בלבד. */}
+      {assignee && (
+        <span
+          className="task-row__avatar"
+          aria-label={`${t('tasks.assignedTo')} ${assignee.label}`}
+          title={assignee.label}
+        >
+          {assignee.initials}
+        </span>
+      )}
       <div className="task-row__actions">
         <button
           type="button"
