@@ -45,6 +45,9 @@ export type FarmMember = {
   // ממתינה. יכול להיות null רק לבעלים שהקים משק בלי אימייל (תרחיש בדיקה).
   email: string | null;
   isSelf: boolean;
+  // נתיב האובייקט של תמונת הפרופיל בבאקט avatars, מ-profiles דרך התצוגה.
+  // null כשלמשתמש אין תמונה, ואז מוצגים ראשי תיבות. ראה avatarUrl.
+  avatarPath: string | null;
 };
 
 // שם נרדף למי שצורך רק את שדות הרוסטר (בוררי השיוך והאווטאר). אותו
@@ -109,6 +112,57 @@ export function taskAssignee(
   const initials = memberInitials(member.email);
   if (!initials) return null;
   return { initials, label: member.email ?? initials };
+}
+
+// ============================================================
+// תמונת פרופיל (אווטאר). הבאקט avatars ציבורי, ולכן הקריאה היא URL
+// ציבורי פשוט בלי חתימה, וכל חברי המשק רואים את התמונה אחד של השני.
+// הכתיבה מותרת רק לתיקיית המשתמש עצמו (RLS על storage.objects), ונתיב
+// האובייקט הוא {user_id}/avatar.<ext>. avatar_path נחשף דרך
+// farm_members_view (שעוקפת RLS של profiles), ומכאן הוא מגיע ל-FarmMember.
+// ============================================================
+
+// ה-URL הציבורי לתמונה שנשמרה, או null כשאין נתיב. getPublicUrl בונה
+// מחרוזת בצד הלקוח בלבד (אין קריאת רשת), ולכן זה טהור מספיק לשני הלקוחות.
+export function avatarUrl(supabase: SupabaseClient, avatarPath: string | null): string | null {
+  if (!avatarPath) return null;
+  const { data } = supabase.storage.from('avatars').getPublicUrl(avatarPath);
+  return data?.publicUrl ?? null;
+}
+
+// סיומת הקובץ נגזרת מסוג ה-MIME, כמו ב-attachReceipt. רשימת הסוגים סגורה
+// בבאקט (jpeg/png/webp), וכל דבר אחר נדחה ב-storage עצמו.
+function avatarExtension(mimeType: string): string {
+  if (mimeType === 'image/png') return 'png';
+  if (mimeType === 'image/webp') return 'webp';
+  return 'jpg';
+}
+
+// מעלה את התמונה לנתיב {userId}/avatar.<ext> עם upsert, ואז שומר את
+// הנתיב ב-profiles. **`Blob | ArrayBuffer`, אותה מלכודת כמו ב-attachReceipt**:
+// ה-Blob של React Native הוא ידית לבייטים בצד הנייטיב ש-supabase-js לא
+// קורא, כך ש-upload שולח כלום בשקט. לכן הנייד חייב להעביר ArrayBuffer
+// (מ-Response.arrayBuffer()), והווב מעביר Blob/File אמיתי מהדפדפן.
+export async function uploadAvatar(
+  supabase: SupabaseClient,
+  userId: string,
+  file: Blob | ArrayBuffer,
+  mimeType: string,
+): Promise<{ ok: boolean }> {
+  // העלאה ריקה היא כשל, לא תמונה. בלי זה נשמר נתיב שמצביע על אובייקט
+  // בגודל אפס, והמשתמש יראה "נשמר" בזמן שאין שם תמונה.
+  if (file instanceof ArrayBuffer && file.byteLength === 0) return { ok: false };
+  const storagePath = `${userId}/avatar.${avatarExtension(mimeType)}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('avatars')
+    .upload(storagePath, file, { contentType: mimeType, upsert: true });
+  if (uploadError) return { ok: false };
+
+  const { error: upsertError } = await supabase
+    .from('profiles')
+    .upsert({ user_id: userId, avatar_path: storagePath, updated_at: new Date().toISOString() });
+  return { ok: !upsertError };
 }
 
 // ============================================================
@@ -196,7 +250,7 @@ export function isValidInviteEmail(email: string): boolean {
 // השיוך והאווטאר (members + currentUserId).
 // ============================================================
 
-const MEMBER_COLUMNS = 'id, user_id, role, status, email, is_self, created_at';
+const MEMBER_COLUMNS = 'id, user_id, role, status, email, is_self, avatar_path, created_at';
 
 type MemberRow = {
   id: string;
@@ -205,6 +259,7 @@ type MemberRow = {
   status: MemberStatus;
   email: string | null;
   is_self: boolean;
+  avatar_path: string | null;
 };
 
 function mapMember(row: MemberRow): FarmMember {
@@ -215,6 +270,7 @@ function mapMember(row: MemberRow): FarmMember {
     status: row.status,
     email: row.email,
     isSelf: row.is_self,
+    avatarPath: row.avatar_path,
   };
 }
 

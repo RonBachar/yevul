@@ -1,19 +1,24 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import Trash2 from 'lucide-react-native/icons/trash-2';
 import {
   ASSIGNABLE_ROLES,
+  avatarUrl,
   inviteMember,
   memberRoleLabelKey,
   removeMember,
   updateMemberRole,
+  uploadAvatar,
   useMembers,
   t,
+  RECEIPT_JPEG_QUALITY,
   type AssignableRole,
   type FarmMember,
   type InviteResult,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
+import { compressPickedReceipt } from '../lib/receiptImage';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { ChipField } from './ChipField';
@@ -41,8 +46,11 @@ function initials(email: string | null): string {
   return (local.slice(0, 2) || '?').toUpperCase();
 }
 
+// מצב העלאת תמונת הפרופיל של המשתמש עצמו.
+type AvatarStatus = 'idle' | 'uploading' | 'error';
+
 export function MembersSection() {
-  const { loading, failed, farmId, members, myRole, refresh } = useMembers(supabase);
+  const { loading, failed, farmId, members, myRole, currentUserId, refresh } = useMembers(supabase);
   const isOwner = myRole === 'owner';
 
   const [email, setEmail] = useState('');
@@ -50,6 +58,11 @@ export function MembersSection() {
   const [inviteStatus, setInviteStatus] = useState<InviteStatus>('idle');
   const [pendingRemove, setPendingRemove] = useState<FarmMember | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
+  const [avatarStatus, setAvatarStatus] = useState<AvatarStatus>('idle');
+  // תצוגה מקומית מיד אחרי העלאה מוצלחת. הנתיב בבאקט קבוע (avatar.jpg),
+  // כך שה-URL הציבורי זהה ועלול להיות ממוטמן, ולכן מציגים את הקובץ שהרגע
+  // נבחר עד לרענון.
+  const [selfPreview, setSelfPreview] = useState<string | null>(null);
 
   if (loading) return null;
 
@@ -101,6 +114,35 @@ export function MembersSection() {
     }
   }
 
+  // בחירת תמונה מהגלריה, דחיסה (אותו נתיב כמו קבלה), וקריאה כ-ArrayBuffer
+  // לפני ההעלאה. **arrayBuffer() ולא blob()**: ה-Blob של RN הוא ידית
+  // נייטיב ש-supabase-js לא קורא, ראה uploadAvatar. אין בקשת הרשאה
+  // לגלריה, כמו בכפתור הצירוף של ExpenseSheet, כי הבורר רץ מחוץ לתהליך.
+  async function onPickAvatar() {
+    if (!currentUserId) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: RECEIPT_JPEG_QUALITY,
+      allowsEditing: false,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    if (!asset) return;
+
+    setAvatarStatus('uploading');
+    // דחיסה לא זורקת ומחזירה את המקור אם היא נכשלת, ראה compressPickedReceipt.
+    const compressed = await compressPickedReceipt(asset);
+    const bytes = await fetch(compressed.uri).then((response) => response.arrayBuffer());
+    const upload = await uploadAvatar(supabase, currentUserId, bytes, compressed.mimeType);
+    if (upload.ok) {
+      setSelfPreview(compressed.uri);
+      setAvatarStatus('idle');
+      refresh();
+    } else {
+      setAvatarStatus('error');
+    }
+  }
+
   const inviteMessage = INVITE_MESSAGE[inviteStatus];
   const removingInvite = pendingRemove?.status === 'invited';
 
@@ -110,11 +152,19 @@ export function MembersSection() {
 
       {members.map((member) => {
         const canManage = isOwner && member.role !== 'owner' && !member.isSelf;
+        // התצוגה המקומית מיד אחרי העלאה גוברת על ה-URL הציבורי, כדי לעקוף
+        // מטמון של אותו נתיב. ראה selfPreview.
+        const photo =
+          member.isSelf && selfPreview ? selfPreview : avatarUrl(supabase, member.avatarPath);
         return (
           <View key={member.id} style={styles.member}>
             <View style={styles.memberHead}>
               <View style={styles.avatar}>
-                <Text style={styles.avatarText}>{initials(member.email)}</Text>
+                {photo ? (
+                  <Image source={{ uri: photo }} style={styles.avatarImage} />
+                ) : (
+                  <Text style={styles.avatarText}>{initials(member.email)}</Text>
+                )}
               </View>
               <View style={styles.identity}>
                 <Text style={styles.email} numberOfLines={1}>
@@ -162,6 +212,26 @@ export function MembersSection() {
                     </Pressable>
                   );
                 })}
+              </View>
+            )}
+
+            {member.isSelf && (
+              <View style={styles.avatarActions}>
+                <Pressable
+                  style={[formStyles.chip, avatarStatus === 'uploading' && formStyles.saveDisabled]}
+                  onPress={onPickAvatar}
+                  disabled={avatarStatus === 'uploading'}
+                  accessibilityRole="button"
+                >
+                  <Text style={formStyles.chipText}>
+                    {avatarStatus === 'uploading'
+                      ? t('members.avatar.uploading')
+                      : t('members.avatar.change')}
+                  </Text>
+                </Pressable>
+                {avatarStatus === 'error' && (
+                  <Text style={formStyles.bad}>{t('members.avatar.error')}</Text>
+                )}
               </View>
             )}
           </View>
@@ -285,6 +355,11 @@ const styles = StyleSheet.create({
     fontSize: fontSize.caption,
     color: colors.field700,
   },
+  avatarImage: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.pill,
+  },
   identity: {
     flex: 1,
     minWidth: 0,
@@ -318,6 +393,12 @@ const styles = StyleSheet.create({
   },
   roleChips: {
     flexDirection: 'row',
+    gap: spacing.s8,
+    paddingStart: 44,
+  },
+  avatarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: spacing.s8,
     paddingStart: 44,
   },

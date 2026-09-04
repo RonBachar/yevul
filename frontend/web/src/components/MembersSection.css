@@ -46,11 +46,43 @@
   direction: ltr;
 }
 
+/* תמונת פרופיל, ממלאת את מעגל האווטאר כשהיא קיימת. */
+.members__avatar-img {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  object-fit: cover;
+}
+
 .members__identity {
   flex: 1 1 auto;
   min-width: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* כפתור החלפת תמונה, מוצג רק בשורה שלי. קישור טקסטואלי קטן, לא כפתור מלא. */
+.members__avatar-change {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-field-700);
+  font-family: inherit;
+  font-size: var(--text-caption);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.members__avatar-change:disabled {
+  color: var(--color-slate-600);
+  cursor: default;
+}
+
+.members__avatar-change:focus-visible {
+  outline: 3px solid var(--color-field-700);
+  border-radius: var(--radius-input);
 }
 
 .members__email {

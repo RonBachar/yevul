@@ -70,6 +70,8 @@ export {
   isValidInviteEmail,
   memberRoleLabelKey,
   memberInitials,
+  avatarUrl,
+  uploadAvatar,
   assignableMembers,
   membersByUserId,
   currentMember,

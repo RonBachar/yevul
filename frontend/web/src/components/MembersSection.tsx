@@ -1,11 +1,13 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Trash2 } from 'lucide-react';
 import {
   ASSIGNABLE_ROLES,
+  avatarUrl,
   inviteMember,
   memberRoleLabelKey,
   removeMember,
   updateMemberRole,
+  uploadAvatar,
   useMembers,
   t,
   type AssignableRole,
@@ -13,6 +15,7 @@ import {
   type InviteResult,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
+import { compressReceiptFile } from '../lib/receiptImage';
 import { ConfirmDialog } from './ConfirmDialog';
 import './MembersSection.css';
 
@@ -42,8 +45,11 @@ function initials(email: string | null): string {
   return (local.slice(0, 2) || '?').toUpperCase();
 }
 
+// מצב העלאת תמונת הפרופיל של המשתמש עצמו.
+type AvatarStatus = 'idle' | 'uploading' | 'error';
+
 export function MembersSection() {
-  const { loading, failed, farmId, members, myRole, refresh } = useMembers(supabase);
+  const { loading, failed, farmId, members, myRole, currentUserId, refresh } = useMembers(supabase);
   const isOwner = myRole === 'owner';
 
   const [email, setEmail] = useState('');
@@ -53,6 +59,13 @@ export function MembersSection() {
   const [pendingRemove, setPendingRemove] = useState<FarmMember | null>(null);
   // הודעת שגיאה לפעולות על שורה (שינוי תפקיד/הסרה), נפרדת מהודעת ההזמנה.
   const [rowError, setRowError] = useState<string | null>(null);
+  // העלאת תמונת פרופיל. הקלט מוסתר ונפתח מכפתור "שנה תמונה".
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const [avatarStatus, setAvatarStatus] = useState<AvatarStatus>('idle');
+  // תצוגה מקומית מיד אחרי העלאה מוצלחת. הנתיב בבאקט נשאר קבוע
+  // (avatar.jpg), כך ש-URL הציבורי זהה וה-CDN עלול להגיש את הישן, ולכן
+  // מציגים את הקובץ שהרגע נבחר עד לרענון הדף.
+  const [selfPreview, setSelfPreview] = useState<string | null>(null);
 
   // בזמן טעינה לא מרנדרים כלום, כדי לא להבהב מדור ריק מתחת לטופס
   // ההגדרות שכבר מוצג.
@@ -106,6 +119,33 @@ export function MembersSection() {
     }
   }
 
+  // בחירת תמונה, דחיסה בקנבס (אותו נתיב כמו קבלה), ואז העלאה. הדחיסה
+  // לא זורקת ומחזירה את המקור אם אין מה לעשות, ראה compressReceiptFile.
+  async function onPickAvatar(event: ChangeEvent<HTMLInputElement>) {
+    const chosen = event.target.files?.[0] ?? null;
+    // מאפסים כדי שאפשר יהיה לבחור שוב את אותו קובץ.
+    event.target.value = '';
+    if (!chosen || !currentUserId) return;
+    setAvatarStatus('uploading');
+    const compressed = await compressReceiptFile(chosen);
+    const result = await uploadAvatar(
+      supabase,
+      currentUserId,
+      compressed,
+      compressed.type || 'image/jpeg',
+    );
+    if (result.ok) {
+      setSelfPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return URL.createObjectURL(compressed);
+      });
+      setAvatarStatus('idle');
+      refresh();
+    } else {
+      setAvatarStatus('error');
+    }
+  }
+
   const inviteMessage = INVITE_MESSAGE[inviteStatus];
   const removingInvite = pendingRemove?.status === 'invited';
 
@@ -113,15 +153,26 @@ export function MembersSection() {
     <section className="members">
       <h2 className="members__title">{t('members.title')}</h2>
 
+      {/* קלט מוסתר לתמונת הפרופיל, נפתח מכפתור "שנה תמונה" שבשורה שלי. */}
+      <input ref={avatarInputRef} type="file" accept="image/*" hidden onChange={onPickAvatar} />
+
       <ul className="members__list">
         {members.map((member) => {
           // כלי הניהול מוצגים לבעלים בלבד, ולעולם לא על שורת הבעלים
           // עצמה (אין העברת בעלות) ולא על השורה של המשתמש עצמו.
           const canManage = isOwner && member.role !== 'owner' && !member.isSelf;
+          // התמונה של השורה: התצוגה המקומית מיד אחרי העלאה גוברת על
+          // ה-URL הציבורי, כדי לעקוף מטמון של אותו נתיב. ראה selfPreview.
+          const photo =
+            member.isSelf && selfPreview ? selfPreview : avatarUrl(supabase, member.avatarPath);
           return (
             <li key={member.id} className="members__row">
               <span className="members__avatar" aria-hidden="true">
-                {initials(member.email)}
+                {photo ? (
+                  <img className="members__avatar-img" src={photo} alt="" />
+                ) : (
+                  initials(member.email)
+                )}
               </span>
               <div className="members__identity">
                 <span className="members__email">
@@ -130,6 +181,23 @@ export function MembersSection() {
                 </span>
                 {member.status === 'invited' && (
                   <span className="members__pending">{t('members.status.invited')}</span>
+                )}
+                {member.isSelf && (
+                  <button
+                    type="button"
+                    className="members__avatar-change"
+                    onClick={() => avatarInputRef.current?.click()}
+                    disabled={avatarStatus === 'uploading'}
+                  >
+                    {avatarStatus === 'uploading'
+                      ? t('members.avatar.uploading')
+                      : t('members.avatar.change')}
+                  </button>
+                )}
+                {member.isSelf && avatarStatus === 'error' && (
+                  <span className="members__pending" role="alert">
+                    {t('members.avatar.error')}
+                  </span>
                 )}
               </div>
 

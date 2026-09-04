@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   assignableMembers,
+  avatarUrl,
   currentMember,
   inviteMember,
   isValidInviteEmail,
@@ -186,6 +187,7 @@ function makeMember(overrides: Partial<Member>): Member {
     status: 'active',
     email: 'avi@example.com',
     isSelf: false,
+    avatarPath: null,
     ...overrides,
   };
 }
@@ -207,6 +209,31 @@ describe('memberInitials', () => {
     expect(memberInitials(null)).toBe('');
     expect(memberInitials(undefined)).toBe('');
     expect(memberInitials('')).toBe('');
+  });
+});
+
+describe('avatarUrl', () => {
+  // getPublicUrl is a client-side string builder; a tiny fake stands in for it.
+  function fakeStorage(): SupabaseClient {
+    return {
+      storage: {
+        from: (bucket: string) => ({
+          getPublicUrl: (path: string) => ({
+            data: { publicUrl: `https://cdn/${bucket}/${path}` },
+          }),
+        }),
+      },
+    } as unknown as SupabaseClient;
+  }
+
+  it('returns null when there is no avatar path', () => {
+    const supabase = fakeStorage();
+    expect(avatarUrl(supabase, null)).toBe(null);
+    expect(avatarUrl(supabase, '')).toBe(null);
+  });
+
+  it('builds the public URL from the avatars bucket and the stored path', () => {
+    expect(avatarUrl(fakeStorage(), 'u1/avatar.jpg')).toBe('https://cdn/avatars/u1/avatar.jpg');
   });
 });
 

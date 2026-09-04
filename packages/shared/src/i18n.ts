@@ -161,6 +161,10 @@ const strings: Record<string, string> = {
   'members.removeError': 'לא הצלחנו להסיר, נסו שוב',
   'members.roleForbidden': 'רק בעלים יכול לשנות תפקיד',
   'members.roleError': 'לא הצלחנו לשנות תפקיד, נסו שוב',
+  // תמונת פרופיל. מוצג רק על השורה של המשתמש עצמו, כפתור קטן להחלפה.
+  'members.avatar.change': 'שנה תמונה',
+  'members.avatar.uploading': 'מעלה…',
+  'members.avatar.error': 'לא הצלחנו להעלות את התמונה, נסו שוב',
   // הזמנה. הצלחה מסבירה את מנגנון הצירוף: אין מייל שנשלח, המוזמן מצטרף
   // ברגע שהוא נכנס עם אותו אימייל. החלטת היזם 2026-09-04.
   'members.invite.title': 'הזמנת חבר',
