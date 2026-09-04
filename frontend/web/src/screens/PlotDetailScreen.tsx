@@ -25,11 +25,14 @@ import {
   updateCropCycle,
   updateForecast,
   useFarmSettings,
+  useMyRole,
   usePlotDetail,
+  workerModeShell,
   yieldRateUnitLabel,
   type AreaUnit,
   type CropCycle,
   type Currency,
+  type PlotDetailTab,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { ExpenseList } from '../components/ExpenseList';
@@ -49,8 +52,9 @@ import './PlotDetailScreen.css';
 // **טאב "רווחיות" המאוחד פוצל**, לפי הערת מוצר של עידו: שני צדי הכסף
 // מקבלים טאב משלהם, וסיכום צפי הרווח עלה לכותרת קבועה כדי שייראה מכל
 // טאב. ברגע שהסיכום יצא מהטאב, מה שנשאר בו הוא בדיוק תוכן צפי ההכנסה.
-const TABS = ['income', 'expenses', 'tasks', 'journal'] as const;
-type Tab = (typeof TABS)[number];
+// סדר הטאבים והתוויות. הרשימה הנראית עצמה (מלאה מול מצומצמת לעובד)
+// מגיעה מ-workerModeShell, וסוג הטאב חי ב-@yevul/shared כמקור אחד.
+type Tab = PlotDetailTab;
 const TAB_LABEL_KEY: Record<Tab, string> = {
   income: 'plots.tab.income',
   expenses: 'plots.tab.expenses',
@@ -69,7 +73,19 @@ export function PlotDetailScreen() {
   // רשומות הריסוס של החלקה, לצ'יפ "בטוח לקטיף". הסינון לפי סוג קורה
   // במסד ולא בקליינט, אותו עיקרון כמו במסך יומן הריסוס.
   const sprays = useLogEntries(supabase, plotId ?? undefined, 'spray');
+  // Worker Mode, design.md: "Plot Detail drops to two tabs, משימות and יומן."
+  // הרשימה נגזרת ב-workerModeShell, ועד שהתפקיד ידוע נוהגים כאילו זה עובד,
+  // כך שטאב הכנסה לא מהבהב לעובד. הטאב הפעיל נגזר ולא נשמר: כשהשמור אינו
+  // ברשימה הנראית נופלים לראשון, כך שבעל משק נוחת על 'income' ברגע שהתפקיד
+  // הוכרע, ועובד לעולם לא רואה תוכן כספי.
+  const role = useMyRole(supabase);
+  const shell = workerModeShell(role.role, role.loading);
+  const tabs = shell.plotDetailTabs;
   const [tab, setTab] = useState<Tab>('income');
+  // 'tasks' כברירת מחדל היא רק כדי לספק את הטיפוס (tabs לעולם לא ריק,
+  // 'tasks' קיים בשתי הרשימות). בפועל tabs[0] הוא 'income' לבעל משק ו-
+  // 'tasks' לעובד.
+  const activeTab: Tab = tabs.includes(tab) ? tab : (tabs[0] ?? 'tasks');
 
   if (detail.loading || detail.failed || !detail.plot) {
     return (
@@ -128,13 +144,15 @@ export function PlotDetailScreen() {
       />
 
       <div className="tab-track" role="tablist">
-        {TABS.map((key) => (
+        {tabs.map((key) => (
           <button
             key={key}
             type="button"
             role="tab"
-            aria-selected={tab === key}
-            className={tab === key ? 'tab-track__item tab-track__item--active' : 'tab-track__item'}
+            aria-selected={activeTab === key}
+            className={
+              activeTab === key ? 'tab-track__item tab-track__item--active' : 'tab-track__item'
+            }
             onClick={() => setTab(key)}
           >
             {t(TAB_LABEL_KEY[key])}
@@ -142,7 +160,7 @@ export function PlotDetailScreen() {
         ))}
       </div>
 
-      {tab === 'income' && (
+      {activeTab === 'income' && (
         <div className="plot-detail__body">
           <ProfitabilityCard
             plotArea={plot.area}
@@ -172,13 +190,15 @@ export function PlotDetailScreen() {
         </div>
       )}
 
-      {tab === 'tasks' && <TaskBoard supabase={supabase} plotId={plot.id} showPlotName={false} />}
+      {activeTab === 'tasks' && (
+        <TaskBoard supabase={supabase} plotId={plot.id} showPlotName={false} />
+      )}
 
-      {tab === 'journal' && (
+      {activeTab === 'journal' && (
         <JournalList supabase={supabase} plotId={plot.id} showPlotName={false} />
       )}
 
-      {tab === 'expenses' && (
+      {activeTab === 'expenses' && (
         <ExpenseList supabase={supabase} plotId={plot.id} showPlotName={false} />
       )}
     </div>

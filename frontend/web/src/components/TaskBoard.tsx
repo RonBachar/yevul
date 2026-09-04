@@ -10,7 +10,9 @@ import {
   taskAssignee,
   useFarmSettings,
   useMembers,
+  useMyRole,
   useTasks,
+  workerModeShell,
   type Task,
 } from '@yevul/shared';
 import { CompletionPromptSheet } from './CompletionPromptSheet';
@@ -37,6 +39,12 @@ export function TaskBoard({
 }) {
   const settings = useFarmSettings(supabase);
   const currency = settings.form?.currency ?? 'ILS';
+  // Worker Mode, design.md: "The expense half of the Completion Prompts never
+  // fires; the journal half still can." worker חסום מכתיבת הוצאה במסד, ולכן
+  // שאלת ההוצאה בסיום משימה הייתה נגמרת ב"אין הרשאה". ההחלטה עצמה טהורה
+  // ב-workerModeShell.
+  const role = useMyRole(supabase);
+  const shell = workerModeShell(role.role, role.loading);
   const tasksState = useTasks(supabase, plotId);
   // הרוסטר נטען פעם אחת ללוח ומומר למיפוי, כדי ששורת המשימה תפתור את
   // assigned_to לראשי תיבות בלי שאילתה לכל שורה, design.md, Member Avatar.
@@ -59,6 +67,7 @@ export function TaskBoard({
   const promptVisibility = completionPromptVisibility(
     settings.form?.journalPromptEnabled ?? false,
     settings.form?.expensePromptEnabled ?? false,
+    !shell.showExpenseCompletionPrompt,
   );
 
   async function handleComplete(taskId: string) {

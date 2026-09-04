@@ -72,6 +72,12 @@ export async function confirmExpenseFromTask(
 // ============================================================
 // מה להציג. שתי השאלות עצמאיות: כל אחת מוצגת רק אם המתג שלה דלוק
 // בהגדרות. אם שתיהן כבויות, אין מה להציג בכלל.
+//
+// **Worker Mode, שלב 6, design.md:** "The expense half of the Completion
+// Prompts never fires; the journal half still can." hideExpense כופה את
+// חצי ההוצאה לכבוי בלי קשר למתג, כי worker חסום מכתיבת הוצאה במסד וכל
+// שאלה כזו הייתה נגמרת ב"אין הרשאה". showPrompt נגזר מהתוצאה הסופית,
+// כך שעובד שאצלו רק ההוצאה דלוקה בהגדרות לא יקבל גיליון ריק.
 // ============================================================
 
 export type CompletionPromptVisibility = {
@@ -83,10 +89,12 @@ export type CompletionPromptVisibility = {
 export function completionPromptVisibility(
   journalPromptEnabled: boolean,
   expensePromptEnabled: boolean,
+  hideExpense = false,
 ): CompletionPromptVisibility {
+  const showExpense = expensePromptEnabled && !hideExpense;
   return {
     showJournal: journalPromptEnabled,
-    showExpense: expensePromptEnabled,
-    showPrompt: journalPromptEnabled || expensePromptEnabled,
+    showExpense,
+    showPrompt: journalPromptEnabled || showExpense,
   };
 }
