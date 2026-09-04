@@ -61,3 +61,7 @@ backend/supabase/snippets/
 
 # תוצר בילד של סקריפט ה-probe, נבנה מחדש בכל הרצה
 backend/worker/scripts/*.mjs
+
+# Claude Code local files and sub-agent worktrees
+.claude/worktrees/
+.claude/settings.local.json
