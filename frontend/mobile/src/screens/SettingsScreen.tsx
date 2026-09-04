@@ -17,6 +17,7 @@ import { colors, fonts, fontSize, spacing } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { ChipField } from '../components/ChipField';
 import { FormScreen } from '../components/FormScreen';
+import { MembersSection } from '../components/MembersSection';
 
 // מסך ההגדרות בנייד. אותה לוגיקת טעינה ושמירה בדיוק כמו בווב, דרך
 // useFarmSettings ב-packages/shared, כדי שהטיפול בדחיית RLS לא ייכתב
@@ -154,6 +155,9 @@ export function SettingsScreen() {
       {status === 'nameRequired' && (
         <Text style={formStyles.bad}>{t('settings.nameRequired')}</Text>
       )}
+
+      {/* שיתוף המשק, שלב 6. ניהול פתוח לבעלים בלבד, האכיפה במסד. */}
+      <MembersSection />
     </FormScreen>
   );
 }

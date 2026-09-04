@@ -209,7 +209,9 @@ export function MembersSection() {
 
           <div className="form__actions">
             <button type="submit" className="form__submit" disabled={inviteStatus === 'sending'}>
-              {inviteStatus === 'sending' ? t('members.invite.sending') : t('members.invite.submit')}
+              {inviteStatus === 'sending'
+                ? t('members.invite.sending')
+                : t('members.invite.submit')}
             </button>
             {inviteMessage && (
               <p
@@ -225,7 +227,9 @@ export function MembersSection() {
 
       <ConfirmDialog
         open={pendingRemove !== null}
-        title={t(removingInvite ? 'members.removeInviteConfirmTitle' : 'members.removeConfirmTitle')}
+        title={t(
+          removingInvite ? 'members.removeInviteConfirmTitle' : 'members.removeConfirmTitle',
+        )}
         message={pendingRemove?.email ?? ''}
         confirmLabel={t('members.removeConfirm')}
         cancelLabel={t('members.cancel')}

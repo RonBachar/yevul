@@ -23,7 +23,10 @@ import {
   updateMemberRole,
 } from './members';
 
-type WriteResult = { data: { id: string }[] | null; error: { code?: string; message: string } | null };
+type WriteResult = {
+  data: { id: string }[] | null;
+  error: { code?: string; message: string } | null;
+};
 
 type Recorded = {
   tables: string[];
