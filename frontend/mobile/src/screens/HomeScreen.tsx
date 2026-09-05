@@ -3,12 +3,14 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import {
+  assignableMembers,
   myPlotIds,
   myPlotsToggleVisible,
   t,
   useCurrentFarm,
   useFarmProfit,
   useMembers,
+  workerModeShell,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
@@ -37,8 +39,17 @@ export function HomeScreen() {
   // גם את האחראי לכל חלקה. state בלבד, לא נשמר, וברירת המחדל "הכל"
   // חוזרת בכל mount קר.
   const membersState = useMembers(supabase);
+  // Worker Mode, design.md: לעובד שורת ההוצאה מושמטת גם מקיצורי הדרך של
+  // הבית, לא רק מגיליון הרישום. התפקיד נגזר מ-useMembers (is_self) ולא
+  // בהוק useMyRole נפרד, כדי לא לשאול את farm_members_view פעמיים.
+  const shell = workerModeShell(membersState.myRole, membersState.loading);
   const [scope, setScope] = useState<'all' | 'mine'>('all');
-  const toggleVisible = myPlotsToggleVisible(membersState.members.length, profit.plots);
+  // רק חברים פעילים נספרים למתג, design.md: "more than one member".
+  // הזמנה ממתינה (status invited, בלי user_id) אינה חבר עדיין.
+  const toggleVisible = myPlotsToggleVisible(
+    assignableMembers(membersState.members).length,
+    profit.plots,
+  );
   const mine = scope === 'mine';
   // undefined כשהמתג לא נראה או בתצוגת "הכל": TaskBoard מפרש זאת
   // כ"בלי סינון". הסינון עצמו טהור ב-myPlotIds/tasksOnPlots.
@@ -66,7 +77,7 @@ export function HomeScreen() {
         <ProfitHeroCard farmName={farm?.name ?? null} state={profit} />
         {/* שלושה קיצורי דרך, בהחלטת היזם 2026-08-31. רישום הוצאה יורד
             מלחיצה על כפתור הרישום ובחירה מגיליון, ללחיצה אחת. */}
-        <QuickActions />
+        <QuickActions kinds={shell.captureKinds} />
         {/* הכרטיס למעלה הוא צפי כלל-משקי ואינו מסונן; המתג יושב מתחתיו
             ושולט במה שאפשר לסנן, לוח המשימות. design.md, "My Plots"
             Toggle: "It filters plot cards and the task board together." */}

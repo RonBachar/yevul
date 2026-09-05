@@ -13,7 +13,6 @@ import {
   tasksOnPlots,
   useFarmSettings,
   useMembers,
-  useMyRole,
   useTasks,
   workerModeShell,
   type RefreshSource,
@@ -79,12 +78,13 @@ export function TaskBoard({
   // fires; the journal half still can." worker חסום מכתיבת הוצאה במסד, ולכן
   // שאלת ההוצאה בסיום משימה הייתה נגמרת ב"אין הרשאה". ההחלטה עצמה טהורה
   // ב-workerModeShell.
-  const role = useMyRole(supabase);
-  const shell = workerModeShell(role.role, role.loading);
   const tasksState = useTasks(supabase, plotId);
   // הרוסטר נטען פעם אחת ללוח ומומר למיפוי, כדי ששורת המשימה תפתור את
   // assigned_to לראשי תיבות בלי שאילתה לכל שורה, design.md, Member Avatar.
   const membersState = useMembers(supabase);
+  // התפקיד נגזר מ-useMembers (is_self) ולא בהוק useMyRole נפרד, כדי לא
+  // לשאול את farm_members_view פעמיים באותו לוח.
+  const shell = workerModeShell(membersState.myRole, membersState.loading);
   const byUserId = useMemo(() => membersByUserId(membersState.members), [membersState.members]);
   const refreshControl = usePullToRefresh([tasksState, ...alsoRefresh]);
   const [sheetOpen, setSheetOpen] = useState(false);

@@ -118,7 +118,7 @@ export function taskAssignee(
 // תמונת פרופיל (אווטאר). הבאקט avatars ציבורי, ולכן הקריאה היא URL
 // ציבורי פשוט בלי חתימה, וכל חברי המשק רואים את התמונה אחד של השני.
 // הכתיבה מותרת רק לתיקיית המשתמש עצמו (RLS על storage.objects), ונתיב
-// האובייקט הוא {user_id}/avatar.<ext>. avatar_path נחשף דרך
+// האובייקט הוא {user_id}/<timestamp>.<ext>. avatar_path נחשף דרך
 // farm_members_view (שעוקפת RLS של profiles), ומכאן הוא מגיע ל-FarmMember.
 // ============================================================
 
@@ -138,10 +138,15 @@ function avatarExtension(mimeType: string): string {
   return 'jpg';
 }
 
-// מעלה את התמונה לנתיב {userId}/avatar.<ext> עם upsert, ואז שומר את
-// הנתיב ב-profiles. **`Blob | ArrayBuffer`, אותה מלכודת כמו ב-attachReceipt**:
-// ה-Blob של React Native הוא ידית לבייטים בצד הנייטיב ש-supabase-js לא
-// קורא, כך ש-upload שולח כלום בשקט. לכן הנייד חייב להעביר ArrayBuffer
+// מעלה את התמונה לנתיב {userId}/<timestamp>.<ext> ושומר את הנתיב
+// ב-profiles. **נתיב ייחודי לכל העלאה בכוונה**: הבאקט ציבורי ומוגש דרך
+// CDN, ונתיב קבוע (avatar.jpg) היה מגיש לחברי המשק האחרים תמונה ישנה
+// מהקאש אחרי החלפה באותו סוג קובץ, כי ה-URL לא משתנה. חותמת הזמן מחליפה
+// את ה-URL בכל העלאה, כך שכולם רואים מיד את התמונה החדשה. האובייקט הישן
+// נשאר יתום בבאקט (זניח, ~150KB), אותה משפחה כמו יתומי הקבלות ב-open-items.
+// **`Blob | ArrayBuffer`, אותה מלכודת כמו ב-attachReceipt**: ה-Blob של
+// React Native הוא ידית לבייטים בצד הנייטיב ש-supabase-js לא קורא, כך
+// ש-upload שולח כלום בשקט. לכן הנייד חייב להעביר ArrayBuffer
 // (מ-Response.arrayBuffer()), והווב מעביר Blob/File אמיתי מהדפדפן.
 export async function uploadAvatar(
   supabase: SupabaseClient,
@@ -152,7 +157,7 @@ export async function uploadAvatar(
   // העלאה ריקה היא כשל, לא תמונה. בלי זה נשמר נתיב שמצביע על אובייקט
   // בגודל אפס, והמשתמש יראה "נשמר" בזמן שאין שם תמונה.
   if (file instanceof ArrayBuffer && file.byteLength === 0) return { ok: false };
-  const storagePath = `${userId}/avatar.${avatarExtension(mimeType)}`;
+  const storagePath = `${userId}/${Date.now()}.${avatarExtension(mimeType)}`;
 
   const { error: uploadError } = await supabase.storage
     .from('avatars')

@@ -1,5 +1,12 @@
 import { useState } from 'react';
-import { myPlotIds, myPlotsToggleVisible, t, useMembers, usePlots } from '@yevul/shared';
+import {
+  assignableMembers,
+  myPlotIds,
+  myPlotsToggleVisible,
+  t,
+  useMembers,
+  usePlots,
+} from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { TaskBoard } from '../components/TaskBoard';
 import { ProfitHeroCard } from '../components/ProfitHeroCard';
@@ -21,7 +28,11 @@ export function HomeScreen() {
   const plotsState = usePlots(supabase);
   const [scope, setScope] = useState<'all' | 'mine'>('all');
 
-  const toggleVisible = myPlotsToggleVisible(membersState.members.length, plotsState.plots);
+  // רק חברים פעילים נספרים למתג, design.md: "more than one member".
+  const toggleVisible = myPlotsToggleVisible(
+    assignableMembers(membersState.members).length,
+    plotsState.plots,
+  );
   const mine = scope === 'mine';
   // undefined כשהמתג לא נראה או בתצוגת "הכל": TaskBoard מפרש undefined
   // כ"בלי סינון". הסינון עצמו טהור ב-myPlotIds/tasksOnPlots.
