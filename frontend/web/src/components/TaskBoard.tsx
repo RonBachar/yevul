@@ -8,6 +8,7 @@ import {
   membersByUserId,
   t,
   taskAssignee,
+  tasksOnPlots,
   useFarmSettings,
   useMembers,
   useMyRole,
@@ -28,13 +29,20 @@ import './TaskBoard.css';
 // useFarmSettings נקרא כאן ולא מקבל currency כפרופ מההורה יותר: ברגע
 // שהלוח זקוק גם למתגי Completion Prompts, אין טעם שההורה ימשיך למשוך
 // הגדרות רק כדי להעביר שדה אחד ממנו הלאה.
+//
+// plotIds הוא הצד ה"שלי" של מתג החלקות בבית (design.md, "My Plots"
+// Toggle): כשהוא מסופק, הלוח מצטמצם למשימות שעל אותן חלקות בלבד. הוא
+// תוספת נפרדת ממסלול plotId של חלקה יחידה, ובתצוגת "הכל" ובפרטי חלקה
+// הוא פשוט נשאר undefined, כלומר בלי סינון.
 export function TaskBoard({
   supabase,
   plotId,
+  plotIds,
   showPlotName,
 }: {
   supabase: SupabaseClient;
   plotId?: string;
+  plotIds?: string[];
   showPlotName: boolean;
 }) {
   const settings = useFarmSettings(supabase);
@@ -84,7 +92,7 @@ export function TaskBoard({
     tasksState.refresh();
   }
 
-  const groups = groupTasksByUrgency(tasksState.tasks);
+  const groups = groupTasksByUrgency(tasksOnPlots(tasksState.tasks, plotIds));
 
   return (
     <div className="task-board">

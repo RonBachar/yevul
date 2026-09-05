@@ -415,6 +415,11 @@ export {
   type VoiceTaskEdits,
   type VoiceJournalEdits,
 } from './voiceConfirm';
+// The "My Plots" toggle on the home screen, stage 6. Pure policy only — when
+// the segmented control is shown, which plots are "mine", and how the task
+// board narrows to them — because neither client has a test runner. A view
+// filter and never a permission, never persisted. See the header of myPlots.ts.
+export { myPlotsToggleVisible, myPlotIds, tasksOnPlots } from './myPlots';
 export { profitabilityCsv, expensesCsv, journalCsv, type CsvReport } from './reports';
 export {
   useFarmProfit,
