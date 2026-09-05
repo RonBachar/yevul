@@ -5,7 +5,9 @@ import Trash2 from 'lucide-react-native/icons/trash-2';
 import {
   ASSIGNABLE_ROLES,
   avatarUrl,
+  canManageMembers,
   inviteMember,
+  memberInitials,
   memberRoleLabelKey,
   removeMember,
   updateMemberRole,
@@ -40,18 +42,12 @@ const INVITE_MESSAGE: Partial<Record<InviteStatus, { key: string; good: boolean 
   error: { key: 'members.invite.error', good: false },
 };
 
-function initials(email: string | null): string {
-  if (!email) return '?';
-  const local = email.split('@')[0] ?? '';
-  return (local.slice(0, 2) || '?').toUpperCase();
-}
-
 // מצב העלאת תמונת הפרופיל של המשתמש עצמו.
 type AvatarStatus = 'idle' | 'uploading' | 'error';
 
 export function MembersSection() {
   const { loading, failed, farmId, members, myRole, currentUserId, refresh } = useMembers(supabase);
-  const isOwner = myRole === 'owner';
+  const isOwner = canManageMembers(myRole);
 
   const [email, setEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<AssignableRole>('worker');
@@ -152,8 +148,9 @@ export function MembersSection() {
 
       {members.map((member) => {
         const canManage = isOwner && member.role !== 'owner' && !member.isSelf;
-        // התצוגה המקומית מיד אחרי העלאה גוברת על ה-URL הציבורי, כדי לעקוף
-        // מטמון של אותו נתיב. ראה selfPreview.
+        // התצוגה המקומית מיד אחרי העלאה גוברת על ה-URL הציבורי, כמשוב
+        // מיידי עד שהרוסטר נטען מחדש. הנתיב עצמו ייחודי לכל העלאה
+        // (uploadAvatar), ולכן אין כאן בעיית מטמון, רק מהירות תגובה.
         const photo =
           member.isSelf && selfPreview ? selfPreview : avatarUrl(supabase, member.avatarPath);
         return (
@@ -163,7 +160,7 @@ export function MembersSection() {
                 {photo ? (
                   <Image source={{ uri: photo }} style={styles.avatarImage} />
                 ) : (
-                  <Text style={styles.avatarText}>{initials(member.email)}</Text>
+                  <Text style={styles.avatarText}>{memberInitials(member.email) || '?'}</Text>
                 )}
               </View>
               <View style={styles.identity}>

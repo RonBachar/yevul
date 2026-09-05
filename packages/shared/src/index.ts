@@ -69,6 +69,8 @@ export {
   normalizeInviteEmail,
   isValidInviteEmail,
   memberRoleLabelKey,
+  canManageMembers,
+  canManagePlotResponsible,
   memberInitials,
   avatarUrl,
   uploadAvatar,

@@ -10,7 +10,7 @@ import TrendingDown from 'lucide-react-native/icons/trending-down';
 import SprayCan from 'lucide-react-native/icons/spray-can';
 import {
   assignableMembers,
-  currentMember,
+  canManagePlotResponsible,
   expectedPriceDisplay,
   expectedYieldDisplay,
   formatAmount,
@@ -449,10 +449,9 @@ function ResponsibleMemberSection({
 }) {
   const membersState = useMembers(supabase);
   const assignable = assignableMembers(membersState.members);
-  const myRole = currentMember(membersState.members, membersState.currentUserId)?.role;
   const [failed, setFailed] = useState(false);
 
-  if (assignable.length === 0 || (myRole !== 'owner' && myRole !== 'manager')) {
+  if (assignable.length === 0 || !canManagePlotResponsible(membersState.myRole)) {
     return null;
   }
 

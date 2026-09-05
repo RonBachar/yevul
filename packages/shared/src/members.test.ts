@@ -13,6 +13,8 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   assignableMembers,
   avatarUrl,
+  canManageMembers,
+  canManagePlotResponsible,
   currentMember,
   inviteMember,
   isValidInviteEmail,
@@ -298,6 +300,28 @@ describe('taskAssignee', () => {
 
   it('returns null when the assignee is no longer in the roster', () => {
     expect(taskAssignee('u-gone', 'u-me', byUserId)).toBe(null);
+  });
+});
+
+// ============================================================
+// Role capabilities — one place for the owner/manager tiers.
+// ============================================================
+
+describe('canManageMembers', () => {
+  it('allows only the owner, and never a null role', () => {
+    expect(canManageMembers('owner')).toBe(true);
+    expect(canManageMembers('manager')).toBe(false);
+    expect(canManageMembers('worker')).toBe(false);
+    expect(canManageMembers(null)).toBe(false);
+  });
+});
+
+describe('canManagePlotResponsible', () => {
+  it('allows owner and manager, but not worker or a null role', () => {
+    expect(canManagePlotResponsible('owner')).toBe(true);
+    expect(canManagePlotResponsible('manager')).toBe(true);
+    expect(canManagePlotResponsible('worker')).toBe(false);
+    expect(canManagePlotResponsible(null)).toBe(false);
   });
 });
 

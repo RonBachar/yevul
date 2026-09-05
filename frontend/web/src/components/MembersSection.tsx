@@ -3,7 +3,9 @@ import { Trash2 } from 'lucide-react';
 import {
   ASSIGNABLE_ROLES,
   avatarUrl,
+  canManageMembers,
   inviteMember,
+  memberInitials,
   memberRoleLabelKey,
   removeMember,
   updateMemberRole,
@@ -39,18 +41,12 @@ const INVITE_MESSAGE: Partial<Record<InviteStatus, { key: string; tone: 'good' |
   error: { key: 'members.invite.error', tone: 'bad' },
 };
 
-function initials(email: string | null): string {
-  if (!email) return '?';
-  const local = email.split('@')[0] ?? '';
-  return (local.slice(0, 2) || '?').toUpperCase();
-}
-
 // מצב העלאת תמונת הפרופיל של המשתמש עצמו.
 type AvatarStatus = 'idle' | 'uploading' | 'error';
 
 export function MembersSection() {
   const { loading, failed, farmId, members, myRole, currentUserId, refresh } = useMembers(supabase);
-  const isOwner = myRole === 'owner';
+  const isOwner = canManageMembers(myRole);
 
   const [email, setEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<AssignableRole>('worker');
@@ -162,7 +158,9 @@ export function MembersSection() {
           // עצמה (אין העברת בעלות) ולא על השורה של המשתמש עצמו.
           const canManage = isOwner && member.role !== 'owner' && !member.isSelf;
           // התמונה של השורה: התצוגה המקומית מיד אחרי העלאה גוברת על
-          // ה-URL הציבורי, כדי לעקוף מטמון של אותו נתיב. ראה selfPreview.
+          // ה-URL הציבורי, כמשוב מיידי עד שהרוסטר נטען מחדש. הנתיב עצמו
+          // ייחודי לכל העלאה (uploadAvatar), ולכן אין כאן בעיית מטמון,
+          // רק מהירות התגובה. ראה selfPreview.
           const photo =
             member.isSelf && selfPreview ? selfPreview : avatarUrl(supabase, member.avatarPath);
           return (
@@ -171,7 +169,7 @@ export function MembersSection() {
                 {photo ? (
                   <img className="members__avatar-img" src={photo} alt="" />
                 ) : (
-                  initials(member.email)
+                  memberInitials(member.email) || '?'
                 )}
               </span>
               <div className="members__identity">

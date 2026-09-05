@@ -36,6 +36,20 @@ export function memberRoleLabelKey(role: MemberRole): string {
   return `members.role.${role}`;
 }
 
+// הרשאות לפי תפקיד, מקור אחד לצד workerModeShell, במקום ספי owner/
+// manager מפוזרים כליטרלים בכל מסך. ניהול חברים (הזמנה, שינוי תפקיד,
+// הסרה) הוא של הבעלים בלבד, prd.md סעיף 11. הגדרת אחראי לחלקה מותרת ל-
+// owner/manager, כמו עריכת חלקות (plots_update). null (תפקיד עדיין
+// נטען או אין חברות) אינו מורשה. האכיפה עצמה ב-RLS, אלה רק מחליטים אם
+// להציג את הכלים.
+export function canManageMembers(role: MemberRole | null): boolean {
+  return role === 'owner';
+}
+
+export function canManagePlotResponsible(role: MemberRole | null): boolean {
+  return role === 'owner' || role === 'manager';
+}
+
 export type FarmMember = {
   id: string;
   userId: string | null;

@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { SprayCan } from 'lucide-react';
 import {
   assignableMembers,
-  currentMember,
+  canManagePlotResponsible,
   expectedPriceDisplay,
   expectedYieldDisplay,
   fontSize,
@@ -641,10 +641,9 @@ function ResponsibleMemberCard({
 }) {
   const membersState = useMembers(supabase);
   const assignable = assignableMembers(membersState.members);
-  const myRole = currentMember(membersState.members, membersState.currentUserId)?.role;
   const [failed, setFailed] = useState(false);
 
-  if (assignable.length === 0 || (myRole !== 'owner' && myRole !== 'manager')) {
+  if (assignable.length === 0 || !canManagePlotResponsible(membersState.myRole)) {
     return null;
   }
 
