@@ -28,3 +28,90 @@
   color: var(--color-field-700);
   font-weight: var(--font-weight-bold);
 }
+
+/* ===========================================================
+   באנר הגיבור, מסך הבית, סבב העיצוב האקוורלי (2026-09-06).
+   נוף אקוורל בראש עם ברכה, כרטיס הרווח מרחף מעל שוליו התחתונים,
+   וענף זית משתפל מהפינה המובילה. התמונות רקע דקורטיבי, הטקסט
+   נושא את המשמעות. הרקע דוהה ללבן בתחתית כדי שהכרטיס ינחת נקי.
+   =========================================================== */
+.home-hero {
+  position: relative;
+  height: clamp(220px, 24vw, 300px);
+}
+
+.home-hero__art {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-sheet);
+  background-image: url('../../../../packages/assets/illustrations/home-hero.webp');
+  background-size: cover;
+  background-position: center 62%;
+  -webkit-mask-image: linear-gradient(to bottom, #000 66%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 66%, transparent 100%);
+}
+
+/* ההכפלה (multiply) מעלימה את הרקע הלבן של קובץ הענף, כך שהוא
+   משתפל על הבאנר ועל פינת הכרטיס בלי ריבוע לבן סביבו. */
+.home-hero__sprig {
+  position: absolute;
+  top: 96px;
+  inset-inline-start: -24px;
+  width: 150px;
+  height: 225px;
+  z-index: 3;
+  background-image: url('../../../../packages/assets/illustrations/olive-branch.webp');
+  background-repeat: no-repeat;
+  background-size: contain;
+  background-position: top center;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+.home-hero__text {
+  position: absolute;
+  top: 28px;
+  inset-inline-start: 40px;
+  z-index: 2;
+}
+
+.home-hero__greeting {
+  margin: 0;
+  font-size: clamp(30px, 3.4vw, 44px);
+  font-weight: 900;
+  line-height: 1.05;
+  color: var(--color-field-700);
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.55);
+}
+
+.home-hero__subtitle {
+  margin: var(--spacing-8) 0 0;
+  font-size: clamp(16px, 1.8vw, 20px);
+  font-weight: var(--font-weight-regular);
+  color: var(--color-field-700);
+  opacity: 0.92;
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.55);
+}
+
+/* הכרטיס הצף עולה מעט על השוליים התחתונים של הבאנר. z-index נמוך
+   מהענף (3) כדי שהענף ימשיך להשתפל מעליו. */
+.home .profit-hero {
+  position: relative;
+  z-index: 2;
+  margin-top: -64px;
+}
+
+@media (max-width: 700px) {
+  .home-hero__text {
+    top: 22px;
+    inset-inline-start: 24px;
+  }
+  .home-hero__sprig {
+    top: 78px;
+    width: 128px;
+    height: 192px;
+  }
+  .home .profit-hero {
+    margin-top: -48px;
+  }
+}

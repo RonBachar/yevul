@@ -1,31 +1,43 @@
-/* Live P&L Hero Card, שלב 4, design.md.
-   hairline ולא צל: המערכת היא hairline first, והצל שמור לאלמנטים
-   מרחפים בלבד (Elevation). רדיוס 28, לא 20, זה אינו כרטיס רגיל. */
+/* Live P&L Hero Card, שלב 4, סבב העיצוב האקוורלי (2026-09-06).
+   עבר מ-hairline לכרטיס לבן מרחף עם צל רך, השפה החדשה של המסך. הצל
+   מגוון ל-Ink ולא שחור טהור. בדסקטופ התוכן נפרש לרוחב, כותרת המספר
+   בצד המוביל והפירוק בצד הנגדי, כדי שלא ייראה כמו טלפון מתוח. */
 .profit-hero {
-  border: 1px solid var(--color-border-200);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-20) var(--spacing-32);
   border-radius: var(--radius-sheet);
   background: var(--color-paper);
-  padding: var(--spacing-20);
-  margin-bottom: var(--spacing-24);
+  padding: var(--spacing-24) var(--spacing-32);
+  margin-bottom: var(--spacing-32);
+  box-shadow:
+    0 20px 44px -16px rgba(22, 35, 28, 0.16),
+    0 4px 12px -6px rgba(22, 35, 28, 0.08);
+}
+
+.profit-hero__headline {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .profit-hero__label {
   margin: 0 0 var(--spacing-4);
-  font-size: var(--text-body-sm);
-  color: var(--color-slate-600);
+  font-size: var(--text-body);
+  color: var(--color-field-700);
 }
 
-/* display (84) והמשקל הכבד ביותר. זה האלמנט הגדול ביותר במוצר.
-   clamp כדי שסכום ארוך לא יגלוש במסך צר, אותה בעיה שבנייד נפתרת
-   ב-scaledAmountFontSize. */
+/* המספר הוא האלמנט הגדול ביותר במוצר. חוזר למשקל Black (900) של
+   OedooPro, ההיררכיה שוב נשענת על משקל וגודל יחד. clamp כדי שסכום
+   ארוך לא יגלוש במסך צר. */
 .profit-hero__value {
   display: flex;
   align-items: center;
   gap: var(--spacing-8);
-  margin: 0 0 var(--spacing-8);
-  font-size: clamp(var(--text-heading), 11vw, var(--text-display));
-  font-weight: var(--font-weight-bold);
-  line-height: 0.98;
+  margin: 0;
+  font-size: clamp(var(--text-heading), 6vw, 60px);
+  font-weight: 900;
+  line-height: 1;
   white-space: nowrap;
   /* ספרות LTR בתוך משפט RTL, prd.md נספח א.6. */
   direction: ltr;
@@ -41,8 +53,7 @@
   color: var(--color-loss-600);
 }
 
-/* אפס אינו רווח ואינו הפסד, design.md. לצבוע אותו הוא אות שקרי
-   בפעם הראשונה שחקלאי פותח את האפליקציה. */
+/* אפס אינו רווח ואינו הפסד, design.md. */
 .profit-hero__value--zero {
   color: var(--color-ink-900);
 }
@@ -74,14 +85,46 @@
   }
 }
 
+/* פירוק ההכנסה והוצאות, שני טורים עם מפריד, design round. */
 .profit-hero__breakdown {
-  margin: 0;
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--spacing-16);
+}
+
+.profit-hero__col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: center;
+}
+
+.profit-hero__col-label {
   font-size: var(--text-body-sm);
   color: var(--color-slate-600);
 }
 
+.profit-hero__col-value {
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink-900);
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.profit-hero__col-sep {
+  width: 1px;
+  height: 34px;
+  background: var(--color-mist-200);
+}
+
+/* ההסתייגויות יורדות לשורה מלאה משלהן מתחת לשני הבלוקים. */
 .profit-hero__caveat {
-  margin: var(--spacing-4) 0 0;
+  flex-basis: 100%;
+  width: 100%;
+  margin: 0;
   font-size: var(--text-caption);
   color: var(--color-slate-600);
 }
@@ -89,4 +132,26 @@
 /* Wheat ולא Loss-600. design.md: חוסר מידע הוא תיקון, לא הודעת הפסד. */
 .profit-hero__caveat--wheat {
   color: var(--color-wheat-800);
+}
+
+/* מסך צר: חוזר לערמה ממורכזת, קרוב לתצוגת הנייד המקורית. */
+@media (max-width: 700px) {
+  .profit-hero {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+
+  .profit-hero__value {
+    justify-content: center;
+  }
+
+  .profit-hero__breakdown {
+    padding-top: var(--spacing-16);
+    border-top: 1px solid var(--color-mist-200);
+  }
+
+  .profit-hero__caveat {
+    text-align: center;
+  }
 }

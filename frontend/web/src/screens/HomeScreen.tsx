@@ -3,11 +3,13 @@ import {
   assignableMembers,
   myPlotIds,
   myPlotsToggleVisible,
+  resolveDisplayName,
   t,
   useMembers,
   usePlots,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../auth/AuthProvider';
 import { TaskBoard } from '../components/TaskBoard';
 import { ProfitHeroCard } from '../components/ProfitHeroCard';
 import './HomeScreen.css';
@@ -27,6 +29,10 @@ export function HomeScreen() {
   const membersState = useMembers(supabase);
   const plotsState = usePlots(supabase);
   const [scope, setScope] = useState<'all' | 'mine'>('all');
+  // שם התצוגה מ-user_metadata של הסשן. כשיש שם, הברכה מתאישית; כשאין,
+  // נשארת הברכה הקצרה בלבד. הכלל עצמו חי ב-packages/shared.
+  const { session } = useAuth();
+  const name = resolveDisplayName(session?.user);
 
   // רק חברים פעילים נספרים למתג, design.md: "more than one member".
   const toggleVisible = myPlotsToggleVisible(
@@ -40,8 +46,20 @@ export function HomeScreen() {
     toggleVisible && mine ? myPlotIds(plotsState.plots, membersState.currentUserId) : undefined;
 
   return (
-    <div className="screen">
-      <h1 className="screen__title">{t('screen.home')}</h1>
+    <div className="screen home">
+      {/* באנר הגיבור, סבב העיצוב האקוורלי. הנוף והברכה במקום הכותרת
+          השטוחה "בית", וכרטיס הרווח מתחתיו מרחף מעל שוליו התחתונים.
+          התמונות הן רקע דקורטיבי (aria-hidden), הטקסט נושא את המשמעות. */}
+      <header className="home-hero">
+        <div className="home-hero__art" aria-hidden="true" />
+        <div className="home-hero__sprig" aria-hidden="true" />
+        <div className="home-hero__text">
+          <h1 className="home-hero__greeting">
+            {name ? `${t('home.greeting')}, ${name}` : t('home.greeting')}
+          </h1>
+          <p className="home-hero__subtitle">{t('home.greetingSub')}</p>
+        </div>
+      </header>
       <ProfitHeroCard />
       {/* הכרטיס למעלה הוא צפי כלל-משקי ואינו מסונן; המתג יושב מתחתיו
           ושולט במה שאפשר לסנן, לוח המשימות. design.md: "It filters plot

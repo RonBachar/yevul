@@ -41,6 +41,10 @@ export {
   type RecentDateOption,
 } from './calendar';
 export { useAuthSession, type AuthState } from './auth';
+// שם התצוגה של המשתמש, נשמר ב-user_metadata של Supabase Auth בלי
+// טבלה ובלי מיגרציה. הקריאה נופלת מ-display_name ל-full_name ל-name,
+// והכתיבה מטפלת ב-error שחוזר בלי לזרוק, כמו שאר הכתיבות בחבילה.
+export { resolveDisplayName, updateDisplayName } from './displayName';
 export { colors } from './colors';
 export { spacing, radius, fontSize, fontWeight, touchTarget, shadowFloat } from './tokens';
 export {

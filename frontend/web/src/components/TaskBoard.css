@@ -35,11 +35,13 @@
   gap: var(--spacing-8);
 }
 
+/* כותרת קבוצה, סבב העיצוב האקוורלי: ירוק עמוק ובולט במקום אפור זעיר,
+   אותה שפה של כותרות המקטעים במסך הבית. */
 .task-board__section-header {
-  margin: 0;
-  font-size: var(--text-caption);
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--text-body-lg);
   font-weight: var(--font-weight-bold);
-  color: var(--color-slate-600);
+  color: var(--color-field-700);
 }
 
 .task-board__rows {

@@ -51,29 +51,42 @@ export function ProfitHeroCard() {
 
   return (
     <section className="profit-hero">
-      <p className="profit-hero__label">
-        {farm?.name ? `${farm.name} · ${t('home.profit.forecast')}` : t('home.profit.forecast')}
-      </p>
+      <div className="profit-hero__headline">
+        <p className="profit-hero__label">
+          {farm?.name ? `${farm.name} · ${t('home.profit.forecast')}` : t('home.profit.forecast')}
+        </p>
 
-      <p
-        className={`profit-hero__value profit-hero__value--${tone}${
-          pulsing ? ' profit-hero__value--pulse' : ''
-        }`}
-      >
-        {tone !== 'zero' && (
-          <Glyph className="profit-hero__glyph" size={40} strokeWidth={2.5} aria-hidden="true" />
-        )}
-        {formatSignedAmount(profit, currency)}
-      </p>
+        <p
+          className={`profit-hero__value profit-hero__value--${tone}${
+            pulsing ? ' profit-hero__value--pulse' : ''
+          }`}
+        >
+          {tone !== 'zero' && (
+            <Glyph className="profit-hero__glyph" size={40} strokeWidth={2.5} aria-hidden="true" />
+          )}
+          {formatSignedAmount(profit, currency)}
+        </p>
+      </div>
 
       {/* משק חדש בלי חלקות: ₪0 לבדו. פירוט של אפס מול אפס והסתייגויות
           על נתונים חסרים הם רעש בפעם הראשונה שחקלאי פותח את האפליקציה. */}
       {!isEmptyFarm && (
         <>
-          <p className="profit-hero__breakdown">
-            {t('plots.profit.income')} {formatAmount(forecast.expectedIncome, currency)} ·{' '}
-            {t('plots.profit.expenses')} {formatAmount(forecast.expenses, currency)}
-          </p>
+          <div className="profit-hero__breakdown">
+            <div className="profit-hero__col">
+              <span className="profit-hero__col-label">{t('plots.profit.income')}</span>
+              <span className="profit-hero__col-value">
+                {formatAmount(forecast.expectedIncome, currency)}
+              </span>
+            </div>
+            <span className="profit-hero__col-sep" aria-hidden="true" />
+            <div className="profit-hero__col">
+              <span className="profit-hero__col-label">{t('plots.profit.expenses')}</span>
+              <span className="profit-hero__col-value">
+                {formatAmount(forecast.expenses, currency)}
+              </span>
+            </div>
+          </div>
 
           {/* Wheat ולא Loss-600: "עוד לא מוצג לך הכל", לא "אתה מפסיד". */}
           {!forecast.expensesTracked && (

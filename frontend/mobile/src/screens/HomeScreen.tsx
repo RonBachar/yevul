@@ -6,6 +6,7 @@ import {
   assignableMembers,
   myPlotIds,
   myPlotsToggleVisible,
+  resolveDisplayName,
   t,
   useCurrentFarm,
   useFarmProfit,
@@ -13,6 +14,7 @@ import {
   workerModeShell,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../auth/AuthProvider';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 import { TaskBoard } from '../components/TaskBoard';
 import { ProfitHeroCard } from '../components/ProfitHeroCard';
@@ -34,6 +36,10 @@ import { QuickActions } from '../components/QuickActions';
 export function HomeScreen() {
   const { farm } = useCurrentFarm(supabase);
   const profit = useFarmProfit(supabase);
+  // שם התצוגה מ-user_metadata של הסשן, מוקדם לכותרת האישית. כשאין
+  // שם, נשארת הכותרת "בית" בלבד. הכלל עצמו חי ב-packages/shared.
+  const { session } = useAuth();
+  const name = resolveDisplayName(session?.user);
   // מתג "החלקות שלי", design.md, "My Plots" Toggle. הרוסטר נטען לספירת
   // החברים ולזיהוי "אני"; רשימת החלקות מגיעה כבר מ-profit.plots, שנושאת
   // גם את האחראי לכל חלקה. state בלבד, לא נשמר, וברירת המחדל "הכל"
@@ -72,7 +78,9 @@ export function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.screen} edges={['top']}>
-      <Text style={styles.title}>{t('screen.home')}</Text>
+      <Text style={styles.title}>
+        {name ? `${name}, ${t('screen.home')}` : t('screen.home')}
+      </Text>
       <View style={styles.body}>
         <ProfitHeroCard farmName={farm?.name ?? null} state={profit} />
         {/* שלושה קיצורי דרך, בהחלטת היזם 2026-08-31. רישום הוצאה יורד

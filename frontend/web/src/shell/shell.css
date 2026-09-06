@@ -231,57 +231,157 @@
   font-weight: var(--font-weight-regular);
 }
 
+/* ============================================================
+   ניווט הנייד: פס עליון וכפתור סנדוויץ' שפותח תפריט בהחלקה מלמעלה.
+   נוסף 2026-09-06 במקום שורת הקישורים הגוללת שהחליפה קודם את הסיידבר.
+
+   שני הבלוקים כאן, .shell-topbar ו-.shell-menu, מוסתרים לגמרי בדסקטופ
+   ומופעלים רק ב-@media (max-width: 700px) למטה. הסיידבר הוא הניווט
+   מעל 700, והם מתחתיו, ולעולם לא מוצגים יחד. הקישורים בתפריט חולקים
+   את מחלקות ה-.sidebar__* כדי לשמור טיפול זהה למצב פעיל ולמטרות המגע.
+   ============================================================ */
+
+.shell-topbar,
+.shell-menu {
+  display: none;
+}
+
+.shell-topbar__brand {
+  font-size: var(--text-subheading);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-field-700);
+}
+
+.shell-topbar__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-card);
+  background: transparent;
+  color: var(--color-ink-900);
+  cursor: pointer;
+}
+
+.shell-topbar__toggle:hover {
+  background: var(--color-mist-100);
+}
+
+.shell-topbar__toggle:focus-visible {
+  outline: 3px solid var(--color-field-700);
+  outline-offset: 2px;
+}
+
+/* שכבת ההחשכה מאחורי התפריט. אותו scrim מוחשך כמו ב-Modal.css (לא blur,
+   פוגע בקריאות בשמש). מתחת ל-topbar בערמה, כדי שהמותג והכפתור יישארו
+   גלויים ולחיצים גם כשהתפריט פתוח. */
+.shell-menu__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: rgba(22, 35, 28, 0.42);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 220ms ease;
+}
+
+.shell-menu--open .shell-menu__scrim {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* הפאנל עצמו: רוחב מלא, נשען לראש המסך ומחליק מטה. הריפוד העליון מפנה
+   מקום ל-topbar שיושב מעליו בערמה, כך שהקישור הראשון לא מסתתר תחתיו.
+   visibility:hidden מוציא אותו מסדר ה-Tab כשסגור, עם השהיה כדי שההחלקה
+   החוצה תספיק לרוץ. */
+.shell-menu__panel {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-start: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-16);
+  max-height: 100vh;
+  max-height: 100dvh;
+  overflow-y: auto;
+  padding: var(--spacing-16) var(--spacing-24) var(--spacing-24);
+  padding-block-start: calc(var(--shell-topbar-h) + var(--spacing-8));
+  background: var(--color-paper);
+  box-shadow: var(--shadow-float);
+  transform: translateY(-100%);
+  visibility: hidden;
+  /* auto קבוע: כשסגור ה-visibility:hidden ממילא מבטל אינטראקציה, וכך
+     הפאנל לחיץ כשפתוח למרות pointer-events:none של המעטפת. */
+  pointer-events: auto;
+  transition:
+    transform 220ms ease,
+    visibility 0s linear 220ms;
+}
+
+.shell-menu--open .shell-menu__panel {
+  transform: translateY(0);
+  visibility: visible;
+  transition:
+    transform 220ms ease,
+    visibility 0s;
+}
+
+/* design.md, Motion: מכבדים prefers-reduced-motion, בלי החלקה. */
+@media (prefers-reduced-motion: reduce) {
+  .shell-menu__scrim,
+  .shell-menu__panel {
+    transition: none;
+  }
+}
+
 /* מסך צר, חלון מוקטן או חלון מפוצל. שתי העמודות מחזיקות היטב עד סביב
    700 פיקסל, 264 לניווט ועוד כ-440 לתוכן, ולכן הסף כאן ולא גבוה יותר.
-   מתחתיו הניווט הופך לכותרת עליונה. זו עדיין פריסת דסקטופ מכווצת ולא
-   מסך נייד, לקוח הנייד הוא אפליקציה נפרדת.
+   מתחתיו הסיידבר מתחלף בפס עליון דק עם כפתור סנדוויץ' שפותח תפריט
+   בהחלקה מלמעלה. זו עדיין פריסת דסקטופ מכווצת ולא מסך נייד, לקוח הנייד
+   הוא אפליקציה נפרדת.
 
-   גריד ולא flex-wrap. עם עטיפה הפריטים נשפכים לכמה שורות, הניווט תפח
-   ל-410 פיקסל גובה, והסדר החזותי התערבב, נמדד בפועל בדפדפן. כאן המותג
-   והחשבון יושבים בשורה אחת, והיעדים בשורה אחת מתחתיהם שגוללת לצדדים
-   אם צריך, כך שהסדר נשמר תמיד. */
+   שורה עליונה auto לפס, ושורה 1fr לתוכן. הפאנל והשכבה שמאחוריו fixed
+   ולכן אינם תופסים track בגריד. */
 @media (max-width: 700px) {
   .shell {
     grid-template-columns: 1fr;
-    /* מפורש. בלי זה הגריד מותח את שתי השורות שווה בשווה והניווט תופס
-       חצי מסך, נמדד בפועל, 410 פיקסל על גובה 760. */
+    /* מפורש. בלי זה הגריד מותח את שתי השורות שווה בשווה. */
     grid-template-rows: auto 1fr;
+    /* גובה הפס העליון, משותף לפס עצמו ולריפוד העליון של פאנל התפריט. */
+    --shell-topbar-h: calc(var(--touch-min) + var(--spacing-16) * 2);
   }
 
+  /* הסיידבר הוא ניווט הדסקטופ בלבד; בנייד מחליף אותו הפס העליון. */
   .sidebar {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    align-items: center;
-    gap: var(--spacing-12);
-    padding: var(--spacing-16) var(--spacing-24);
-    border-block-end: 1px solid var(--color-border-200);
-    border-inline-end: none;
-  }
-
-  .sidebar__list {
-    grid-column: 1 / -1;
-    flex: none;
-    flex-direction: row;
-    flex-wrap: nowrap;
-    gap: var(--spacing-8);
-    overflow-x: auto;
-  }
-
-  .sidebar__link {
-    flex: none;
-    padding-inline: var(--spacing-16);
-  }
-
-  .sidebar__account {
-    flex-direction: row;
-    align-items: center;
-    padding-top: 0;
-    border-top: none;
-  }
-
-  /* כתובת האימייל יורדת כאן, היא מידע משני והכפתור חשוב ממנה */
-  .sidebar__email {
     display: none;
+  }
+
+  .shell-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-12);
+    height: var(--shell-topbar-h);
+    padding-inline: var(--spacing-24);
+    border-block-end: 1px solid var(--color-border-200);
+    background: var(--color-paper);
+    /* מעל השכבה והפאנל, כדי שהמותג וכפתור הסגירה יישארו לחיצים. */
+    position: relative;
+    z-index: 45;
+  }
+
+  .shell-menu {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    /* המעטפת עצמה שקופה ואינה חוסמת קליקים לתוכן. הפאנל וה-scrim דורסים
+       ל-auto במצבים שבהם הם אמורים לתפוס לחיצה, ולכן מצב סגור לא חוסם. */
+    pointer-events: none;
   }
 
   .shell__content {

@@ -1,3 +1,5 @@
+/* כרטיס משימה, סבב העיצוב האקוורלי (2026-09-06): לבן עם צל רך במקום
+   מילוי אפור שטוח, אותה שפה של כרטיס הרווח בקנה מידה קטן יותר. */
 .task-row {
   display: flex;
   align-items: center;
@@ -5,12 +7,16 @@
   min-height: 72px;
   padding: 0 var(--spacing-16);
   border-radius: var(--radius-card);
-  background: var(--color-mist-100);
+  background: var(--color-paper);
+  box-shadow:
+    0 8px 22px -14px rgba(22, 35, 28, 0.16),
+    0 2px 6px -6px rgba(22, 35, 28, 0.08);
 }
 
+/* משימה באיחור, רצועה מובילה בצד הקריאה (ימין ב-RTL) ורקע Wheat. */
 .task-row--overdue {
   background: var(--color-wheat-100);
-  border-right: 4px solid var(--color-wheat-500);
+  border-inline-start: 4px solid var(--color-wheat-500);
 }
 
 .task-row__body {
@@ -70,35 +76,54 @@
 .task-row__actions {
   flex-shrink: 0;
   display: flex;
+  align-items: center;
   gap: var(--spacing-8);
 }
 
-.task-row__icon-button {
-  display: flex;
+/* פעולת "בוצע" ראשית: כפתור עם כיתוב, לא אייקון V בלבד שלא אמר מה הוא
+   עושה. Field-700 מלא עם טקסט לבן עובר את סף הניגודיות (Field-500 לא
+   היה עובר לטקסט לבן). */
+.task-row__done {
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
+  gap: var(--spacing-8);
+  min-height: var(--touch-min);
+  padding: 0 var(--spacing-16);
   border: none;
   border-radius: var(--radius-pill);
+  background: var(--color-field-700);
   color: var(--color-paper);
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-bold);
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.task-row__icon-button--complete {
-  background: var(--color-field-500);
+.task-row__done:hover {
+  filter: brightness(0.92);
 }
 
-.task-row__icon-button--complete:hover {
-  background: var(--color-field-700);
+.task-row__done:active {
+  transform: translateY(1px);
 }
 
-.task-row__icon-button--delete {
-  background: var(--color-loss-600);
+/* מחיקה משנית: אייקון סל בלבד בצבע Loss שקט, נצבע רק ב-hover, כדי
+   שהפעולה ההרסנית לא תצעק על כל שורה. */
+.task-row__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--touch-min);
+  height: var(--touch-min);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-loss-600);
+  cursor: pointer;
 }
 
-.task-row__icon-button--delete:hover {
-  opacity: 0.85;
+.task-row__delete:hover {
+  background: var(--color-loss-100);
 }
 
 .task-row--undo {

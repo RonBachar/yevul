@@ -8,11 +8,14 @@ import {
   areaUnitLabelKey,
   currencyLabelKey,
   localeLabelKey,
+  resolveDisplayName,
   t,
+  updateDisplayName,
   useFarmSettings,
   type FarmSettingsForm,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../auth/AuthProvider';
 import { MembersSection } from '../components/MembersSection';
 import '../styles/form.css';
 import './SettingsScreen.css';
@@ -102,6 +105,10 @@ export function SettingsScreen() {
         <span>{t('sprayLog.title')}</span>
       </Link>
 
+      {/* שם התצוגה יושב ב-user_metadata ולא בהגדרות המשק, ולכן טופס
+          נפרד עם שמירה משלו ולא חלק מ-useFarmSettings. */}
+      <DisplayNameForm />
+
       <form className="form" onSubmit={onSubmit} noValidate>
         <div className="form__row">
           <label className="form__label" htmlFor="farm-name">
@@ -184,6 +191,65 @@ export function SettingsScreen() {
       {/* שיתוף המשק, שלב 6. ניהול פתוח לבעלים בלבד, האכיפה במסד. */}
       <MembersSection />
     </div>
+  );
+}
+
+// שם התצוגה של המשתמש. טופס עצמאי כי המקור שונה מהגדרות המשק: הערך
+// חי ב-user_metadata של Auth ולא בטבלת settings, והכתיבה עוברת דרך
+// updateDisplayName ולא דרך save של useFarmSettings. אותו דפוס טיוטה
+// כמו במסך המשק: draft הוא null עד שנוגעים, וההצגה נופלת חזרה לשם
+// השמור, כך שעדכון הסשן אחרי שמירה משתקף מאליו.
+function DisplayNameForm() {
+  const { session } = useAuth();
+  const savedName = resolveDisplayName(session?.user) ?? '';
+  const [draft, setDraft] = useState<string | null>(null);
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const value = draft ?? savedName;
+  const busy = status === 'saving';
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    setStatus('saving');
+    const result = await updateDisplayName(supabase, value);
+    if (result.ok) setDraft(null);
+    setStatus(result.ok ? 'saved' : 'error');
+  }
+
+  return (
+    <form className="form" onSubmit={onSubmit} noValidate>
+      <div className="form__row">
+        <label className="form__label" htmlFor="display-name">
+          {t('settings.displayName')}
+        </label>
+        <input
+          id="display-name"
+          className="form__input"
+          type="text"
+          value={value}
+          placeholder={t('settings.displayNamePlaceholder')}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            setStatus('idle');
+          }}
+          disabled={busy}
+        />
+      </div>
+      <div className="form__actions">
+        <button type="submit" className="form__submit" disabled={busy}>
+          {busy ? t('settings.saving') : t('settings.save')}
+        </button>
+        {status === 'saved' && (
+          <p className="form__message form__message--good" role="status">
+            {t('settings.saved')}
+          </p>
+        )}
+        {status === 'error' && (
+          <p className="form__message form__message--bad" role="alert">
+            {t('settings.saveError')}
+          </p>
+        )}
+      </div>
+    </form>
   );
 }
 

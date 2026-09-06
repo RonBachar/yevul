@@ -107,6 +107,8 @@ const strings: Record<string, string> = {
   'web.nav.money': 'כסף',
   'web.nav.journal': 'יומן',
   'web.nav.settings': 'הגדרות',
+  // תווית נגישות לכפתור הסנדוויץ' של הניווט הנייד בווב.
+  'web.nav.menu': 'תפריט',
   'web.nav.sectionMain': 'ניהול',
   'web.skipToContent': 'דילוג לתוכן',
 
@@ -119,6 +121,10 @@ const strings: Record<string, string> = {
   'screen.comingSoon': 'המסך הזה ייבנה בשלב הבא לפי הרודמאפ.',
 
   // מסך הגדרות
+  // שם התצוגה של המשתמש, נשמר ב-user_metadata של Auth ומופיע בברכת
+  // הבית. שדה עצמאי מהגדרות המשק כי המקור שונה.
+  'settings.displayName': 'שם',
+  'settings.displayNamePlaceholder': 'השם שלך',
   'settings.farmName': 'שם המשק',
   'settings.farmNamePlaceholder': 'למשל, המשק של דוד',
   'settings.currency': 'מטבע',
@@ -231,6 +237,10 @@ const strings: Record<string, string> = {
   // חלקות שעדיין אין להן יבול ומחיר צפויים. ההוצאות שלהן נספרות, אבל
   // ההכנסה שלהן חסרה מהמספר, וזו הסתייגות שהחקלאי חייב לראות.
   'home.profit.someWithoutForecast': 'יש חלקות בלי צפי יבול, ההכנסה שלהן לא נספרת',
+
+  // כותרת הבאנר במסך הבית, ברכה חמה במקום השם "בית" (סבב עיצוב אקוורל).
+  'home.greeting': 'בוקר טוב',
+  'home.greetingSub': 'היום במשק שלך',
 
   // מתג "החלקות שלי", מסך הבית, design.md, "My Plots" Toggle. בקרה
   // מגזרית שמופיעה רק במשק רב-חברים שבו שויכה לפחות חלקה אחת, ומסננת

@@ -101,17 +101,16 @@ export function TaskRow({
         </span>
       )}
       <div className="task-row__actions">
-        <button
-          type="button"
-          className="task-row__icon-button task-row__icon-button--complete"
-          onClick={fireComplete}
-          aria-label={t('tasks.action.complete')}
-        >
-          <Check size={18} strokeWidth={2.5} />
+        {/* פעולה ראשית עם כיתוב, כי אייקון V לבדו לא אמר מה הוא עושה.
+            בקשת היזם: כפתור שכתוב עליו "בוצע", לא סימן בלבד. */}
+        <button type="button" className="task-row__done" onClick={fireComplete}>
+          <Check size={18} strokeWidth={2.5} aria-hidden="true" />
+          <span>{t('tasks.action.complete')}</span>
         </button>
+        {/* מחיקה משנית, אייקון סל בלבד ובצבע Loss שקט, נפתחת בדיאלוג אישור. */}
         <button
           type="button"
-          className="task-row__icon-button task-row__icon-button--delete"
+          className="task-row__delete"
           onClick={() => setConfirmingDelete(true)}
           aria-label={t('tasks.action.delete')}
         >
