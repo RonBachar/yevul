@@ -226,7 +226,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   ring: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     borderRadius: MIC_RING_SIZE / 2,
     backgroundColor: colors.field300,
     opacity: 0.5,
