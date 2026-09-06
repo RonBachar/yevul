@@ -229,9 +229,16 @@ export function SprayEntrySheet({
     setStatus('saving');
     const input = sprayEntryInput(draft);
     const result = entry
-      ? // The note is not one of the six fields this flow asks for, so an edit
-        // carries the existing one through instead of erasing it.
-        await updateLogEntry(supabase, entry.id, { ...input, note: entry.note })
+      ? // Neither the note nor the work hours are among the six fields this flow
+        // asks for, so an edit carries the existing ones through instead of
+        // erasing them. Hours are entered on the journal sheet, for any type.
+        await updateLogEntry(supabase, entry.id, {
+          ...input,
+          note: entry.note,
+          workHours: entry.workHours,
+          workHourlyRate: entry.workHourlyRate,
+          workCost: entry.workCost,
+        })
       : await createLogEntry(supabase, farmId, input);
     if (result.ok) {
       onSaved();

@@ -1,8 +1,10 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import {
+  formatAmount,
   formatSprayUnitPrice,
   normalizeSprayMaterial,
   parseSprayAmountInput,
+  parseWorkAmountInput,
   saveSprayPrice,
   sprayPricelistRows,
   sprayUnitLabelKey,
@@ -50,6 +52,17 @@ const STATUS_MESSAGE_KEYS: Record<string, string> = {
   error: 'pricelist.saveError',
 };
 
+// The hourly rate's own save. Separate state from the material editor's on
+// purpose: they are two independent things a farmer states, saved by two
+// buttons, and one shared status would report the wrong one.
+type RateStatus = 'idle' | 'saving' | 'saved' | 'rateRequired' | 'forbidden' | 'error';
+
+const RATE_MESSAGE_KEYS: Record<string, string> = {
+  rateRequired: 'pricelist.workRateRequired',
+  forbidden: 'pricelist.forbidden',
+  error: 'pricelist.saveError',
+};
+
 export function PricelistScreen() {
   const { farm, loading } = useCurrentFarm(supabase);
   const settings = useFarmSettings(supabase);
@@ -70,6 +83,19 @@ export function PricelistScreen() {
   const [priceText, setPriceText] = useState('');
   const [unit, setUnit] = useState<SprayUnit>('liter');
   const [status, setStatus] = useState<Status>('idle');
+
+  // עלות שעת עבודה. **כאן ולא בהגדרות**, כי זה בדיוק "המחירים שאני
+  // מזין פעם אחת" של עידו, וזה המסך שכבר קיים בשביל זה. נשמר דרך
+  // הגדרות המשק, שם העמודה חיה (20260906120000_work_hours.sql).
+  //
+  // rateDraft הוא null כל עוד לא נגעו בשדה, ואז מוצג מה שנטען מהשרת.
+  // אותו דפוס בדיוק שמסך ההגדרות מחזיק, ומאותה סיבה: useEffect שמסנכרן
+  // טיוטה מהשרת דורס הקלדה שנעשתה בזמן שהשמירה באוויר.
+  const savedRate = settings.form?.workHourlyRate ?? null;
+  const [rateDraft, setRateDraft] = useState<string | null>(null);
+  const [rateStatus, setRateStatus] = useState<RateStatus>('idle');
+  const rateText = rateDraft ?? (savedRate === null ? '' : String(savedRate));
+  const rateBusy = rateStatus === 'saving';
 
   const busy = status === 'saving';
 
@@ -123,6 +149,36 @@ export function PricelistScreen() {
     setStatus('saved');
   }
 
+  // **Saving the rate re-values nothing.** It writes one settings column, and
+  // every entry already recorded keeps the rate and the cost frozen on its own
+  // row. See 20260906120000_work_hours.sql.
+  async function onSubmitRate(event: FormEvent) {
+    event.preventDefault();
+    const form = settings.form;
+    if (!form) {
+      setRateStatus('error');
+      return;
+    }
+
+    // undefined הוא "מה שבתיבה אינו מספר", null הוא תיבה ריקה. תיבה
+    // ריקה היא מחיקת התעריף וזה מצב לגיטימי, מספר לא קריא הוא לא.
+    const parsed = parseWorkAmountInput(rateText);
+    if (parsed === undefined) {
+      setRateStatus('rateRequired');
+      return;
+    }
+
+    setRateStatus('saving');
+    const result = await settings.save({ ...form, workHourlyRate: parsed });
+    if (!result.ok) {
+      setRateStatus(result.reason === 'forbidden' ? 'forbidden' : 'error');
+      return;
+    }
+    // נוטשים את הטיוטה, כך שהערך נופל חזרה למקור הסמכותי מהשרת.
+    setRateDraft(null);
+    setRateStatus('saved');
+  }
+
   const materialTiles: TileOption[] = rows.map((row) => ({
     value: row.materialNormalized,
     label: row.materialNormalized,
@@ -135,6 +191,57 @@ export function PricelistScreen() {
       <p className="screen__note pricelist__intro">{t('pricelist.intro')}</p>
 
       {loading && <p className="screen__note">{t('common.loading')}</p>}
+
+      {/* עלות שעת עבודה, שדה משלו ומסומן בבירור. עידו ביקש "מחירים
+          קבועים שאני מזין פעם אחת" גם לחומרים וגם לשעת עבודה, ולכן
+          שניהם על המסך הזה. כפתור שמירה נפרד, כי זה דבר נפרד. */}
+      {!loading && (
+        <form className="form pricelist__work" onSubmit={onSubmitRate} noValidate>
+          <h2 className="pricelist__editor-title">{t('pricelist.workTitle')}</h2>
+          <div className="form__row">
+            <label className="form__label" htmlFor="pricelist-work-rate">
+              {t('pricelist.workRate')}
+            </label>
+            <input
+              id="pricelist-work-rate"
+              className="form__input"
+              type="number"
+              step="any"
+              min="0"
+              value={rateText}
+              placeholder={t('work.hourlyRatePlaceholder')}
+              onChange={(e) => {
+                setRateDraft(e.target.value);
+                setRateStatus('idle');
+              }}
+              disabled={rateBusy}
+            />
+            <p className="form__hint">
+              {/* מה שקיים כרגע, במילים ובמטבע. "עדיין לא הוזן תעריף"
+                  ולא "0", כי אלה שני דברים שונים. */}
+              {savedRate === null
+                ? t('pricelist.workNotSet')
+                : `${t('work.hourlyRate')}: ${formatAmount(savedRate, currency)}`}
+            </p>
+            <p className="form__hint">{t('pricelist.workHint')}</p>
+          </div>
+          <div className="form__actions">
+            <button type="submit" className="form__submit" disabled={rateBusy}>
+              {rateBusy ? t('pricelist.saving') : t('pricelist.workSave')}
+            </button>
+            {rateStatus === 'saved' && (
+              <p className="form__message form__message--good" role="status">
+                {t('pricelist.workSaved')}
+              </p>
+            )}
+            {RATE_MESSAGE_KEYS[rateStatus] && (
+              <p className="form__message form__message--bad" role="alert">
+                {t(RATE_MESSAGE_KEYS[rateStatus] ?? '')}
+              </p>
+            )}
+          </div>
+        </form>
+      )}
 
       {!loading && (
         <TilePicker

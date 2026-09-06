@@ -11,16 +11,22 @@ import './LogRow.css';
 // line, and, where applicable, the derived 'בטוח לקטיף' line"). ביומן
 // הכללי ובטאב יומן בפרטי חלקה השורה נשארת קומפקטית, אותו רכיב עם
 // הרחבה מותנית ולא עותק שני.
+// workDetailed is its sibling, for the work-hours screen: there the hours and
+// what they cost ARE the record, so they go on the detail line. Everywhere else
+// the row stays as it was, one component with a conditional expansion rather
+// than a third copy.
 export function LogRow({
   entry,
   plotName,
   onEdit,
   sprayDetailed = false,
+  workDetailed = false,
 }: {
   entry: LogEntry;
   plotName: string | null;
   onEdit: () => void;
   sprayDetailed?: boolean;
+  workDetailed?: boolean;
 }) {
   const tag =
     entry.type === 'spray'
@@ -53,7 +59,19 @@ export function LogRow({
             ? t('log.row.sourceTask')
             : (entry.note ?? '');
 
-  const metaParts = [plotName, detail].filter((part): part is string => Boolean(part));
+  // The hours and their cost, on the work-hours screen only. Appended rather
+  // than replacing `detail`, because an entry there is still a spray or a
+  // pruning and losing what it was would make the list unreadable.
+  const workDetail = workDetailed
+    ? [
+        entry.workHours != null ? `${entry.workHours} ${t('work.hoursSuffix')}` : null,
+        entry.workCost != null ? `${t('work.cost')}: ${entry.workCost}` : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    : '';
+
+  const metaParts = [plotName, detail, workDetail].filter((part): part is string => Boolean(part));
 
   const safeHarvest =
     sprayDetailed && entry.type === 'spray' && entry.sprayPhiDays != null
@@ -74,7 +92,11 @@ export function LogRow({
             שמוסיף את ימי ההמתנה למחרוזת כמה שורות מעל, ולכן הוא גם
             התנאי המדויק שבו השורה מתארכת ואסור לה להיחתך. */}
         {metaParts.length > 0 && (
-          <span className={sprayDetailed ? 'log-row__meta log-row__meta--wrap' : 'log-row__meta'}>
+          <span
+            className={
+              sprayDetailed || workDetailed ? 'log-row__meta log-row__meta--wrap' : 'log-row__meta'
+            }
+          >
             {metaParts.join(' · ')}
           </span>
         )}

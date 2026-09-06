@@ -1,0 +1,86 @@
+/*
+  יומן שעות העבודה. אותה שפה ויזואלית של יומן הריסוס, כי זה אותו סוג
+  מסך: כותרת עם מונה, בורר חלקות בגלולות, רשימה. בלי המסילה של הייצוא,
+  כי כאן אין ייצוא לרגולטור, המסך הזה הוא כסף ולא רגולציה.
+
+  .screen עצמו הוא רוחב מרבי בלבד ואין לו gap, ולכן המרווחים כאן
+  מפורשים על כל חלק.
+*/
+
+.work-log__header {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-12);
+  margin-bottom: var(--spacing-16);
+}
+
+/* שתי הסכימות. שורה אחת בשני כרטיסים שגולשת לעמודה בנייד, כי המספר
+   השני הוא כסף ואסור לו להיחתך. */
+.work-log__totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-16);
+  margin-bottom: var(--spacing-24);
+}
+
+.work-log__total {
+  display: flex;
+  min-width: 180px;
+  flex-direction: column;
+  gap: var(--spacing-8);
+  padding: var(--spacing-16) var(--spacing-20);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-card);
+  background: var(--color-paper);
+}
+
+.work-log__total-label {
+  font-size: var(--text-body-sm);
+  color: var(--color-slate-600);
+}
+
+.work-log__total-value {
+  font-size: var(--text-subheading);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink-900);
+}
+
+.work-log__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-8);
+  margin-bottom: var(--spacing-24);
+}
+
+.work-log__filter {
+  min-height: var(--touch-min);
+  padding: 0 var(--spacing-20);
+  border: 1px solid var(--color-border-200);
+  border-radius: var(--radius-pill);
+  background: var(--color-paper);
+  color: var(--color-slate-600);
+  font-family: inherit;
+  font-size: var(--text-body-sm);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+}
+
+.work-log__filter--active {
+  border-color: var(--color-field-700);
+  background: var(--color-field-100);
+  color: var(--color-field-700);
+  font-weight: var(--font-weight-bold);
+}
+
+/* אותו כלל של .spray-log__new: הגלולה ברוחב התווית שלה, לא ברוחב
+   העמודה. */
+.work-log__new {
+  align-self: flex-start;
+  margin-bottom: var(--spacing-24);
+}
+
+.work-log__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-8);
+}

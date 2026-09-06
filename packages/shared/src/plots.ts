@@ -87,6 +87,11 @@ export type PlotProfitForecast = {
   // Kept separate from `expenses` so the money-expenses figure still matches the
   // expense list; profit subtracts both. Founder's decision 2026-09-04.
   sprayCost: number;
+  // The cost of the hours worked on this plot, frozen on the log rows
+  // (20260906120000_work_hours.sql). Kept apart from both figures above for the
+  // same reason spray cost is kept apart from `expenses`: profit subtracts all
+  // three, while each line still means exactly one thing.
+  workCost: number;
   expensesTracked: boolean;
   profit: number;
 };
@@ -112,6 +117,7 @@ export function plotProfitForecast(
   cropCycle: CropCycle | null,
   expensesTotal: number | null,
   sprayCost: number = 0,
+  workCost: number = 0,
 ): PlotProfitForecast | null {
   const expectedIncome = expectedIncomeFor(plotArea, cropCycle);
   if (expectedIncome == null) return null;
@@ -120,8 +126,9 @@ export function plotProfitForecast(
     expectedIncome,
     expenses,
     sprayCost,
+    workCost,
     expensesTracked: expensesTotal != null,
-    profit: expectedIncome - expenses - sprayCost,
+    profit: expectedIncome - expenses - sprayCost - workCost,
   };
 }
 

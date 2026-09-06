@@ -25,6 +25,15 @@ export type FarmSettingsForm = {
   // Settings and can be turned off independently."
   journalPromptEnabled: boolean;
   expensePromptEnabled: boolean;
+  // The farm's hourly rate for work, Ido 2026-09-06: "fixed prices I enter once,
+  // and the app knows how to compute the costs". **A default and nothing more**:
+  // it pre-fills the rate box on the next journal entry, and a job already
+  // recorded keeps the rate and the cost frozen on its own row. Raising it today
+  // therefore re-values nothing. See 20260906120000_work_hours.sql.
+  //
+  // null is "never stated", which is not the same as 0, an hour the farm decided
+  // costs nothing.
+  workHourlyRate: number | null;
 };
 
 // nameRequired הוא כלל נורמליזציה ולא הרשאה, ולכן הוא חי כאן ולא בשני
@@ -46,6 +55,7 @@ type SettingsRow = {
   locale: Locale;
   journal_prompt_enabled: boolean;
   expense_prompt_enabled: boolean;
+  work_hourly_rate: number | null;
 };
 type FarmWithSettings = { id: string; name: string; settings: SettingsRow | null };
 
@@ -64,7 +74,7 @@ export function useFarmSettings(supabase: SupabaseClient): FarmSettingsState {
       // הוא מפתח ראשי שמצביע על farms(id), ו-PostgREST יודע לשבץ.
       const { data, error } = await currentFarmQuery(
         supabase,
-        'id, name, settings(currency, area_unit, locale, journal_prompt_enabled, expense_prompt_enabled)',
+        'id, name, settings(currency, area_unit, locale, journal_prompt_enabled, expense_prompt_enabled, work_hourly_rate)',
       );
 
       if (!active) return;
@@ -85,6 +95,7 @@ export function useFarmSettings(supabase: SupabaseClient): FarmSettingsState {
         locale: settings.locale,
         journalPromptEnabled: settings.journal_prompt_enabled,
         expensePromptEnabled: settings.expense_prompt_enabled,
+        workHourlyRate: settings.work_hourly_rate,
       });
       setLoading(false);
     }
@@ -115,6 +126,7 @@ export function useFarmSettings(supabase: SupabaseClient): FarmSettingsState {
             locale: next.locale,
             journal_prompt_enabled: next.journalPromptEnabled,
             expense_prompt_enabled: next.expensePromptEnabled,
+            work_hourly_rate: next.workHourlyRate,
           })
           .eq('farm_id', farmId)
           .select('farm_id'),

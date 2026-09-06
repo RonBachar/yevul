@@ -14,6 +14,7 @@ import { PlotFormScreen } from './screens/PlotFormScreen';
 import { PricelistScreen } from './screens/PricelistScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { SprayLogScreen } from './screens/SprayLogScreen';
+import { WorkLogScreen } from './screens/WorkLogScreen';
 
 // ניתוב אמיתי עם כתובות, ולא החלפת מסכים לפי state. בווב הכתובת היא
 // חלק מהמוצר, סימנייה, כפתור אחורה של הדפדפן, ושיתוף קישור לחלקה
@@ -62,6 +63,10 @@ function AuthedRoutes() {
         <Route path="money" element={ownerOnly(<MoneyScreen />)} />
         <Route path="journal" element={<JournalScreen />} />
         <Route path="spray-log" element={<SprayLogScreen />} />
+        {/* יומן שעות העבודה, מגיעים אליו מהיומן ולא מסרגל הצד, בדיוק
+            כמו יומן הריסוס. **מאחורי אותו שומר תפקיד שמגן על הכסף**:
+            המסך מציג עלויות מסוכמות, ולעובד אין יעד "כסף". */}
+        <Route path="work-log" element={ownerOnly(<WorkLogScreen />)} />
         <Route path="pricelist" element={ownerOnly(<PricelistScreen />)} />
         <Route path="settings" element={<SettingsScreen />} />
       </Route>

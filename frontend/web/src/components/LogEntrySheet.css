@@ -4,3 +4,14 @@
   color: var(--color-field-700);
   font-weight: var(--font-weight-bold);
 }
+
+/* כותרת קבוצת שדות בתוך הטופס, לא כותרת מסך. שעות העבודה הן שלושה
+   שדות שקשורים זה לזה ופתוחים בכל סוג רישום, ובלי הכותרת הם נראים כמו
+   עוד שלוש שורות שנשפכו לתוך הטופס. אותו משקל של .pricelist__editor-title
+   ושל השאלה מעל רשת משבצות, כי התפקיד זהה. */
+.log-entry-sheet__section {
+  margin: 0;
+  font-size: var(--text-subheading);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink-900);
+}

@@ -93,13 +93,20 @@ export type LogEntry = {
   sprayQuantityUnit: SprayUnit | null;
   sprayUnitPrice: number | null;
   sprayCost: number | null;
+  // Work hours and their cost, frozen on the row at write time exactly like the
+  // spray cost above. **On every entry type, not only a spray**: Ido's example
+  // is a spray that also took him three hours, but a repair takes hours too. See
+  // 20260906120000_work_hours.sql.
+  workHours: number | null;
+  workHourlyRate: number | null;
+  workCost: number | null;
   harvestQty: number | null;
   harvestUnit: string | null;
   createdAt: string;
 };
 
 const LOG_ENTRY_COLUMNS =
-  'id, farm_id, plot_id, date, type, note, source, spray_pest, spray_material, spray_dose, spray_phi_days, spray_quantity, spray_quantity_unit, spray_unit_price, spray_cost, harvest_qty, harvest_unit, created_at';
+  'id, farm_id, plot_id, date, type, note, source, spray_pest, spray_material, spray_dose, spray_phi_days, spray_quantity, spray_quantity_unit, spray_unit_price, spray_cost, work_hours, work_hourly_rate, work_cost, harvest_qty, harvest_unit, created_at';
 
 type LogEntryRow = {
   id: string;
@@ -117,6 +124,9 @@ type LogEntryRow = {
   spray_quantity_unit: SprayUnit | null;
   spray_unit_price: number | null;
   spray_cost: number | null;
+  work_hours: number | null;
+  work_hourly_rate: number | null;
+  work_cost: number | null;
   harvest_qty: number | null;
   harvest_unit: string | null;
   created_at: string;
@@ -139,6 +149,9 @@ function mapLogEntry(row: LogEntryRow): LogEntry {
     sprayQuantityUnit: row.spray_quantity_unit,
     sprayUnitPrice: row.spray_unit_price,
     sprayCost: row.spray_cost,
+    workHours: row.work_hours,
+    workHourlyRate: row.work_hourly_rate,
+    workCost: row.work_cost,
     harvestQty: row.harvest_qty,
     harvestUnit: row.harvest_unit,
     createdAt: row.created_at,
@@ -166,10 +179,17 @@ export type LogEntriesListState = {
   loadCount: number;
 };
 
+// workHoursOnly narrows to the entries that carry work hours, whatever their
+// type, for the work-hours screen. **A fourth filter rather than a fourth hook**:
+// it is the same query, the same ordering and the same plot-name join, and the
+// one thing that differs is a where clause the database should apply anyway. It
+// is deliberately not a `type` value either -- hours are not a kind of journal
+// entry, they are something any entry can carry.
 export function useLogEntries(
   supabase: SupabaseClient,
   plotId?: string,
   type?: LogEntryType,
+  workHoursOnly: boolean = false,
 ): LogEntriesListState {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
@@ -182,7 +202,7 @@ export function useLogEntries(
   // זהות השאילתה, בלי ה-tick במכוון: ריענון מבקש את אותם נתונים בדיוק,
   // החלפת חלקה או סוג מבקשת נתונים אחרים. ההבחנה הזו קובעת מתי מותר
   // להמשיך להציג את מה שכבר יש ומתי זה שקר, ראה ההערה בתוך load.
-  const queryKey = `${plotId ?? ''}|${type ?? ''}`;
+  const queryKey = `${plotId ?? ''}|${type ?? ''}|${workHoursOnly ? 'work' : ''}`;
   const appliedQueryKey = useRef<string | null>(null);
 
   const refresh = useCallback(() => setTick((value) => value + 1), []);
@@ -220,6 +240,7 @@ export function useLogEntries(
         .is('deleted_at', null);
       if (plotId) query = query.eq('plot_id', plotId);
       if (type) query = query.eq('type', type);
+      if (workHoursOnly) query = query.not('work_hours', 'is', null);
 
       const [entriesResult, plotsResult] = await Promise.all([
         query.order('date', { ascending: false }).order('created_at', { ascending: false }),
@@ -251,21 +272,26 @@ export function useLogEntries(
     return () => {
       active = false;
     };
-  }, [supabase, plotId, type, tick, queryKey, settle]);
+  }, [supabase, plotId, type, workHoursOnly, tick, queryKey, settle]);
 
   return { loading, failed, farmId, entries, plotNames, refresh, loadCount };
 }
 
 // ============================================================
-// Spray costs, for the profit number. A spray's cost is frozen on its row (see
-// 20260904130000_spray_pricelist.sql), and the founder's decision of 2026-09-04
-// is that it lowers the plot's profit -- counted straight from the spray row,
-// not turned into an expense, so it stays clear of the still-open "money =
-// invoices only" question in docs/open-items.md.
+// Costs frozen on a log row, for the profit number. Two of them now: a spray's
+// material cost (20260904130000_spray_pricelist.sql) and the cost of the hours a
+// job took (20260906120000_work_hours.sql). The founder's decision of 2026-09-04
+// is that such a cost lowers the plot's profit -- counted straight from the log
+// row, not turned into an expense, so it stays clear of the still-open "money =
+// invoices only" question in docs/open-items.md. Work hours follow it.
 //
 // plotId filters to one plot (its detail profit header); without it the whole
-// farm, split into per-plot costs and the whole-farm sprays (plot_id null) that
+// farm, split into per-plot costs and the whole-farm rows (plot_id null) that
 // join the general costs, exactly as expenses are split in useFarmProfit.
+//
+// **One loader, two columns.** The second cost is the same query with a
+// different column and no type filter, and two copies of it would be two places
+// to forget `deleted_at` or the plot split.
 // ============================================================
 
 export type SprayCostsState = {
@@ -275,14 +301,26 @@ export type SprayCostsState = {
   total: number;
   byPlot: Map<string, number>;
   general: number;
-  // Whether any spray with a cost exists at all: the same "tracked vs a real
+  // Whether any row with a cost exists at all: the same "tracked vs a real
   // zero" distinction expenses carry.
   tracked: boolean;
   refresh: () => void;
   loadCount: number;
 };
 
-export function useSprayCosts(supabase: SupabaseClient, plotId?: string): SprayCostsState {
+// The cost of the hours worked, across the farm. Same shape as the spray costs,
+// and named separately so a reader of useFarmProfit sees two cost lines rather
+// than one thing used twice.
+export type WorkCostsState = SprayCostsState;
+
+// type is null for work hours on purpose: hours belong to any entry, while a
+// material cost belongs to a spray and to nothing else.
+function useFrozenCosts(
+  supabase: SupabaseClient,
+  costColumn: 'spray_cost' | 'work_cost',
+  type: LogEntryType | null,
+  plotId?: string,
+): SprayCostsState {
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
   const [farmId, setFarmId] = useState<string | null>(null);
@@ -309,11 +347,11 @@ export function useSprayCosts(supabase: SupabaseClient, plotId?: string): SprayC
 
       let query = supabase
         .from('log_entries')
-        .select('plot_id, spray_cost')
+        .select(`plot_id, ${costColumn}`)
         .eq('farm_id', farm.id)
-        .eq('type', 'spray')
         .is('deleted_at', null)
-        .not('spray_cost', 'is', null);
+        .not(costColumn, 'is', null);
+      if (type) query = query.eq('type', type);
       if (plotId) query = query.eq('plot_id', plotId);
 
       const result = await query;
@@ -325,8 +363,13 @@ export function useSprayCosts(supabase: SupabaseClient, plotId?: string): SprayC
         return;
       }
 
-      const raw = (result.data ?? []) as { plot_id: string | null; spray_cost: number }[];
-      setRows(raw.map((row) => ({ plotId: row.plot_id, cost: row.spray_cost })));
+      const raw = (result.data ?? []) as Record<string, unknown>[];
+      setRows(
+        raw.map((row) => ({
+          plotId: (row.plot_id as string | null) ?? null,
+          cost: row[costColumn] as number,
+        })),
+      );
       setFailed(false);
       setLoading(false);
       settle();
@@ -336,7 +379,7 @@ export function useSprayCosts(supabase: SupabaseClient, plotId?: string): SprayC
     return () => {
       active = false;
     };
-  }, [supabase, plotId, tick, settle]);
+  }, [supabase, costColumn, type, plotId, tick, settle]);
 
   const state = useMemo(() => {
     const byPlot = new Map<string, number>();
@@ -361,6 +404,17 @@ export function useSprayCosts(supabase: SupabaseClient, plotId?: string): SprayC
     refresh,
     loadCount,
   };
+}
+
+export function useSprayCosts(supabase: SupabaseClient, plotId?: string): SprayCostsState {
+  return useFrozenCosts(supabase, 'spray_cost', 'spray', plotId);
+}
+
+// The labour half of the same number. **No type filter**, because a job that
+// took hours can be any entry -- Ido's own example is a spray that also took him
+// three hours, and a repair takes hours just the same.
+export function useWorkCosts(supabase: SupabaseClient, plotId?: string): WorkCostsState {
+  return useFrozenCosts(supabase, 'work_cost', null, plotId);
 }
 
 // ============================================================
@@ -453,6 +507,9 @@ export type LogEntryInput = {
   sprayQuantityUnit: SprayUnit | null;
   sprayUnitPrice: number | null;
   sprayCost: number | null;
+  workHours: number | null;
+  workHourlyRate: number | null;
+  workCost: number | null;
   harvestQty: number | null;
   harvestUnit: string | null;
 };
@@ -486,6 +543,18 @@ function writePayload(input: LogEntryInput) {
     spray_quantity_unit: isSpray ? input.sprayQuantityUnit : null,
     spray_unit_price: isSpray ? input.sprayUnitPrice : null,
     spray_cost: isSpray ? input.sprayCost : null,
+    // **Not gated on the type, and that is the point.** Every other field above
+    // belongs to one kind of record and is nulled when the type moves away from
+    // it. Hours belong to the work, not to the kind of work: Ido's example is a
+    // spray that also took three hours, and switching that record to "other"
+    // must not throw the hours away. See 20260906120000_work_hours.sql.
+    //
+    // work_cost is written as it stands and never recomputed on read. The rate
+    // in settings only pre-filled the box; what is stored here is what this job
+    // cost, and it stays that even after the farm raises its rate.
+    work_hours: input.workHours,
+    work_hourly_rate: input.workHourlyRate,
+    work_cost: input.workCost,
     harvest_qty: isHarvest ? input.harvestQty : null,
     harvest_unit: isHarvest ? (input.harvestUnit?.trim() ? input.harvestUnit.trim() : null) : null,
   };

@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import { SprayCan } from 'lucide-react';
-import { journalCsv, t, useCurrentFarm } from '@yevul/shared';
+import { Clock, SprayCan } from 'lucide-react';
+import { journalCsv, t, useCurrentFarm, useMyRole, workerModeShell } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { JournalList } from '../components/JournalList';
 import { ExportBar } from '../components/ExportBar';
@@ -15,18 +15,35 @@ import './JournalScreen.css';
 // אותם בעצמו, אחרת אותה שאילתת יומן הייתה רצה פעמיים בכל טעינה.
 export function JournalScreen() {
   const { farm } = useCurrentFarm(supabase);
+  const role = useMyRole(supabase);
+  const shell = workerModeShell(role.role, role.loading);
 
   return (
     <div className="screen">
       <h1 className="screen__title">{t('screen.journal')}</h1>
 
-      {/* פס קבוע שמקשר החוצה למסך יומן הריסוס, design.md, Journal List:
-          "a יומן ריסוס pill... links out to the dedicated Spray Log
-          screen rather than just filtering in place". */}
-      <Link className="journal__spray-log-link" to="/spray-log">
-        <SprayCan size={20} strokeWidth={2} aria-hidden="true" />
-        <span>{t('sprayLog.title')}</span>
-      </Link>
+      {/* שתי גלולות שמקשרות החוצה, design.md, Journal List: "a יומן
+          ריסוס pill... links out to the dedicated Spray Log screen
+          rather than just filtering in place". יומן שעות העבודה מגיע
+          לכאן באותה דרך בדיוק, ומאותה סיבה: עידו לא מצא אותו, והיומן
+          הוא המקום שבו חקלאי מחפש את מה שרשם. **בלי יעד שישי בסרגל
+          הצד**, שהיה מדלל את חמשת היעדים הקיימים.
+
+          גלולת השעות מוצגת רק למי שרואה כסף. המסך עצמו מסכם עלויות
+          וחסום מאחורי אותו שומר תפקיד ב-App.tsx, וקישור שמנתב מחדש
+          לבית הוא קישור שבור. */}
+      <div className="journal__links">
+        <Link className="journal__spray-log-link" to="/spray-log">
+          <SprayCan size={20} strokeWidth={2} aria-hidden="true" />
+          <span>{t('sprayLog.title')}</span>
+        </Link>
+        {shell.showMoney && (
+          <Link className="journal__spray-log-link" to="/work-log">
+            <Clock size={20} strokeWidth={2} aria-hidden="true" />
+            <span>{t('workLog.title')}</span>
+          </Link>
+        )}
+      </div>
 
       <JournalList
         supabase={supabase}

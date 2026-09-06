@@ -60,6 +60,7 @@ function plotRow(overrides: Partial<PlotProfitRow> = {}): PlotProfitRow {
     cropCycle: null,
     expenses: 0,
     sprayCost: 0,
+    workCost: 0,
     forecast: null,
     ...overrides,
   };
@@ -69,6 +70,7 @@ const forecast = (expectedIncome: number, expenses: number) => ({
   expectedIncome,
   expenses,
   sprayCost: 0,
+  workCost: 0,
   expensesTracked: true,
   profit: expectedIncome - expenses,
 });
@@ -178,6 +180,9 @@ function entry(overrides: Partial<LogEntry> = {}): LogEntry {
     sprayQuantityUnit: null,
     sprayUnitPrice: null,
     sprayCost: null,
+    workHours: null,
+    workHourlyRate: null,
+    workCost: null,
     harvestQty: null,
     harvestUnit: null,
     createdAt: '2026-08-20T00:00:00Z',

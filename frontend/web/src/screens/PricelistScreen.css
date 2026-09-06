@@ -13,6 +13,13 @@
   margin-top: var(--spacing-16);
 }
 
+/* עלות שעת עבודה. יושבת מעל רשת החומרים ולא מתחתיה: היא מספר יחיד
+   ששייך לכל המשק, בעוד שהרשת היא רשימה שגדלה. אותם מרווחים כמו
+   .pricelist__editor, כדי ששני החלקים ייראו כמו אותו מסך. */
+.pricelist__work {
+  margin-bottom: var(--spacing-32);
+}
+
 .pricelist__editor {
   margin-top: var(--spacing-32);
 }

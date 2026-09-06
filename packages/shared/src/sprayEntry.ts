@@ -706,6 +706,14 @@ export function sprayEntryInput(draft: SprayDraft): LogEntryInput {
     sprayQuantityUnit: draft.quantityUnit,
     sprayUnitPrice: draft.unitPrice,
     sprayCost: draft.cost,
+    // Not asked by this flow either. The walk is the six spray fields and
+    // nothing else, and hours are entered on the journal sheet, which offers
+    // them for every entry type. **On an edit the existing hours are carried
+    // through by the caller**, exactly as the note is -- see the sheet. Nulling
+    // them here without that would erase hours written elsewhere on this record.
+    workHours: null,
+    workHourlyRate: null,
+    workCost: null,
     harvestQty: null,
     harvestUnit: null,
   };

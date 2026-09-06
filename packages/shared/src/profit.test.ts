@@ -86,4 +86,21 @@ describe('farmProfitForecast', () => {
     expect(result.sprayCosts).toBe(0);
     expect(result.profit).toBe(100000);
   });
+
+  // The cost of the hours worked, Ido 2026-09-06. Counted exactly like the spray
+  // cost above: straight off the log rows, as its own line, never written as an
+  // expense (see 20260906120000_work_hours.sql).
+  it('subtracts work costs from profit without folding them into expenses', () => {
+    const result = farmProfitForecast([plot(100000, 20000)], 5000, true, 8000, 3000);
+    expect(result.expenses).toBe(25000);
+    expect(result.sprayCosts).toBe(8000);
+    expect(result.workCosts).toBe(3000);
+    expect(result.profit).toBe(100000 - 25000 - 8000 - 3000);
+  });
+
+  it('leaves work costs at zero when none are passed', () => {
+    const result = farmProfitForecast([plot(100000, 0)], 0, true, 0);
+    expect(result.workCosts).toBe(0);
+    expect(result.profit).toBe(100000);
+  });
 });

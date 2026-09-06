@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   computeSprayCost,
+  computeWorkCost,
   createLogEntry,
   formatLocalDateOnly,
   formatSprayUnitPrice,
@@ -20,6 +21,7 @@ import {
   usePlots,
   useSprayPrices,
   useSpraySuggestions,
+  workCostEdited,
   type Currency,
   type LogEntry,
   type LogEntryType,
@@ -105,6 +107,16 @@ export function LogEntrySheet({
   const [sprayUnitPrice, setSprayUnitPrice] = useState('');
   const [sprayCost, setSprayCost] = useState('');
   const [costEdited, setCostEdited] = useState(false);
+  // Work hours, Ido 2026-09-06: "let me enter how many hours the job took and
+  // the cost per work hour". **On every type, not only a spray** -- his own
+  // example is a spray that also took him three hours, and a repair takes hours
+  // just the same. The rate pre-fills from the farm's pricelist rate; the total
+  // follows hours x rate until the farmer types one, and from then on his number
+  // wins. Same three states the spray cost above already has.
+  const [workHours, setWorkHours] = useState('');
+  const [workHourlyRate, setWorkHourlyRate] = useState('');
+  const [workCost, setWorkCost] = useState('');
+  const [workCostTyped, setWorkCostTyped] = useState(false);
   // כתיבת חומר שעדיין לא ברשת. המשבצת המקווקוות פותחת תיבה, והאישור
   // בוחר את מה שהוקלד בדיוק כאילו הייתה שם משבצת, כולל פתיחת המחיר
   // הזכור אם במקרה כן יש כזה.
@@ -141,6 +153,15 @@ export function LogEntrySheet({
         entry.sprayCost !== null &&
           entry.sprayCost !== computeSprayCost(entry.sprayQuantity, entry.sprayUnitPrice),
       );
+      setWorkHours(entry.workHours != null ? String(entry.workHours) : '');
+      setWorkHourlyRate(entry.workHourlyRate != null ? String(entry.workHourlyRate) : '');
+      setWorkCost(entry.workCost != null ? String(entry.workCost) : '');
+      // The rate on the row is the one this job was priced at, and it is the one
+      // shown -- never today's rate from the pricelist. workCostEdited decides
+      // whether the stored total was computed or typed, the same way the spray
+      // cost above does, so a correction to the hours does not overwrite a
+      // number the farmer put there himself.
+      setWorkCostTyped(workCostEdited(entry.workCost, entry.workHours, entry.workHourlyRate));
       setHarvestQty(entry.harvestQty != null ? String(entry.harvestQty) : '');
       setHarvestUnit(entry.harvestUnit ?? '');
     } else {
@@ -156,6 +177,13 @@ export function LogEntrySheet({
       setSprayUnitPrice('');
       setSprayCost('');
       setCostEdited(false);
+      setWorkHours('');
+      // Left empty here rather than filled from the farm's rate: the settings
+      // may not have arrived yet when the sheet opens. The effect below fills it
+      // the moment they do, and only while the box is still empty.
+      setWorkHourlyRate('');
+      setWorkCost('');
+      setWorkCostTyped(false);
       setHarvestQty('');
       setHarvestUnit('');
     }
@@ -189,6 +217,29 @@ export function LogEntrySheet({
     // Only the two inputs and the edited flag drive the recompute; amountOrNull
     // is a pure local helper with no state of its own.
   }, [sprayQuantity, sprayUnitPrice, costEdited]);
+
+  // **The farm's hourly rate pre-fills the box, it does not own it.** It arrives
+  // after the sheet has opened (useFarmSettings loads asynchronously), which is
+  // why this is an effect and not a starting value. Two things it deliberately
+  // never does: overwrite a rate the farmer has already typed, and overwrite the
+  // rate frozen on a record being edited -- that one is what the job was priced
+  // at, and today's rate must not be written over it. See
+  // 20260906120000_work_hours.sql.
+  const farmHourlyRate = settings.form?.workHourlyRate ?? null;
+  useEffect(() => {
+    if (!open) return;
+    if (entry?.workHourlyRate != null) return;
+    if (farmHourlyRate === null) return;
+    setWorkHourlyRate((current) => (current === '' ? String(farmHourlyRate) : current));
+  }, [open, entry, farmHourlyRate]);
+
+  // The labour twin of the spray recompute above: hours x rate while the farmer
+  // has not typed a total himself, and left strictly alone once he has.
+  useEffect(() => {
+    if (workCostTyped) return;
+    const computed = computeWorkCost(amountOrNull(workHours), amountOrNull(workHourlyRate));
+    setWorkCost(computed === null ? '' : String(computed));
+  }, [workHours, workHourlyRate, workCostTyped]);
 
   // Picking a material re-decides its unit and price from the pricelist, like
   // the tile walk does, and returns the cost to auto so it recomputes. The
@@ -242,6 +293,12 @@ export function LogEntrySheet({
       sprayQuantityUnit: sprayQuantityUnit === '' ? null : sprayQuantityUnit,
       sprayUnitPrice: amountOrNull(sprayUnitPrice),
       sprayCost: amountOrNull(sprayCost),
+      // Frozen as they stand. work_cost is stored, not recomputed on read, so
+      // this entry keeps the cost it had today even after the farm raises its
+      // hourly rate. See 20260906120000_work_hours.sql.
+      workHours: amountOrNull(workHours),
+      workHourlyRate: amountOrNull(workHourlyRate),
+      workCost: amountOrNull(workCost),
       harvestQty:
         harvestQty.trim() && Number.isFinite(Number(harvestQty)) ? Number(harvestQty) : null,
       harvestUnit: harvestUnit.trim() ? harvestUnit.trim() : null,
@@ -507,6 +564,69 @@ export function LogEntrySheet({
             </div>
           </>
         )}
+
+        {/* שעות העבודה. **מחוץ לכל תנאי סוג, במכוון**: עידו, 6.9.2026,
+            "שעות עבודה פלוס חומרים", והדוגמה שלו היא ריסוס שגם לקח לו
+            שלוש שעות. גם תיקון וגם גיזום לוקחים שעות, ולכן שלושת
+            השדות פתוחים לכל סוג רישום. התעריף מגיע מהמחירון, העלות
+            מחושבת, וכל אחד משלושתם ניתן להקלדה ידנית. */}
+        <h3 className="log-entry-sheet__section">{t('work.hours')}</h3>
+        <div className="form__row">
+          <label className="form__label" htmlFor="log-work-hours">
+            {t('work.hours')} · {t('common.optional')}
+          </label>
+          <input
+            id="log-work-hours"
+            className="form__input"
+            type="number"
+            step="any"
+            min="0"
+            placeholder={t('work.hoursPlaceholder')}
+            value={workHours}
+            onChange={(e) => setWorkHours(e.target.value)}
+            disabled={busy}
+          />
+        </div>
+        <div className="form__row">
+          <label className="form__label" htmlFor="log-work-rate">
+            {t('work.hourlyRate')} · {t('common.optional')}
+          </label>
+          <input
+            id="log-work-rate"
+            className="form__input"
+            type="number"
+            step="any"
+            min="0"
+            placeholder={t('work.hourlyRatePlaceholder')}
+            value={workHourlyRate}
+            onChange={(e) => setWorkHourlyRate(e.target.value)}
+            disabled={busy}
+          />
+        </div>
+        <div className="form__row">
+          <label className="form__label" htmlFor="log-work-cost">
+            {t('work.cost')} · {t('common.optional')}
+          </label>
+          <input
+            id="log-work-cost"
+            className="form__input"
+            type="number"
+            step="any"
+            min="0"
+            placeholder={t('work.costPlaceholder')}
+            value={workCost}
+            onChange={(e) => {
+              const text = e.target.value;
+              setWorkCost(text);
+              // An empty box returns the cost to auto; anything typed wins.
+              setWorkCostTyped(text.trim() !== '');
+            }}
+            disabled={busy}
+          />
+          <p className="form__hint">
+            {!workCostTyped && workCost ? t('work.costComputed') : t('work.costHint')}
+          </p>
+        </div>
 
         <div className="form__row">
           <label className="form__label" htmlFor="log-plot">
