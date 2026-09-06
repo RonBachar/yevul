@@ -17,7 +17,7 @@ import {
   type InviteResult,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
-import { compressReceiptFile } from '../lib/receiptImage';
+import { compressAvatarFile } from '../lib/avatarImage';
 import { ConfirmDialog } from './ConfirmDialog';
 import './MembersSection.css';
 
@@ -115,15 +115,17 @@ export function MembersSection() {
     }
   }
 
-  // בחירת תמונה, דחיסה בקנבס (אותו נתיב כמו קבלה), ואז העלאה. הדחיסה
-  // לא זורקת ומחזירה את המקור אם אין מה לעשות, ראה compressReceiptFile.
+  // בחירת תמונה, דחיסה בקנבס, ואז העלאה. **דוחס האווטר ולא דוחס הקבלות**:
+  // הקבלות מדלגות על תמונה שכבר קטנה מ-1600 פיקסל ומעלות את המקור, ו-PNG
+  // שטוח מתחת לסף הזה עדיין יכול לחרוג מתקרת ה-8MB של הדלי ולחזור כ-400.
+  // אווטר תמיד מקודד מחדש ל-JPEG קטן, ראה avatarImage.ts.
   async function onPickAvatar(event: ChangeEvent<HTMLInputElement>) {
     const chosen = event.target.files?.[0] ?? null;
     // מאפסים כדי שאפשר יהיה לבחור שוב את אותו קובץ.
     event.target.value = '';
     if (!chosen || !currentUserId) return;
     setAvatarStatus('uploading');
-    const compressed = await compressReceiptFile(chosen);
+    const compressed = await compressAvatarFile(chosen);
     const result = await uploadAvatar(
       supabase,
       currentUserId,

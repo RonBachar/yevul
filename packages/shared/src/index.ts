@@ -294,6 +294,17 @@ export {
   RECEIPT_MAX_EDGE_PIXELS,
   type ReceiptResizeTarget,
 } from './receiptImage';
+// The same job for a profile picture, and deliberately NOT the same rule. An
+// avatar is always re-encoded, because the receipt compressor skips anything
+// already under 1600px and a flat PNG under that ceiling can still blow the
+// bucket's 8MB limit. See the header of avatarImage.ts.
+export {
+  avatarResizeTarget,
+  AVATAR_COMPRESSED_MIME_TYPE,
+  AVATAR_JPEG_QUALITY,
+  AVATAR_MAX_EDGE_PIXELS,
+  type AvatarResizeTarget,
+} from './avatarImage';
 // Whether the farm is on a paid plan, stage 5 step 11. **Courtesy and never
 // enforcement** — gate.ts refuses an unentitled scan with 403 whatever this
 // says, and `entitled` is null when we do not know. See entitlement.ts.

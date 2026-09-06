@@ -173,9 +173,16 @@ export async function uploadAvatar(
   if (file instanceof ArrayBuffer && file.byteLength === 0) return { ok: false };
   const storagePath = `${userId}/${Date.now()}.${avatarExtension(mimeType)}`;
 
+  // **No upsert, and that is the fix for a real failure.** `upsert: true` makes
+  // supabase-js send `x-upsert`, storage then writes through an
+  // INSERT ... ON CONFLICT, and the avatars policies reject it with "new row
+  // violates row-level security policy" (surfaced to the client as a bare 400).
+  // The same file at the same path uploads fine without the header, measured in
+  // the browser both ways. It was also pointless: storagePath carries a fresh
+  // timestamp on every upload, so there is never a row to overwrite.
   const { error: uploadError } = await supabase.storage
     .from('avatars')
-    .upload(storagePath, file, { contentType: mimeType, upsert: true });
+    .upload(storagePath, file, { contentType: mimeType });
   if (uploadError) return { ok: false };
 
   const { error: upsertError } = await supabase
