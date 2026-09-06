@@ -39,6 +39,11 @@ const STATUS_MESSAGE: Partial<Record<Status, { key: string; tone: 'good' | 'bad'
 
 export function SettingsScreen() {
   const { loading, loadFailed, form, save } = useFarmSettings(supabase);
+  // שם התצוגה חי ב-user_metadata של Auth ולא בטבלת settings, אבל הוא
+  // נשמר יחד עם הגדרות המשק בכפתור שמירה אחד. savedName הוא הערך
+  // הסמכותי מהסשן, ו-nameDraft מחזיק רק מה שהמשתמש הקליד.
+  const { session } = useAuth();
+  const savedName = resolveDisplayName(session?.user) ?? '';
   // draft מחזיק רק את מה שהמשתמש שינה בפועל. כל עוד לא נגע בכלום הוא
   // null, והמסך מציג את מה שנטען מהשרת. **בכוונה בלי useEffect שמסנכרן
   // draft מ-form.** סנכרון כזה גרם לשני באגים שנמצאו בקוד ריוויו:
@@ -46,23 +51,34 @@ export function SettingsScreen() {
   // ברינדור הראשון שבו הנתונים כבר הגיעו, מה שהדליק את מסך השגיאה
   // למשך פריים אחד בכל טעינה מוצלחת.
   const [draft, setDraft] = useState<FarmSettingsForm | null>(null);
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>('idle');
   const current = draft ?? form;
+  const displayName = nameDraft ?? savedName;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!current) return;
 
+    // שמירה אחת לשני מקורות נתונים: שם התצוגה ב-Auth והגדרות המשק
+    // בטבלה. שתי הכתיבות יוצאות במקביל, והמסך מציג תוצאה מאוחדת אחת.
     // בלי חיתוך ובלי בדיקת שם ריק כאן. שניהם חיים ב-save המשותף, כדי
     // שלא יהיו שני עותקים של אותו כלל בשני הלקוחות. המסך רק מדווח.
     setStatus('saving');
-    const result = await save(current);
-    // אחרי שמירה מוצלחת נוטשים את הטיוטה, כך ש-current נופל חזרה ל-form
-    // שהוא הערך הסמכותי מהשרת. בלי זה, מאז שהחיתוך עבר ל-save המשותף,
-    // השדה היה ממשיך להציג את הרווחים שהמשתמש הקליד בזמן שבמסד כבר
-    // יושב השם החתוך.
-    if (result.ok) setDraft(null);
-    setStatus(result.ok ? 'saved' : result.reason);
+    const [nameResult, settingsResult] = await Promise.all([
+      updateDisplayName(supabase, displayName),
+      save(current),
+    ]);
+    // אחרי שמירה מוצלחת נוטשים את הטיוטה, כך שהערך נופל חזרה למקור
+    // הסמכותי (form מהשרת, savedName מהסשן). כל מקור ננטש בנפרד, כדי
+    // שכשלון חלקי לא ידרוס עריכה שעדיין לא נשמרה.
+    if (settingsResult.ok) setDraft(null);
+    if (nameResult.ok) setNameDraft(null);
+    // הודעה מאוחדת אחת. שגיאת ההגדרות מדויקת יותר (forbidden/nameRequired)
+    // ולכן קודמת; אם רק השם נכשל נשארת שגיאה כללית.
+    if (settingsResult.ok && nameResult.ok) setStatus('saved');
+    else if (!settingsResult.ok) setStatus(settingsResult.reason);
+    else setStatus('error');
   }
 
   function update<K extends keyof FarmSettingsForm>(key: K, value: FarmSettingsForm[K]) {
@@ -105,11 +121,27 @@ export function SettingsScreen() {
         <span>{t('sprayLog.title')}</span>
       </Link>
 
-      {/* שם התצוגה יושב ב-user_metadata ולא בהגדרות המשק, ולכן טופס
-          נפרד עם שמירה משלו ולא חלק מ-useFarmSettings. */}
-      <DisplayNameForm />
-
       <form className="form" onSubmit={onSubmit} noValidate>
+        {/* שם התצוגה יושב ב-user_metadata ולא בהגדרות המשק, אבל מוצג
+            כאן בראש אותו טופס ונשמר באותו כפתור שמירה יחיד. */}
+        <div className="form__row">
+          <label className="form__label" htmlFor="display-name">
+            {t('settings.displayName')}
+          </label>
+          <input
+            id="display-name"
+            className="form__input"
+            type="text"
+            value={displayName}
+            placeholder={t('settings.displayNamePlaceholder')}
+            onChange={(e) => {
+              setNameDraft(e.target.value);
+              setStatus('idle');
+            }}
+            disabled={busy}
+          />
+        </div>
+
         <div className="form__row">
           <label className="form__label" htmlFor="farm-name">
             {t('settings.farmName')}
@@ -191,65 +223,6 @@ export function SettingsScreen() {
       {/* שיתוף המשק, שלב 6. ניהול פתוח לבעלים בלבד, האכיפה במסד. */}
       <MembersSection />
     </div>
-  );
-}
-
-// שם התצוגה של המשתמש. טופס עצמאי כי המקור שונה מהגדרות המשק: הערך
-// חי ב-user_metadata של Auth ולא בטבלת settings, והכתיבה עוברת דרך
-// updateDisplayName ולא דרך save של useFarmSettings. אותו דפוס טיוטה
-// כמו במסך המשק: draft הוא null עד שנוגעים, וההצגה נופלת חזרה לשם
-// השמור, כך שעדכון הסשן אחרי שמירה משתקף מאליו.
-function DisplayNameForm() {
-  const { session } = useAuth();
-  const savedName = resolveDisplayName(session?.user) ?? '';
-  const [draft, setDraft] = useState<string | null>(null);
-  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const value = draft ?? savedName;
-  const busy = status === 'saving';
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    setStatus('saving');
-    const result = await updateDisplayName(supabase, value);
-    if (result.ok) setDraft(null);
-    setStatus(result.ok ? 'saved' : 'error');
-  }
-
-  return (
-    <form className="form" onSubmit={onSubmit} noValidate>
-      <div className="form__row">
-        <label className="form__label" htmlFor="display-name">
-          {t('settings.displayName')}
-        </label>
-        <input
-          id="display-name"
-          className="form__input"
-          type="text"
-          value={value}
-          placeholder={t('settings.displayNamePlaceholder')}
-          onChange={(e) => {
-            setDraft(e.target.value);
-            setStatus('idle');
-          }}
-          disabled={busy}
-        />
-      </div>
-      <div className="form__actions">
-        <button type="submit" className="form__submit" disabled={busy}>
-          {busy ? t('settings.saving') : t('settings.save')}
-        </button>
-        {status === 'saved' && (
-          <p className="form__message form__message--good" role="status">
-            {t('settings.saved')}
-          </p>
-        )}
-        {status === 'error' && (
-          <p className="form__message form__message--bad" role="alert">
-            {t('settings.saveError')}
-          </p>
-        )}
-      </div>
-    </form>
   );
 }
 

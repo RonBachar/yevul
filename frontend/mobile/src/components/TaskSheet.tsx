@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   assignableMembers,
@@ -15,8 +15,14 @@ import { colors } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from './BottomSheet';
 import { DateField } from './DateField';
+import { TilePicker } from './TilePicker';
 
 type DueMode = 'someday' | 'week' | 'date';
+
+// TilePicker values are strings, so the "general" (no plot) and "unassigned"
+// (no member) tiles carry an empty-string sentinel that maps back to null on
+// select. Plot ids and user ids are UUIDs and never empty, so nothing clashes.
+const NONE = '';
 
 const DUE_MODES: readonly DueMode[] = ['someday', 'week', 'date'];
 const DUE_MODE_LABEL_KEY: Record<DueMode, string> = {
@@ -156,82 +162,40 @@ export function TaskSheet({
         />
       </View>
 
-      <View style={[formStyles.field, sheetGap]}>
-        <Text style={formStyles.label}>{t('plots.form.name')}</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={formStyles.chips}>
-            {!plotsState.loading &&
-              plotsState.plots.map((plot) => {
-                const active = plotId === plot.id;
-                return (
-                  <Pressable
-                    key={plot.id}
-                    style={[formStyles.chip, active && formStyles.chipActive]}
-                    onPress={() => setPlotId(plot.id)}
-                    disabled={busy}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: active }}
-                  >
-                    <Text style={[formStyles.chipText, active && formStyles.chipTextActive]}>
-                      {plot.name}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            <Pressable
-              style={[formStyles.chip, plotId === null && formStyles.chipActive]}
-              onPress={() => setPlotId(null)}
-              disabled={busy}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: plotId === null }}
-            >
-              <Text style={[formStyles.chipText, plotId === null && formStyles.chipTextActive]}>
-                {t('tasks.plotGeneral')}
-              </Text>
-            </Pressable>
-          </View>
-        </ScrollView>
+      {/* בורר החלקה כרשת קוביות, אותה תבנית בדיוק שההוצאה והחלקה
+          משתמשות בה, במקום רצועת הצ'יפים הנגללת, "הדבר הכי לא נוח בחוויה"
+          לפי היזם. הקובייה "כללי" היא ה-null, ראה NONE. */}
+      <View style={sheetGap}>
+        <TilePicker
+          title={t('plots.form.name')}
+          options={[
+            { value: NONE, label: t('tasks.plotGeneral') },
+            ...plotsState.plots.map((plot) => ({ value: plot.id, label: plot.name })),
+          ]}
+          selectedValue={plotId ?? NONE}
+          onSelect={(value) => setPlotId(value === NONE ? null : value)}
+          disabled={busy}
+        />
       </View>
 
-      {/* בורר האחראי, שלב 6. מופיע רק כשיש במשק חברים שאפשר להציב,
-          ולכן נעלם לגמרי במשק של אדם אחד, design.md, Sharing. */}
+      {/* בורר האחראי, שלב 6, כרשת קוביות במקום רצועת צ'יפים נגללת. מופיע
+          רק כשיש במשק חברים שאפשר להציב, ולכן נעלם לגמרי במשק של אדם
+          אחד, design.md, Sharing. הקובייה "לא משויך" היא ה-null, ראה NONE. */}
       {assignable.length > 0 && (
-        <View style={[formStyles.field, sheetGap]}>
-          <Text style={formStyles.label}>{t('tasks.form.assignee')}</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={formStyles.chips}>
-              <Pressable
-                style={[formStyles.chip, assignedTo === null && formStyles.chipActive]}
-                onPress={() => setAssignedTo(null)}
-                disabled={busy}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: assignedTo === null }}
-              >
-                <Text
-                  style={[formStyles.chipText, assignedTo === null && formStyles.chipTextActive]}
-                >
-                  {t('tasks.form.assigneeNone')}
-                </Text>
-              </Pressable>
-              {assignable.map((member) => {
-                const active = assignedTo === member.userId;
-                return (
-                  <Pressable
-                    key={member.id}
-                    style={[formStyles.chip, active && formStyles.chipActive]}
-                    onPress={() => setAssignedTo(member.userId)}
-                    disabled={busy}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: active }}
-                  >
-                    <Text style={[formStyles.chipText, active && formStyles.chipTextActive]}>
-                      {member.email ?? member.userId}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </ScrollView>
+        <View style={sheetGap}>
+          <TilePicker
+            title={t('tasks.form.assignee')}
+            options={[
+              { value: NONE, label: t('tasks.form.assigneeNone') },
+              ...assignable.map((member) => ({
+                value: member.userId ?? NONE,
+                label: member.email ?? member.userId ?? '',
+              })),
+            ]}
+            selectedValue={assignedTo ?? NONE}
+            onSelect={(value) => setAssignedTo(value === NONE ? null : value)}
+            disabled={busy}
+          />
         </View>
       )}
 

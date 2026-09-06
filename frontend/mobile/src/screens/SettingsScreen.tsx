@@ -34,13 +34,20 @@ type Status = 'idle' | 'saving' | 'saved' | 'forbidden' | 'error' | 'nameRequire
 
 export function SettingsScreen() {
   const { loading, loadFailed, form, save } = useFarmSettings(supabase);
+  // שם התצוגה חי ב-user_metadata של Auth ולא בטבלת settings, אבל הוא
+  // נשמר יחד עם הגדרות המשק בכפתור שמירה אחד. savedName הוא הערך
+  // הסמכותי מהסשן, ו-nameDraft מחזיק רק מה שהמשתמש הקליד.
+  const { session } = useAuth();
+  const savedName = resolveDisplayName(session?.user) ?? '';
   // draft מחזיק רק את מה שהמשתמש שינה בפועל, ואין useEffect שמסנכרן
   // אותו מ-form. אותו תיקון בדיוק כמו בווב, ומאותן שתי סיבות שנמצאו
   // בקוד ריוויו: סנכרון כזה דרס עריכה שנעשתה בזמן שהשמירה באוויר,
   // וגם הותיר את המסך בלי נתונים ברינדור הראשון שבהם כבר היו.
   const [draft, setDraft] = useState<FarmSettingsForm | null>(null);
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>('idle');
   const current = draft ?? form;
+  const displayName = nameDraft ?? savedName;
   // השדות ננעלים בזמן שמירה, אחרת ההודעה "נשמר" מתייחסת לערכים ישנים
   // יותר ממה שמוצג על המסך.
   const busy = status === 'saving';
@@ -53,16 +60,25 @@ export function SettingsScreen() {
 
   async function onSave() {
     if (!current) return;
+    // שמירה אחת לשני מקורות נתונים: שם התצוגה ב-Auth והגדרות המשק
+    // בטבלה. שתי הכתיבות יוצאות במקביל, והמסך מציג תוצאה מאוחדת אחת.
     // החיתוך ובדיקת השם הריק חיים ב-save המשותף, לא כאן, כדי שלא יהיו
     // שני עותקים של אותו כלל בשני הלקוחות. המסך רק מדווח.
     setStatus('saving');
-    const result = await save(current);
-    // אחרי שמירה מוצלחת נוטשים את הטיוטה, כך ש-current נופל חזרה ל-form
-    // שהוא הערך הסמכותי מהשרת. בלי זה, מאז שהחיתוך עבר ל-save המשותף,
-    // השדה היה ממשיך להציג את הרווחים שהמשתמש הקליד בזמן שבמסד כבר
-    // יושב השם החתוך.
-    if (result.ok) setDraft(null);
-    setStatus(result.ok ? 'saved' : result.reason);
+    const [nameResult, settingsResult] = await Promise.all([
+      updateDisplayName(supabase, displayName),
+      save(current),
+    ]);
+    // אחרי שמירה מוצלחת נוטשים את הטיוטה, כך שהערך נופל חזרה למקור
+    // הסמכותי (form מהשרת, savedName מהסשן). כל מקור ננטש בנפרד, כדי
+    // שכשלון חלקי לא ידרוס עריכה שעדיין לא נשמרה.
+    if (settingsResult.ok) setDraft(null);
+    if (nameResult.ok) setNameDraft(null);
+    // הודעה מאוחדת אחת. שגיאת ההגדרות מדויקת יותר ולכן קודמת; אם רק
+    // השם נכשל נשארת שגיאה כללית.
+    if (settingsResult.ok && nameResult.ok) setStatus('saved');
+    else if (!settingsResult.ok) setStatus(settingsResult.reason);
+    else setStatus('error');
   }
 
   if (loading || loadFailed || !current) {
@@ -86,9 +102,23 @@ export function SettingsScreen() {
     <FormScreen>
       <Text style={styles.title}>{t('screen.settings')}</Text>
 
-      {/* שם התצוגה יושב ב-user_metadata ולא בהגדרות המשק, ולכן שדה
-          עצמאי עם שמירה משלו ולא חלק מ-useFarmSettings. */}
-      <DisplayNameField />
+      {/* שם התצוגה יושב ב-user_metadata ולא בהגדרות המשק, אבל מוצג
+          כאן בראש אותו טופס ונשמר באותו כפתור שמירה יחיד. */}
+      <View style={formStyles.field}>
+        <Text style={formStyles.label}>{t('settings.displayName')}</Text>
+        <TextInput
+          style={formStyles.input}
+          value={displayName}
+          onChangeText={(next) => {
+            setNameDraft(next);
+            setStatus('idle');
+          }}
+          editable={!busy}
+          placeholder={t('settings.displayNamePlaceholder')}
+          placeholderTextColor={colors.slate600}
+          textAlign="right"
+        />
+      </View>
 
       <View style={formStyles.field}>
         <Text style={formStyles.label}>{t('settings.farmName')}</Text>
@@ -166,59 +196,6 @@ export function SettingsScreen() {
       {/* שיתוף המשק, שלב 6. ניהול פתוח לבעלים בלבד, האכיפה במסד. */}
       <MembersSection />
     </FormScreen>
-  );
-}
-
-// שם התצוגה של המשתמש. שדה עצמאי כי המקור שונה מהגדרות המשק: הערך
-// חי ב-user_metadata של Auth ולא בטבלת settings, והכתיבה עוברת דרך
-// updateDisplayName ולא דרך save של useFarmSettings. אותו דפוס טיוטה
-// כמו בשאר המסך: draft הוא null עד שנוגעים, וההצגה נופלת חזרה לשם
-// השמור, כך שעדכון הסשן אחרי שמירה משתקף מאליו.
-function DisplayNameField() {
-  const { session } = useAuth();
-  const savedName = resolveDisplayName(session?.user) ?? '';
-  const [draft, setDraft] = useState<string | null>(null);
-  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
-  const value = draft ?? savedName;
-  const busy = status === 'saving';
-
-  async function onSave() {
-    setStatus('saving');
-    const result = await updateDisplayName(supabase, value);
-    if (result.ok) setDraft(null);
-    setStatus(result.ok ? 'saved' : 'error');
-  }
-
-  return (
-    <>
-      <View style={formStyles.field}>
-        <Text style={formStyles.label}>{t('settings.displayName')}</Text>
-        <TextInput
-          style={formStyles.input}
-          value={value}
-          onChangeText={(next) => {
-            setDraft(next);
-            setStatus('idle');
-          }}
-          editable={!busy}
-          placeholder={t('settings.displayNamePlaceholder')}
-          placeholderTextColor={colors.slate600}
-          textAlign="right"
-        />
-      </View>
-      <Pressable
-        style={[formStyles.save, busy && formStyles.saveDisabled]}
-        onPress={onSave}
-        disabled={busy}
-        accessibilityRole="button"
-      >
-        <Text style={formStyles.saveText}>
-          {busy ? t('settings.saving') : t('settings.save')}
-        </Text>
-      </Pressable>
-      {status === 'saved' && <Text style={formStyles.good}>{t('settings.saved')}</Text>}
-      {status === 'error' && <Text style={formStyles.bad}>{t('settings.saveError')}</Text>}
-    </>
   );
 }
 

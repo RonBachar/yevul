@@ -23,7 +23,12 @@ export function useAuthSession(supabase: SupabaseClient): AuthState {
     });
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
+      // ב-USER_UPDATED (למשל אחרי שמירת שם התצוגה) supabase מעדכן את
+      // אובייקט הסשן הקיים במקום ומשדר אותו בחזרה באותה הפניה. בלי
+      // שכפול רדוד, setSession מקבל את אותה ההפניה, React בולם את
+      // הרינדור לפי Object.is, והברכה בבית ממשיכה להציג את השם הישן עד
+      // רענון מלא. השכפול מבטיח הפניה חדשה ורינדור מחדש.
+      setSession(nextSession ? { ...nextSession } : null);
     });
 
     return () => {

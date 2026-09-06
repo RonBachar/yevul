@@ -12,8 +12,14 @@ import {
 } from '@yevul/shared';
 import { DateField } from './DateField';
 import { Modal } from './Modal';
+import { TilePicker } from './TilePicker';
 
 type DueMode = 'someday' | 'week' | 'date';
+
+// TilePicker values are strings, so the "general" (no plot) and "unassigned"
+// (no member) tiles carry an empty-string sentinel that maps back to null on
+// select. Plot ids and user ids are UUIDs and never empty, so nothing clashes.
+const NONE = '';
 
 // **The three modes stay and the calendar sits behind the third**, the same
 // shape the mobile sheet keeps. They are this field's own shortcuts and they
@@ -139,72 +145,60 @@ export function TaskSheet({
           />
         </div>
 
-        <div className="form__row">
-          <label className="form__label" htmlFor="task-plot">
-            {t('plots.form.name')}
-          </label>
-          <select
-            id="task-plot"
-            className="form__input"
-            value={plotId ?? ''}
-            onChange={(e) => setPlotId(e.target.value === '' ? null : e.target.value)}
-            disabled={busy || plotsState.loading}
-          >
-            <option value="">{t('tasks.plotGeneral')}</option>
-            {plotsState.plots.map((plot) => (
-              <option key={plot.id} value={plot.id}>
-                {plot.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* בורר החלקה כקוביות, אותה תבנית בדיוק שההוצאה והחלקה משתמשות
+            בה, במקום התפריט הנפתח. הקובייה "כללי" היא ה-null, ראה NONE. */}
+        <TilePicker
+          id="task-step-plot"
+          title={t('plots.form.name')}
+          options={[
+            { value: NONE, label: t('tasks.plotGeneral') },
+            ...plotsState.plots.map((plot) => ({ value: plot.id, label: plot.name })),
+          ]}
+          selectedValue={plotId ?? NONE}
+          onSelect={(value) => setPlotId(value === NONE ? null : value)}
+          disabled={busy}
+        />
 
-        {/* בורר האחראי, שלב 6. מופיע רק כשיש במשק חברים שאפשר להציב,
-            ולכן נעלם לגמרי במשק של אדם אחד, design.md, Sharing. */}
+        {/* בורר האחראי, שלב 6, כקוביות במקום תפריט נפתח. מופיע רק כשיש
+            במשק חברים שאפשר להציב, ולכן נעלם לגמרי במשק של אדם אחד,
+            design.md, Sharing. הקובייה "לא משויך" היא ה-null, ראה NONE. */}
         {assignable.length > 0 && (
-          <div className="form__row">
-            <label className="form__label" htmlFor="task-assignee">
-              {t('tasks.form.assignee')}
-            </label>
-            <select
-              id="task-assignee"
-              className="form__input"
-              value={assignedTo ?? ''}
-              onChange={(e) => setAssignedTo(e.target.value === '' ? null : e.target.value)}
-              disabled={busy || membersState.loading}
-            >
-              <option value="">{t('tasks.form.assigneeNone')}</option>
-              {assignable.map((member) => (
-                <option key={member.id} value={member.userId ?? ''}>
-                  {member.email ?? member.userId}
-                </option>
-              ))}
-            </select>
-          </div>
+          <TilePicker
+            id="task-step-assignee"
+            title={t('tasks.form.assignee')}
+            options={[
+              { value: NONE, label: t('tasks.form.assigneeNone') },
+              ...assignable.map((member) => ({
+                value: member.userId ?? NONE,
+                label: member.email ?? member.userId ?? '',
+              })),
+            ]}
+            selectedValue={assignedTo ?? NONE}
+            onSelect={(value) => setAssignedTo(value === NONE ? null : value)}
+            disabled={busy}
+          />
         )}
 
-        <div className="form__row">
-          <label className="form__label" htmlFor="task-due-mode">
-            {t('tasks.form.due')}
-          </label>
-          <select
-            id="task-due-mode"
-            className="form__input"
-            value={dueMode}
-            onChange={(e) => setDueMode(e.target.value as DueMode)}
-            disabled={busy}
-          >
-            <option value="someday">{t('tasks.form.dueSomeday')}</option>
-            <option value="week">{t('tasks.form.dueWeek')}</option>
-            <option value="date">{t('tasks.form.dueDate')}</option>
-          </select>
-        </div>
+        {/* מצב התאריך כקוביות ולא תפריט נפתח: מתישהו / השבוע / תאריך,
+            אותה תבנית כמו החלקה והאחראי. כשנבחר "תאריך" נפתח לוח השנה מתחת. */}
+        <TilePicker
+          id="task-step-due"
+          title={t('tasks.form.due')}
+          options={[
+            { value: 'someday', label: t('tasks.form.dueSomeday') },
+            { value: 'week', label: t('tasks.form.dueWeek') },
+            { value: 'date', label: t('tasks.form.dueDate') },
+          ]}
+          selectedValue={dueMode}
+          onSelect={(value) => setDueMode(value as DueMode)}
+          disabled={busy}
+        />
 
         {/* **The one place in the app where the calendar looks forwards.** A
             due date is a target, so days behind today are not clickable --
             except the one an overdue task is already carrying, which
             calendarBounds keeps selectable so editing such a task cannot argue
-            with its own record. No shortcut chips: the mode select above is
+            with its own record. No shortcut chips: the mode tiles above are
             this field's shortcut, and the calendar is always open here because
             there is nothing to fold it behind. */}
         {dueMode === 'date' && (
