@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { House, LayoutGrid, Menu, NotebookPen, Settings, Wallet, X } from 'lucide-react';
+import { House, LayoutGrid, Menu, NotebookPen, Settings, Tags, Wallet, X } from 'lucide-react';
 // ה-barrel תקין כאן, Rollup מבצע tree shaking בבנייה של Vite.
 import { t, useMyRole, workerModeShell } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
@@ -12,12 +12,19 @@ import { useAuth } from '../auth/AuthProvider';
 //
 // היעדים נגזרים מ-prd.md סעיף 12, מה שהווב באמת עושה. אין כאן כפתור
 // רישום מרכזי, כי קול, סבב וצילום מהיר הוגדרו כנייד בלבד.
+//
+// moneyScoped מסמן יעד שהוא נתוני כסף, ולכן מוסתר מעובד ומוגן ב-route
+// עצמו (ראה App.tsx). המחירון הוא כזה: הוא טבלת מחירים ש-RLS פותח
+// ל-owner ול-manager בלבד.
 const destinations = [
-  { to: '/', Icon: House, key: 'web.nav.home', end: true },
-  { to: '/plots', Icon: LayoutGrid, key: 'web.nav.plots', end: false },
-  { to: '/money', Icon: Wallet, key: 'web.nav.money', end: false },
-  { to: '/journal', Icon: NotebookPen, key: 'web.nav.journal', end: false },
-  { to: '/settings', Icon: Settings, key: 'web.nav.settings', end: false },
+  { to: '/', Icon: House, key: 'web.nav.home', end: true, moneyScoped: false },
+  { to: '/plots', Icon: LayoutGrid, key: 'web.nav.plots', end: false, moneyScoped: false },
+  { to: '/money', Icon: Wallet, key: 'web.nav.money', end: false, moneyScoped: true },
+  { to: '/journal', Icon: NotebookPen, key: 'web.nav.journal', end: false, moneyScoped: false },
+  // ליד היומן במכוון, וזה מה שעידו ביקש: המחירון הוא מה שממלא את
+  // העלות ברישום הריסוס, ושם הוא מחפש אותו.
+  { to: '/pricelist', Icon: Tags, key: 'web.nav.pricelist', end: false, moneyScoped: true },
+  { to: '/settings', Icon: Settings, key: 'web.nav.settings', end: false, moneyScoped: false },
 ];
 
 export function Sidebar() {
@@ -27,9 +34,10 @@ export function Sidebar() {
   // כפתור רישום). ההחלטה טהורה ב-workerModeShell, וההסתרה כאן היא נוחות
   // בלבד, ה-route עצמו שומר על עצמו ב-App.tsx וה-RLS חוסם את נתוני הכסף.
   // עד שהתפקיד ידוע הכסף מוסתר, כדי שעובד לא יראה את היעד אפילו לפריים.
+  // אותה החלטה בדיוק חלה על המחירון, ראה moneyScoped למעלה.
   const role = useMyRole(supabase);
   const shell = workerModeShell(role.role, role.loading);
-  const visibleDestinations = destinations.filter((d) => d.to !== '/money' || shell.showMoney);
+  const visibleDestinations = destinations.filter((d) => !d.moneyScoped || shell.showMoney);
   const [signOutFailed, setSignOutFailed] = useState(false);
   // תפריט הסנדוויץ' של הנייד בלבד. בדסקטופ הניווט הוא הסיידבר הקבוע
   // והתפריט הזה מוסתר לגמרי ב-CSS, ולכן ה-state כאן לא משפיע עליו.

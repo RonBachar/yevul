@@ -1,5 +1,6 @@
 import { t } from './i18n';
 import { areaUnitLabelKey, type AreaUnit, type Currency } from './settings';
+import { sprayUnitLabelKey, type SprayUnit } from './sprayEntry';
 
 // פורמטר יחיד לשטח ולסכום, אחת משבע ההחלטות שאסור להתפשר עליהן
 // ב-docs/prd.md, סעיף א.4. גם בהשקה בעברית בלבד, כדי שהרחבה בינלאומית
@@ -41,6 +42,18 @@ export function formatAmount(value: number, currency: Currency): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   }).format(value);
+}
+
+// A material's price as the one line shown under its name, in the pricelist and
+// on the material tiles of a spray entry alike: the money, then the unit it
+// buys. Formatted once here rather than in each screen, so the two cannot end up
+// saying the same number two ways.
+export function formatSprayUnitPrice(
+  unitPrice: number,
+  unit: SprayUnit,
+  currency: Currency,
+): string {
+  return `${formatAmount(unitPrice, currency)} · ${t(sprayUnitLabelKey(unit))}`;
 }
 
 // כרטיס ההכנסה הצפויה מציג ספרה בודדת ב-heading-lg (60px), ואין תקרה

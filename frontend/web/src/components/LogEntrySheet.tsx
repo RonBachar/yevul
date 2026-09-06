@@ -4,25 +4,31 @@ import {
   computeSprayCost,
   createLogEntry,
   formatLocalDateOnly,
+  formatSprayUnitPrice,
   initialLogEntryType,
   logEntryTypeLabelKey,
   LOG_ENTRY_TYPES,
   parseSprayAmountInput,
   safeHarvestDate,
+  sprayMaterialChoices,
   sprayPriceMemory,
   sprayUnitLabelKey,
   SPRAY_UNITS,
   t,
   updateLogEntry,
+  useFarmSettings,
   usePlots,
   useSprayPrices,
   useSpraySuggestions,
+  type Currency,
   type LogEntry,
   type LogEntryType,
+  type SprayMaterialChoice,
   type SprayUnit,
 } from '@yevul/shared';
 import { DateField } from './DateField';
 import { Modal } from './Modal';
+import { TilePicker } from './TilePicker';
 import './LogEntrySheet.css';
 
 // The browser's calendar day, never the UTC one. toISOString() is wrong from
@@ -30,6 +36,14 @@ import './LogEntrySheet.css';
 // date, which is what safeHarvestDate computes the regulatory answer from.
 function today(): string {
   return formatLocalDateOnly(new Date());
+}
+
+// The second line on a material tile: what a unit of it costs, or that the
+// pricelist has nothing on it yet. "בלי מחיר" and not "0", the same distinction
+// the waiting period draws between "none" and "not known".
+function materialCaption(choice: SprayMaterialChoice, currency: Currency): string {
+  if (choice.unitPrice === null || choice.unit === null) return t('spray.materialNoPrice');
+  return formatSprayUnitPrice(choice.unitPrice, choice.unit, currency);
 }
 
 // גיליון יצירה/עריכה של רשומת יומן בווב, design.md "Log Entry Sheet",
@@ -67,6 +81,10 @@ export function LogEntrySheet({
   const plotsState = usePlots(supabase);
   const suggestions = useSpraySuggestions(supabase, farmId);
   const prices = useSprayPrices(supabase, farmId);
+  // רק בשביל המטבע שמתחת לשם החומר במשבצת. מחיר בלי סימן מטבע הוא
+  // מספר, לא כסף, ואת הכלל הזה קובע formatAmount ולא המסך.
+  const settings = useFarmSettings(supabase);
+  const currency = settings.form?.currency ?? 'ILS';
 
   const [type, setType] = useState<LogEntryType>(initialLogEntryType(entry, defaultType));
   const [plotId, setPlotId] = useState<string | null>(null);
@@ -87,6 +105,11 @@ export function LogEntrySheet({
   const [sprayUnitPrice, setSprayUnitPrice] = useState('');
   const [sprayCost, setSprayCost] = useState('');
   const [costEdited, setCostEdited] = useState(false);
+  // כתיבת חומר שעדיין לא ברשת. המשבצת המקווקוות פותחת תיבה, והאישור
+  // בוחר את מה שהוקלד בדיוק כאילו הייתה שם משבצת, כולל פתיחת המחיר
+  // הזכור אם במקרה כן יש כזה.
+  const [addingMaterial, setAddingMaterial] = useState(false);
+  const [newMaterial, setNewMaterial] = useState('');
   const [harvestQty, setHarvestQty] = useState('');
   const [harvestUnit, setHarvestUnit] = useState('');
   const [status, setStatus] = useState<
@@ -136,6 +159,10 @@ export function LogEntrySheet({
       setHarvestQty('');
       setHarvestUnit('');
     }
+    // מחוץ לענף: תיבת "חומר חדש" נסגרת בכל פתיחה, גם בעריכה, כדי
+    // שגיליון שנפתח מחדש לא יציג תיבה פתוחה משימוש קודם.
+    setAddingMaterial(false);
+    setNewMaterial('');
     setStatus('idle');
   }, [open, entry, defaultPlotId, defaultType]);
 
@@ -172,6 +199,22 @@ export function LogEntrySheet({
     setSprayUnitPrice(memory.unitPrice != null ? String(memory.unitPrice) : '');
     setSprayQuantityUnit(memory.unit ?? '');
     setCostEdited(false);
+  }
+
+  // The tiles: the pricelist first, then materials sprayed before that are not
+  // on it, then whatever this record already carries. The last of the three is
+  // what keeps an edit of an old spray, or a material just typed by hand, from
+  // being a value with no tile of its own.
+  const materialChoices = sprayMaterialChoices(prices, suggestions.materials, sprayMaterial);
+
+  // A material that is not on any list yet. It is treated exactly like a picked
+  // tile -- the pricelist is asked about it too, because a material can be
+  // priced without ever having been sprayed.
+  function confirmNewMaterial() {
+    const value = newMaterial.trim();
+    if (!value) return;
+    onMaterialChange(value);
+    setAddingMaterial(false);
   }
 
   const unitPriceLabel =
@@ -258,26 +301,64 @@ export function LogEntrySheet({
                 ))}
               </datalist>
             </div>
-            <div className="form__row">
-              <label className="form__label" htmlFor="log-spray-material">
-                {t('log.form.sprayMaterial')}
-              </label>
-              <input
-                id="log-spray-material"
-                className="form__input"
-                type="text"
-                list="log-spray-material-options"
-                value={sprayMaterial}
-                placeholder={t('log.form.sprayMaterialPlaceholder')}
-                onChange={(e) => onMaterialChange(e.target.value)}
-                disabled={busy}
-              />
-              <datalist id="log-spray-material-options">
-                {suggestions.materials.map((value) => (
-                  <option key={value} value={value} />
-                ))}
-              </datalist>
-            </div>
+            {/* **החומר הוא רשת משבצות ולא תיבת טקסט.** עידו, 6.9.2026:
+                "שדה החומר פותח רשימה, אני בוחר חומר, מקליד כמות, והכסף
+                כבר מחושב". המשבצות הן קודם כל המחירון שלו, כל אחת עם
+                המחיר שלה מתחתיה, ואחריהן מה שריסס לאחרונה ועדיין אין
+                לו מחיר. בחירה ממלאת יחידה ומחיר לפי המחירון, ומשם
+                הכמות מכפילה. חומר שאינו ברשת מוקלד במשבצת המקווקוות,
+                כי מחירון סגור היה כלוב. */}
+            <TilePicker
+              id="log-spray-material"
+              title={t('log.form.sprayMaterial')}
+              options={materialChoices.map((choice) => ({
+                value: choice.material,
+                label: choice.material,
+                caption: materialCaption(choice, currency),
+              }))}
+              selectedValue={sprayMaterial.trim() === '' ? null : sprayMaterial.trim()}
+              onSelect={(value) => {
+                setAddingMaterial(false);
+                onMaterialChange(value);
+              }}
+              actions={[
+                {
+                  key: 'add',
+                  label: t('spray.addMaterial'),
+                  onPress: () => {
+                    setNewMaterial('');
+                    setAddingMaterial(true);
+                  },
+                },
+              ]}
+              emptyHint={t('spray.emptyMaterials')}
+              disabled={busy}
+              footer={
+                addingMaterial ? (
+                  <div className="tile-picker__footer">
+                    <input
+                      id="log-spray-material-new"
+                      className="form__input"
+                      type="text"
+                      value={newMaterial}
+                      placeholder={t('log.form.sprayMaterialPlaceholder')}
+                      onChange={(e) => setNewMaterial(e.target.value)}
+                      disabled={busy}
+                      aria-labelledby="log-spray-material"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      className="form__submit"
+                      disabled={busy}
+                      onClick={confirmNewMaterial}
+                    >
+                      {t('spray.confirm')}
+                    </button>
+                  </div>
+                ) : null
+              }
+            />
             <div className="form__row">
               <label className="form__label" htmlFor="log-spray-dose">
                 {t('log.form.sprayDose')} · {t('common.optional')}

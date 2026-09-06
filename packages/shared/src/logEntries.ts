@@ -560,6 +560,61 @@ export async function rememberSprayMaterialPrice(
   );
 }
 
+// One line of the pricelist, as the farmer states it on the pricelist screen.
+export type SprayPriceInput = {
+  material: string;
+  unitPrice: number | null;
+  unit: SprayUnit;
+};
+
+export type SprayPriceWriteResult =
+  | { ok: true }
+  | { ok: false; reason: 'materialRequired' | 'priceRequired' | 'forbidden' | 'error' };
+
+// Writing one line of the pricelist on purpose, from the pricelist screen.
+//
+// **The sibling of rememberSprayMaterialPrice, and deliberately its opposite in
+// manner.** That one is a silent by-product of saving a spray, so it validates
+// nothing and reports nothing; this one is the farmer sitting down and stating a
+// price, so it validates first and returns the same ok/reason shape as every
+// other write here. The row it writes is identical, which is why the two live
+// next to each other and share the normalization.
+//
+// **It still only writes a default.** Nothing here touches a spray that was
+// already saved: those carry their own frozen price and cost. See
+// 20260904130000_spray_pricelist.sql. And the price itself is never guessed --
+// the farmer types it, because the same material is 7 shekels dearer one month
+// and 4 cheaper the next.
+export async function saveSprayPrice(
+  supabase: SupabaseClient,
+  farmId: string,
+  input: SprayPriceInput,
+): Promise<SprayPriceWriteResult> {
+  const material = input.material.trim();
+  if (!material) return { ok: false, reason: 'materialRequired' };
+  // Zero passes: a material left over from last season really did cost nothing
+  // this year. An empty or unreadable box does not, because a pricelist row with
+  // no number is the one thing it cannot be.
+  if (input.unitPrice === null || !Number.isFinite(input.unitPrice) || input.unitPrice < 0) {
+    return { ok: false, reason: 'priceRequired' };
+  }
+
+  const write = await supabase
+    .from('spray_material_prices')
+    .upsert(
+      {
+        farm_id: farmId,
+        material_normalized: normalizeSprayMaterial(material),
+        unit_price: input.unitPrice,
+        unit: input.unit,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'farm_id,material_normalized' },
+    )
+    .select('id');
+  return writeOutcome(write);
+}
+
 type SprayPriceRowResult = {
   material_normalized: string;
   unit_price: number;

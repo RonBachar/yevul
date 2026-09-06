@@ -4,6 +4,7 @@ import {
   initialLogEntryType,
   LOG_ENTRY_TYPES,
   logEntryTypeLabelKey,
+  saveSprayPrice,
   type LogEntry,
   type LogEntryInput,
 } from './logEntries';
@@ -191,5 +192,118 @@ describe('createLogEntry, spray fields', () => {
       spray_dose: '200 סמ"ק',
       spray_phi_days: 14,
     });
+  });
+});
+
+// The pricelist screen's write. Ido asked for a pricelist he fills in once
+// ("give me a pricelist where I enter the prices once"), and the one rule that
+// governs it is that the number is always his: the app validates that a number
+// is there and never supplies one.
+describe('saveSprayPrice', () => {
+  const unreachableSupabase = {
+    from() {
+      throw new Error('should not query the database when validation already failed');
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+
+  function upsertSpy() {
+    const upserts: { row: Record<string, unknown>; options: unknown }[] = [];
+    const supabase = {
+      from() {
+        return {
+          upsert(row: Record<string, unknown>, options: unknown) {
+            upserts.push({ row, options });
+            return {
+              select: () => Promise.resolve({ data: [{ id: 'price-1' }], error: null }),
+            };
+          },
+        };
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+    return { supabase, upserts };
+  }
+
+  it('refuses a row with no material and one with no price', async () => {
+    expect(
+      await saveSprayPrice(unreachableSupabase, 'farm-1', {
+        material: '  ',
+        unitPrice: 40,
+        unit: 'kg',
+      }),
+    ).toEqual({ ok: false, reason: 'materialRequired' });
+
+    expect(
+      await saveSprayPrice(unreachableSupabase, 'farm-1', {
+        material: 'קונפידור',
+        unitPrice: null,
+        unit: 'kg',
+      }),
+    ).toEqual({ ok: false, reason: 'priceRequired' });
+
+    expect(
+      await saveSprayPrice(unreachableSupabase, 'farm-1', {
+        material: 'קונפידור',
+        unitPrice: -1,
+        unit: 'kg',
+      }),
+    ).toEqual({ ok: false, reason: 'priceRequired' });
+  });
+
+  // Zero is a real price: a material left over from last season cost nothing
+  // this year, and refusing it would force an invented number into the table.
+  it('accepts a price of zero', async () => {
+    const { supabase, upserts } = upsertSpy();
+    const result = await saveSprayPrice(supabase, 'farm-1', {
+      material: 'גופרית',
+      unitPrice: 0,
+      unit: 'kg',
+    });
+    expect(result).toEqual({ ok: true });
+    expect(upserts[0]?.row).toMatchObject({ unit_price: 0 });
+  });
+
+  // The same normalized key rememberSprayMaterialPrice writes, so a price
+  // stated on the pricelist screen and one remembered from a spray are one row.
+  it('writes the normalized material name on the farm row', async () => {
+    const { supabase, upserts } = upsertSpy();
+    const result = await saveSprayPrice(supabase, 'farm-1', {
+      material: '  קונפידור  ',
+      unitPrice: 40,
+      unit: 'kg',
+    });
+
+    expect(result).toEqual({ ok: true });
+    expect(upserts).toHaveLength(1);
+    expect(upserts[0]?.row).toMatchObject({
+      farm_id: 'farm-1',
+      material_normalized: 'קונפידור',
+      unit_price: 40,
+      unit: 'kg',
+    });
+    expect(upserts[0]?.options).toEqual({ onConflict: 'farm_id,material_normalized' });
+  });
+
+  // A worker is blocked from this table at row level. PostgREST answering with
+  // no rows is what "forbidden" means here, exactly as everywhere else.
+  it('reports a blocked write as forbidden rather than as a save', async () => {
+    const supabase = {
+      from() {
+        return {
+          upsert() {
+            return { select: () => Promise.resolve({ data: [], error: null }) };
+          },
+        };
+      },
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
+
+    const result = await saveSprayPrice(supabase, 'farm-1', {
+      material: 'קונפידור',
+      unitPrice: 40,
+      unit: 'kg',
+    });
+    expect(result).toEqual({ ok: false, reason: 'forbidden' });
   });
 });

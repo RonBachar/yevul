@@ -21,12 +21,14 @@ import {
   sprayDraftFromEntry,
   sprayEntryBlocker,
   sprayEntryInput,
+  sprayMaterialChoices,
   sprayMaterialMemory,
   sprayMaterialOptions,
   sprayPestOptions,
   sprayPhiOptions,
   sprayPlotOptions,
   sprayPriceMemory,
+  sprayPricelistRows,
   sprayStepFieldKey,
   sprayStepPosition,
   sprayStepRequired,
@@ -606,6 +608,76 @@ describe('sprayPriceMemory', () => {
   it('returns nulls for a material the farm has no price for', () => {
     expect(sprayPriceMemory(prices, 'עלסר')).toEqual({ unitPrice: null, unit: null });
     expect(sprayPriceMemory(prices, null)).toEqual({ unitPrice: null, unit: null });
+  });
+});
+
+// Ido's own words for what this grid has to do: "in the spray journal the
+// material field opens a list, I pick the material, type the quantity, and the
+// money is already calculated". So the priced materials have to come first, and
+// a material with no price still has to be on the grid.
+describe('sprayMaterialChoices', () => {
+  const prices: SprayPriceRow[] = [
+    { materialNormalized: 'קונפידור', unitPrice: 40, unit: 'kg' },
+    { materialNormalized: 'שמן', unitPrice: 12, unit: 'liter' },
+  ];
+
+  it('puts the priced materials first, then the ones only sprayed before', () => {
+    expect(sprayMaterialChoices(prices, ['עלסר', 'שמן'])).toEqual([
+      { material: 'קונפידור', unitPrice: 40, unit: 'kg' },
+      { material: 'שמן', unitPrice: 12, unit: 'liter' },
+      { material: 'עלסר', unitPrice: null, unit: null },
+    ]);
+  });
+
+  it('shows a material that is both priced and recently sprayed once', () => {
+    const choices = sprayMaterialChoices(prices, ['קונפידור']);
+    expect(choices.filter((choice) => choice.material === 'קונפידור')).toHaveLength(1);
+  });
+
+  // The pricelist stores only the normalized name, so a Latin material would
+  // otherwise come back to the farmer lowercased.
+  it('prefers the spelling the farmer typed over the normalized key', () => {
+    const latin: SprayPriceRow[] = [{ materialNormalized: 'confidor', unitPrice: 40, unit: 'kg' }];
+    expect(sprayMaterialChoices(latin, ['Confidor'])).toEqual([
+      { material: 'Confidor', unitPrice: 40, unit: 'kg' },
+    ]);
+  });
+
+  // Editing an old spray, or typing a material by hand, must not leave a value
+  // with no tile of its own.
+  it('carries the material already on the record even when nothing else knows it', () => {
+    const choices = sprayMaterialChoices([], [], 'גופרית');
+    expect(choices).toEqual([{ material: 'גופרית', unitPrice: null, unit: null }]);
+    expect(sprayMaterialChoices([], [], '   ')).toEqual([]);
+  });
+});
+
+describe('sprayPricelistRows', () => {
+  const rows: SprayPriceRow[] = [
+    { materialNormalized: 'שמן', unitPrice: 12, unit: 'liter' },
+    { materialNormalized: 'גופרית', unitPrice: 8, unit: 'kg' },
+  ];
+
+  it('sorts by material name, because a pricelist is scanned and not read', () => {
+    expect(sprayPricelistRows(rows).map((row) => row.materialNormalized)).toEqual([
+      'גופרית',
+      'שמן',
+    ]);
+  });
+
+  it('writes a just-saved price over the loaded one instead of listing it twice', () => {
+    const merged = sprayPricelistRows(rows, [
+      { materialNormalized: 'שמן', unitPrice: 15, unit: 'liter' },
+    ]);
+    expect(merged).toHaveLength(2);
+    expect(merged.find((row) => row.materialNormalized === 'שמן')?.unitPrice).toBe(15);
+  });
+
+  it('adds a material saved for the first time', () => {
+    const merged = sprayPricelistRows(rows, [
+      { materialNormalized: 'קונפידור', unitPrice: 40, unit: 'kg' },
+    ]);
+    expect(merged.map((row) => row.materialNormalized)).toEqual(['גופרית', 'קונפידור', 'שמן']);
   });
 });
 

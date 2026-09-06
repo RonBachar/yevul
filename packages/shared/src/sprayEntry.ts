@@ -266,6 +266,97 @@ export function sprayPriceMemory(
   return match ? { unitPrice: match.unitPrice, unit: match.unit } : NO_PRICE_MEMORY;
 }
 
+// ============================================================
+// The pricelist as something the farmer manages, and not only as a by-product
+// of writing a spray.
+//
+// Ido, 2026-09-06: "every crop has the same recurring materials year after
+// year. Instead of typing names and prices every time, give me a pricelist
+// where I enter the prices once, and then in the spray journal the material
+// field opens a list, I pick the material, type the quantity, and the money is
+// already calculated."
+//
+// So the same rows feed two screens now: the pricelist screen, which lists and
+// edits them, and the material grid inside a spray entry, which picks from
+// them. Both read the list through the two functions below, so neither screen
+// re-decides what "the farm's materials" means.
+// ============================================================
+
+// One material a farmer can pick when writing a spray. **A null price is a real
+// state**, not a missing one: a material he has sprayed before but never priced
+// is still a material, and it belongs on the grid rather than being hidden
+// until it earns a price.
+export type SprayMaterialChoice = {
+  material: string;
+  unitPrice: number | null;
+  unit: SprayUnit | null;
+};
+
+// The material grid of a spray entry: the priced materials first, then whatever
+// else this farm has sprayed, then the material already on the record being
+// edited if it is somehow in neither list.
+//
+// **Priced first because that is the whole point of the pricelist** -- those are
+// the tiles that fill the cost in by themselves. The two sources are merged on
+// the normalized name so a material that is both priced and recently sprayed is
+// one tile and not two.
+export function sprayMaterialChoices(
+  prices: readonly SprayPriceRow[],
+  historyMaterials: readonly string[],
+  current: string | null = null,
+): SprayMaterialChoice[] {
+  // The spelling the farmer actually typed, per normalized name. The pricelist
+  // table only stores the normalized form, so without this a Latin material
+  // would come back to him lowercased. Hebrew is unaffected either way, which
+  // is why this is a nicety and not a correctness fix.
+  const spelling = new Map<string, string>();
+  for (const value of [...historyMaterials, ...(current === null ? [] : [current])]) {
+    const trimmed = value.trim();
+    if (trimmed === '') continue;
+    const key = normalizeSprayMaterial(trimmed);
+    if (!spelling.has(key)) spelling.set(key, trimmed);
+  }
+
+  const seen = new Set<string>();
+  const choices: SprayMaterialChoice[] = [];
+  for (const row of prices) {
+    if (seen.has(row.materialNormalized)) continue;
+    seen.add(row.materialNormalized);
+    choices.push({
+      material: spelling.get(row.materialNormalized) ?? row.materialNormalized,
+      unitPrice: row.unitPrice,
+      unit: row.unit,
+    });
+  }
+  for (const [key, material] of spelling) {
+    if (seen.has(key)) continue;
+    seen.add(key);
+    choices.push({ material, unitPrice: null, unit: null });
+  }
+  return choices;
+}
+
+// The pricelist as the pricelist screen should show it: the rows the server
+// gave, with anything saved since this screen opened written over them, sorted
+// by name.
+//
+// **Sorted, because a pricelist is scanned and not read.** The table has no
+// display order of its own (it is keyed on the material name), and a farmer
+// looking for one material among twenty needs them to stay where they were.
+// `pending` exists so a save shows up immediately: the read hook has no reload
+// of its own, and re-fetching a handful of rows to move one of them is a round
+// trip the farmer would feel as lag.
+export function sprayPricelistRows(
+  rows: readonly SprayPriceRow[],
+  pending: readonly SprayPriceRow[] = [],
+): SprayPriceRow[] {
+  const merged = new Map<string, SprayPriceRow>();
+  for (const row of [...rows, ...pending]) merged.set(row.materialNormalized, row);
+  return [...merged.values()].sort((a, b) =>
+    a.materialNormalized.localeCompare(b.materialNormalized),
+  );
+}
+
 // Quantity times unit price, or null when either is missing or unusable. Null is
 // a real state: a spray with no cost, or a cost the farmer will type directly.
 export function computeSprayCost(quantity: number | null, unitPrice: number | null): number | null {

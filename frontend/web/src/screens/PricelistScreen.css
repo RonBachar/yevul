@@ -1,0 +1,27 @@
+/*
+  המחירון. אין כאן פריסה משלו, רק המרווחים שבין המשפט המסביר, רשת
+  החומרים והטופס, כי .screen עצמו הוא רוחב מרבי בלבד ואין לו gap.
+*/
+
+/* אותו רוחב עמודה של .form, כדי שהמשפט לא ימתח את עצמו על 1440. */
+.pricelist__intro {
+  max-width: 520px;
+  margin: 0 0 var(--spacing-24);
+}
+
+.pricelist__saved {
+  margin-top: var(--spacing-16);
+}
+
+.pricelist__editor {
+  margin-top: var(--spacing-32);
+}
+
+/* כותרת הטופס, לא כותרת המסך. אותו משקל שיש לשאלה מעל רשת משבצות
+   (.tile-picker__title), כי היא ממלאת בדיוק את אותו תפקיד. */
+.pricelist__editor-title {
+  margin: 0;
+  font-size: var(--text-subheading);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-ink-900);
+}
