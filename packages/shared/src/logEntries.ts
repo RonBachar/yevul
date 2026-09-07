@@ -4,13 +4,13 @@ import { currentFarmQuery } from './currentFarm';
 import { LOG_ENTRY_TYPES, type LogEntryType } from './logEntryTypes';
 import { writeOutcome } from './postgrest';
 import { useLoadCount } from './refresh';
+import type { SprayUnit } from './settings';
 import {
   normalizeSprayMaterial,
   sprayMaterialOptions,
   sprayPestOptions,
   type SprayHistoryRow,
   type SprayPriceRow,
-  type SprayUnit,
 } from './sprayEntry';
 
 // הסוגים עצמם חיים ב-logEntryTypes.ts, מודול טהור בלי ייבוא, כי

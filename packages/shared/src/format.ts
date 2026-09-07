@@ -1,6 +1,13 @@
 import { t } from './i18n';
-import { areaUnitLabelKey, type AreaUnit, type Currency } from './settings';
-import { sprayUnitLabelKey, type SprayUnit } from './sprayEntry';
+// sprayUnitLabelKey מגיע מ-settings ולא מ-sprayEntry, וזה מה ששובר את
+// הייבוא המעגלי format -> sprayEntry -> calendar -> format.
+import {
+  areaUnitLabelKey,
+  sprayUnitLabelKey,
+  type AreaUnit,
+  type Currency,
+  type SprayUnit,
+} from './settings';
 
 // פורמטר יחיד לשטח ולסכום, אחת משבע ההחלטות שאסור להתפשר עליהן
 // ב-docs/prd.md, סעיף א.4. גם בהשקה בעברית בלבד, כדי שהרחבה בינלאומית

@@ -32,3 +32,22 @@ export function areaUnitLabelKey(value: AreaUnit): string {
 export function localeLabelKey(value: Locale): string {
   return `settings.locale.${value}`;
 }
+
+// יחידת מדידה של חומר ריסוס. **יושבת כאן ולא ב-sprayEntry.ts, וזה תיקון
+// של ייבוא מעגלי אמיתי:** format.ts היה מייבא את התווית מ-sprayEntry,
+// sprayEntry מייבא מ-calendar, ו-calendar מייבא בחזרה מ-format. Metro
+// התריע על כך על מכשיר ("Require cycle ... can result in uninitialized
+// values"). זה דומיין ערכים בדיוק כמו המטבע ויחידת השטח שמעליו, ולכן
+// מקומו בקובץ העלה הזה שאינו מייבא דבר, וכל צרכן יכול לקרוא לו בבטחה.
+export type SprayUnit = 'liter' | 'kg';
+
+// Mirrors public.spray_unit in the migration. Keep the two lists in sync.
+export const SPRAY_UNITS: readonly SprayUnit[] = ['liter', 'kg'];
+
+export function sprayUnitLabelKey(unit: SprayUnit): string {
+  return `spray.unit.${unit}`;
+}
+
+export function isSprayUnit(value: string | null): value is SprayUnit {
+  return value === 'liter' || value === 'kg';
+}

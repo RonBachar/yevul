@@ -70,6 +70,7 @@
 import { recentDateOptions, type RecentDateOption } from './calendar';
 import type { LogEntry, LogEntryInput } from './logEntries';
 import { formatLocalDateOnly } from './safeHarvestDate';
+import type { SprayUnit } from './settings';
 
 // ============================================================
 // The history the tiles are read out of.
@@ -225,18 +226,10 @@ export function sprayMaterialMemory(
 // column the upsert writes, exactly as normalizeTaskTitle backs task_cost_memory.
 // ============================================================
 
-export type SprayUnit = 'liter' | 'kg';
-
-// Mirrors public.spray_unit in the migration. Keep the two lists in sync.
-export const SPRAY_UNITS: readonly SprayUnit[] = ['liter', 'kg'];
-
-export function sprayUnitLabelKey(unit: SprayUnit): string {
-  return `spray.unit.${unit}`;
-}
-
-export function isSprayUnit(value: string | null): value is SprayUnit {
-  return value === 'liter' || value === 'kg';
-}
+// SprayUnit, SPRAY_UNITS, sprayUnitLabelKey ו-isSprayUnit עברו ל-settings.ts,
+// שם יושבים שאר דומייני הערכים (מטבע, יחידת שטח, שפה). המעבר שבר ייבוא
+// מעגלי אמיתי שהתריע עליו Metro על המכשיר: format -> sprayEntry -> calendar
+// -> format. הייבוא כאן הוא טיפוס בלבד ולכן נמחק בזמן הידור.
 
 // Trim, lowercase, collapse inner whitespace, so two spellings of one material
 // ("קונפידור", " קונפידור ") share a single remembered price.

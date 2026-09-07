@@ -57,6 +57,12 @@ export {
   type Currency,
   type AreaUnit,
   type Locale,
+  // דומיין יחידת חומר הריסוס. חי כאן ליד שאר דומייני הערכים, אחרי
+  // שהעברתו מ-sprayEntry שברה ייבוא מעגלי שהתריע עליו Metro על המכשיר.
+  SPRAY_UNITS,
+  sprayUnitLabelKey,
+  isSprayUnit,
+  type SprayUnit,
 } from './settings';
 export { useFarmSettings, type FarmSettingsForm } from './useFarmSettings';
 // Farm sharing, stage 6. Reading the roster, inviting by email, changing a
@@ -487,8 +493,6 @@ export {
   sprayEntryInput,
   parseSprayPhiDaysInput,
   parseSprayAmountInput,
-  sprayUnitLabelKey,
-  isSprayUnit,
   normalizeSprayMaterial,
   sprayPriceMemory,
   sprayMaterialChoices,
@@ -498,11 +502,9 @@ export {
   SPRAY_TILE_LIMIT,
   SPRAY_PHI_TILE_LIMIT,
   SPRAY_PHI_PRESET_DAYS,
-  SPRAY_UNITS,
   SPRAY_BLOCKER_MESSAGE_KEYS,
   type SprayStep,
   type SprayDraft,
-  type SprayUnit,
   type SprayHistoryRow,
   type SprayMaterialMemory,
   type SprayPriceRow,
