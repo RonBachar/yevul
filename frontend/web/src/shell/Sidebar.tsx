@@ -5,6 +5,7 @@ import { House, LayoutGrid, Menu, NotebookPen, Settings, Tags, Wallet, X } from 
 import { t, useMyRole, workerModeShell } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../auth/AuthProvider';
+import { Clock } from './Clock';
 
 // ניווט הצד של לקוח הווב. זו הפריסה שמחליפה את שורת הטאבים של הנייד,
 // לא מתיחה שלה. הנימוקים המלאים מתועדים ב-docs/design.md, סעיף
@@ -92,6 +93,7 @@ export function Sidebar() {
 
   const renderAccount = () => (
     <div className="sidebar__account">
+      <Clock variant="full" />
       <span className="sidebar__email" title={email}>
         {email}
       </span>
@@ -133,6 +135,7 @@ export function Sidebar() {
             <Menu size={28} strokeWidth={2} aria-hidden="true" />
           )}
         </button>
+        <Clock variant="compact" />
         <span className="shell-topbar__brand">{t('app.name')}</span>
       </div>
 

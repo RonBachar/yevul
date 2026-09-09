@@ -1,16 +1,18 @@
-import { useState } from 'react';
-import { isCustomYieldUnit, t, yieldUnitPresets } from '@yevul/shared';
+import { parseYieldUnit, t, yieldUnitLabel, YIELD_UNITS } from '@yevul/shared';
 
-// בחירת יחידת יבול. הופיעה כשדה טקסט חופשי בשני מקומות (עריכת גידול
-// ועדכון צפי), ולכן עברה לרכיב אחד, מקבילה ל-YieldUnitField של הנייד.
+// בחירת יחידה, גם ליבול וגם למחיר. משמש בעריכת החלקה ובעדכון הצפי,
+// ומקביל ל-YieldUnitField של הנייד. תפריט נפתח בווב, צ'יפים בנייד,
+// אותה הפרדה שכבר קיימת בין הלקוחות לשדות עם קבוצת ערכים סגורה.
 //
-// כאן זה תפריט נפתח ולא שורת צ'יפים, לפי אותה הפרדה שכבר קיימת בין
-// הלקוחות לשדות עם קבוצת ערכים סגורה (ראה roadmap.md, שלב 2): תפריט
-// בווב, צ'יפים בנייד.
+// **שלוש יחידות בלבד: קילו, טון, יחידה. אין "אחר" ואין טקסט חופשי.**
+// זו החלטת מוצר, והיא מה שמאפשר לאפליקציה להמיר בין יבול למחיר במקום
+// להכפיל טונות בשקלים לקילו ולהציג את התוצאה בפנים ישרות. הרשימה
+// הישנה כללה גם "ארגזים", שאינו משקל ואינו ספירה ולכן לא ניתן להמרה.
 //
-// **הצעות ולא רשימה סגורה.** העמודה במסד היא טקסט חופשי בכוונה, ולכן
-// "אחר" תמיד זמין ופותח שדה הקלדה. ערך שנשמר לפני שההצעות היו קיימות,
-// או יחידה חריגה, נפתח אוטומטית במצב "אחר" עם הערך בתוכו ולא נמחק.
+// **ערך ישן שאינו אחת מהשלוש נשמר ומוצג כאפשרות משלו**, ולא נמחק ולא
+// מתורגם בכוח. שורה שנכתבה לפני השינוי עם "ארגזים" תמשיך להראות
+// "ארגזים" עד שהחקלאי עצמו יבחר אחרת. ראה yieldUnits.ts, שמפרש את מה
+// שניתן לפרש ומחזיר את השאר כמות שהוא.
 export function YieldUnitField({
   id,
   label,
@@ -24,22 +26,11 @@ export function YieldUnitField({
   onChange: (value: string) => void;
   disabled: boolean;
 }) {
-  const presets = yieldUnitPresets();
-  // מצב "אחר" נדבק ברגע שנבחר, גם כשהשדה עדיין ריק. בלי זה, בחירת
-  // "אחר" הייתה קופצת חזרה כי ערך ריק לא נחשב מותאם.
-  const [otherSticky, setOtherSticky] = useState(() => isCustomYieldUnit(value));
-  const isOther = otherSticky || isCustomYieldUnit(value);
-
-  function onSelect(next: string) {
-    if (next === OTHER) {
-      setOtherSticky(true);
-      // ערך מותאם שכבר הוקלד נשאר, כדי שבחירת "אחר" לא תמחק אותו.
-      if (!isCustomYieldUnit(value)) onChange('');
-      return;
-    }
-    setOtherSticky(false);
-    onChange(next);
-  }
+  const canonical = parseYieldUnit(value);
+  const trimmed = value.trim();
+  // ערך שמור שאינו נפתר לאחת מהשלוש. נשמר כאפשרות כדי שרינדור הטופס
+  // לבדו לא ידרוס אותו.
+  const legacy = trimmed !== '' && canonical === null ? trimmed : null;
 
   return (
     <div className="form__row">
@@ -49,35 +40,20 @@ export function YieldUnitField({
       <select
         id={id}
         className="form__input"
-        value={isOther ? OTHER : value}
-        onChange={(e) => onSelect(e.target.value)}
+        value={canonical ?? legacy ?? ''}
+        onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
       >
-        {/* אפשרות ריקה ראשונה, כדי שלא תיבחר יחידה שהחקלאי לא ביקש
-            רק בגלל שהיא הראשונה ברשימה. */}
+        {/* אפשרות ריקה ראשונה, כדי שלא תיבחר יחידה שהחקלאי לא ביקש רק
+            בגלל שהיא הראשונה ברשימה. */}
         <option value="">{t('plots.crop.yieldUnitUnset')}</option>
-        {presets.map((preset) => (
-          <option key={preset} value={preset}>
-            {preset}
+        {YIELD_UNITS.map((unit) => (
+          <option key={unit} value={unit}>
+            {yieldUnitLabel(unit)}
           </option>
         ))}
-        <option value={OTHER}>{t('common.other')}</option>
+        {legacy && <option value={legacy}>{legacy}</option>}
       </select>
-      {isOther && (
-        <input
-          className="form__input"
-          type="text"
-          value={value}
-          placeholder={t('plots.crop.yieldUnitPlaceholder')}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={disabled}
-          autoFocus
-        />
-      )}
     </div>
   );
 }
-
-// ערך סנטינל ל-<option> של "אחר" בלבד. לא נשמר לעולם, הוא מוחלף בטקסט
-// שהמשתמש מקליד. מסומן בתווים שלא יופיעו ביחידה אמיתית.
-const OTHER = '__other__';

@@ -78,10 +78,12 @@ export function PlotFormScreen() {
 
   useEffect(() => {
     if (!isEdit || prefilled || !detail.plot) return;
-    setDraft(plotDraftFromPlot(detail.plot));
+    // שם הגידול מגיע ממחזור הגידול ולא מהחלקה, כי הגידול נכנס לטופס
+    // החלקה אחרי שמסך "עריכת גידול" הנפרד בוטל.
+    setDraft(plotDraftFromPlot(detail.plot, detail.cropCycle?.name ?? null));
     setAreaText(plotAreaInputText(detail.plot.area));
     setPrefilled(true);
-  }, [isEdit, prefilled, detail.plot]);
+  }, [isEdit, prefilled, detail.plot, detail.cropCycle]);
 
   const busy = status === 'saving';
   const farmAreaUnit = settings.form?.areaUnit ?? null;

@@ -53,7 +53,19 @@
 //              and the review shows the area with its unit in one line, which is
 //              the only place the unit was ever informative.
 //
-//   crop       **Tiles, from the farm's own crop history.** This is the case
+//   crop       **Tiles, from the farm's own crop history, on an edit as well as
+//              on a create.** It used to be a create-only step, on the argument
+//              that the crop belongs to crop_cycles and updatePlot does not
+//              touch that table. The founder overruled it on 2026-09-09, looking
+//              at a plot screen that had one pencil for the plot and a second
+//              "edit crop" link inside the profitability tab: "the plot IS the
+//              crop, why are there two". So this walk now owns all three fields
+//              a plot has -- name, area, crop -- and the second edit affordance
+//              is gone from both clients. The write is still two calls to two
+//              tables (updatePlot, then setPlotCrop); that is a detail of the
+//              schema and not something the farmer should have to know.
+//
+//              This is the case
 //              useSpraySuggestions established: a farm grows a handful of
 //              things and has grown them before, so the grid fills up over time
 //              from what the farmer actually planted. The source is
@@ -136,9 +148,10 @@ export function plotStepFieldKey(step: PlotStep): string {
 
 // **Required means the write refuses without it, and nothing else.** createPlot
 // refuses on an empty name and on an empty crop name; updatePlot refuses on an
-// empty name. plots.area is a nullable column and plots.area_unit always
-// carries the farm's setting, so neither is required. Marking anything else
-// here would invent a rule the write does not have.
+// empty name and setPlotCrop on an empty crop name. plots.area is a nullable
+// column and plots.area_unit always carries the farm's setting, so neither is
+// required. Marking anything else here would invent a rule the write does not
+// have.
 export function plotStepRequired(step: PlotStep): boolean {
   return step === 'name' || step === 'crop';
 }
@@ -191,16 +204,18 @@ export function newPlotDraft(): PlotDraft {
 // hectares: the stored number means nothing without the unit it was measured
 // in, and quietly relabelling 4 hectares as 4 dunams would be a data change
 // disguised as a form default.
-export function plotDraftFromPlot(plot: Plot): PlotDraft {
+//
+// cropName comes in as a second argument because it is not a field of the plot
+// row -- it lives on the plot's current crop_cycle, which the caller has loaded
+// alongside it. '' is the honest value for a plot that somehow has no cycle, and
+// the crop step then reads as unanswered rather than as answered with nothing.
+export function plotDraftFromPlot(plot: Plot, cropName: string | null): PlotDraft {
   return {
     mode: 'edit',
     name: plot.name,
     area: plot.area,
     areaUnit: plot.areaUnit,
-    // The crop is not a field of the plot. It belongs to the CropCycle, is
-    // edited from the plot's own screen, and the old form hid it on an edit for
-    // exactly that reason -- see plotVisibleSteps.
-    cropName: '',
+    cropName: cropName ?? '',
     prefilled: [],
   };
 }
@@ -208,14 +223,11 @@ export function plotDraftFromPlot(plot: Plot): PlotDraft {
 // The steps this draft will actually put on screen, review included. The
 // counter over each question is read off it, and so is every "what comes next"
 // answer below, so the three cannot disagree.
+// **Every step is on both walks now, create and edit alike.** The crop used to
+// be dropped on an edit; merging the two edit buttons into one put it back. See
+// the crop entry in the field-by-field table at the top of this file.
 export function plotVisibleSteps(draft: PlotDraft): readonly PlotStep[] {
-  return PLOT_STEPS.filter((step) => {
-    if (step === 'review') return true;
-    // Editing a plot never asks for a crop: crop_cycles is a different table
-    // with a different screen, and updatePlot does not touch it.
-    if (step === 'crop' && draft.mode === 'edit') return false;
-    return !draft.prefilled.includes(step);
-  });
+  return PLOT_STEPS.filter((step) => step === 'review' || !draft.prefilled.includes(step));
 }
 
 export function nextPlotStep(current: PlotStep, draft: PlotDraft): PlotStep {
@@ -290,12 +302,16 @@ export const PLOT_BLOCKER_MESSAGE_KEYS: Record<PlotFormBlocker, string> = {
 // Asked before the save button is offered rather than after the write comes
 // back, for the reason sprayEntryBlocker exists: an error a farmer can do
 // nothing about, on a screen with no field for it, is the worst place to be
-// told. It deliberately mirrors the guards inside createPlot and updatePlot
-// rather than sharing them -- those belong to the write -- and a test holds the
-// two to the same answer.
+// told. It deliberately mirrors the guards inside createPlot, updatePlot and
+// setPlotCrop rather than sharing them -- those belong to the write -- and a
+// test holds them to the same answer.
+//
+// The crop is now required on an edit too, because an edit now asks for it: a
+// walk that shows the field and then saves it away as empty would be worse than
+// one that never showed it.
 export function plotFormBlocker(draft: PlotDraft): PlotFormBlocker | null {
   if (!draft.name.trim()) return 'nameRequired';
-  if (draft.mode === 'create' && !draft.cropName.trim()) return 'cropNameRequired';
+  if (!draft.cropName.trim()) return 'cropNameRequired';
   return null;
 }
 

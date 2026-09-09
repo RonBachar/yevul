@@ -147,29 +147,34 @@ describe('newPlotDraft', () => {
 });
 
 describe('plotDraftFromPlot', () => {
-  it('opens an existing plot in edit mode with its own values', () => {
-    expect(plotDraftFromPlot(plot())).toEqual({
+  it('opens an existing plot in edit mode with its own values, crop included', () => {
+    expect(plotDraftFromPlot(plot(), 'זיתים')).toEqual({
       mode: 'edit',
       name: 'החלקה הדרומית',
       area: 40,
       areaUnit: 'dunam',
-      cropName: '',
+      cropName: 'זיתים',
       prefilled: [],
     });
   });
 
-  // The crop belongs to the CropCycle and is edited from the plot's own screen.
-  // updatePlot does not touch it, and the old one-page form hid its box on an
-  // edit for the same reason.
-  it('never asks for a crop on an edit', () => {
-    const draft = plotDraftFromPlot(plot());
-    expect(plotVisibleSteps(draft)).toEqual(['name', 'area', 'review']);
-    expect(nextPlotStep('area', draft)).toBe('review');
-    expect(plotStepPosition('area', draft)).toEqual({ index: 2, total: 3 });
+  // **The founder, on the two edit buttons the plot screen used to have: "the
+  // plot IS the crop, why are there two".** The crop step used to be dropped on
+  // an edit, which is what forced the second affordance to exist somewhere else
+  // on the screen. One walk, all three fields.
+  it('asks for the crop on an edit, exactly as a create does', () => {
+    const draft = plotDraftFromPlot(plot(), 'זיתים');
+    expect(plotVisibleSteps(draft)).toEqual(['name', 'area', 'crop', 'review']);
+    expect(nextPlotStep('area', draft)).toBe('crop');
+    expect(plotStepPosition('area', draft)).toEqual({ index: 2, total: 4 });
+  });
+
+  it('reads a plot with no crop cycle as a crop not yet answered', () => {
+    expect(plotDraftFromPlot(plot(), null).cropName).toBe('');
   });
 
   it('carries a plot with no area through as having none', () => {
-    expect(plotDraftFromPlot(plot({ area: null })).area).toBeNull();
+    expect(plotDraftFromPlot(plot({ area: null }), 'זיתים').area).toBeNull();
   });
 });
 
@@ -199,11 +204,13 @@ describe('plotAreaUnit', () => {
   // hectares as 4 dunams because the farm has since switched its setting would
   // be a data change wearing the clothes of a form default.
   it('keeps an existing plot in its own unit even when the farm has moved on', () => {
-    expect(plotAreaUnit(plotDraftFromPlot(plot({ areaUnit: 'hectare' })), 'dunam')).toBe('hectare');
+    expect(plotAreaUnit(plotDraftFromPlot(plot({ areaUnit: 'hectare' }), 'זיתים'), 'dunam')).toBe(
+      'hectare',
+    );
   });
 
   it('puts a plot that never had a unit onto the farm setting', () => {
-    expect(plotAreaUnit(plotDraftFromPlot(plot({ areaUnit: null })), 'acre')).toBe('acre');
+    expect(plotAreaUnit(plotDraftFromPlot(plot({ areaUnit: null }), 'זיתים'), 'acre')).toBe('acre');
   });
 });
 
@@ -277,10 +284,16 @@ describe('plotFormBlocker', () => {
     expect(plotFormBlocker(ready({ cropName: '  ' }))).toBe('cropNameRequired');
   });
 
-  // An edit never asks for a crop and updatePlot never writes one, so a missing
-  // crop must not block a name change.
-  it('does not ask an edit for a crop', () => {
-    expect(plotFormBlocker(plotDraftFromPlot(plot()))).toBeNull();
+  it("lets an edit through once it carries the plot's crop", () => {
+    expect(plotFormBlocker(plotDraftFromPlot(plot(), 'זיתים'))).toBeNull();
+  });
+
+  // An edit asks for the crop now, so it has to refuse an empty one for the same
+  // reason a create does: a walk that shows a field and then saves it away blank
+  // is worse than one that never showed it.
+  it('stops an edit whose crop was emptied', () => {
+    const draft = { ...plotDraftFromPlot(plot(), 'זיתים'), cropName: '  ' };
+    expect(plotFormBlocker(draft)).toBe('cropNameRequired');
   });
 
   // **The rule is asked before the save button, and the write asks it again.**
@@ -311,7 +324,7 @@ describe('plotFormBlocker', () => {
   });
 
   it('agrees with what updatePlot itself refuses', async () => {
-    const nameless = { ...plotDraftFromPlot(plot()), name: '  ' };
+    const nameless = { ...plotDraftFromPlot(plot(), 'זיתים'), name: '  ' };
     expect(plotFormBlocker(nameless)).toBe('nameRequired');
     expect(await updatePlot(refuseDatabase, 'plot-1', plotUpdateInput(nameless, 'dunam'))).toEqual({
       ok: false,
@@ -359,7 +372,7 @@ describe('plotCreateInput', () => {
 
 describe('plotUpdateInput', () => {
   it('writes the three plot columns and nothing else', () => {
-    const draft = { ...plotDraftFromPlot(plot()), name: 'החלקה הצפונית', area: 12.5 };
+    const draft = { ...plotDraftFromPlot(plot(), 'זיתים'), name: 'החלקה הצפונית', area: 12.5 };
     expect(plotUpdateInput(draft, 'dunam')).toEqual({
       name: 'החלקה הצפונית',
       area: 12.5,
@@ -367,9 +380,13 @@ describe('plotUpdateInput', () => {
     });
   });
 
-  // The crop is not a column of plots. An edit carrying one would be writing to
-  // a table updatePlot does not touch.
+  // **The crop is still not a column of plots**, even though the walk now asks
+  // for it on an edit. It goes to crop_cycles through setPlotCrop, as a second
+  // write, and this input must not carry it into a table that has no such
+  // column.
   it('has no crop in it at all', () => {
-    expect(plotUpdateInput(plotDraftFromPlot(plot()), 'dunam')).not.toHaveProperty('cropName');
+    expect(plotUpdateInput(plotDraftFromPlot(plot(), 'זיתים'), 'dunam')).not.toHaveProperty(
+      'cropName',
+    );
   });
 });

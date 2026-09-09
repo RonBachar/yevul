@@ -3,6 +3,9 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { currentFarmQuery } from './currentFarm';
 import { formatAmount, formatArea, formatNumber, yieldRateUnitLabel } from './format';
 import { t } from './i18n';
+// The three units, the conversion between them and the sentence that shows the
+// farmer his own arithmetic. Pure, and tested away from React; see yieldUnits.ts.
+import { forecastUnits } from './yieldUnits';
 // The one cap-and-dedupe rule the crop grid shares with the spray grids. See
 // useCropSuggestions below; plotForm.ts imports only *types* back from here, so
 // there is no import cycle at run time.
@@ -38,9 +41,18 @@ export type CropCycle = {
   plotId: string;
   name: string;
   season: string | null;
+  // The unit the YIELD is measured in, and, since 20260909120000, the separate
+  // unit the PRICE is quoted in. Both are free text in the column and both are
+  // read through yieldUnits.ts, which maps the three known units and hands back
+  // anything else unchanged. **priceUnit null means "the same unit as
+  // yieldUnit"**, which is what every row written before that migration meant.
   yieldUnit: string | null;
+  priceUnit: string | null;
   expectedYieldPerArea: number | null;
   expectedPricePerUnit: number | null;
+  // מועד קטיף משוער, a YYYY-MM-DD day picked off the calendar. Null for most of
+  // the year on most plots, which is a normal state and not a missing answer.
+  expectedHarvestDate: string | null;
   forecastUpdatedAt: string | null;
 };
 
@@ -98,6 +110,14 @@ export type PlotProfitForecast = {
 
 // בלי שטח, יבול או מחיר אין הכנסה לחשב, ולכן אין גם צפי רווח. מחזיר
 // null במקום 0, כי 0 היה נקרא כ"אין רווח" במקום "אין מספיק נתונים".
+//
+// **The unit conversion happens here and nowhere else.** The yield is measured
+// in one unit and the price quoted in another -- tons per dunam at shekels per
+// kilo is Ido's own example -- so the two numbers cannot simply be multiplied.
+// forecastUnits resolves both columns and returns the factor between them; a
+// null factor is the one pair that does not convert (a count against a weight),
+// and it returns null here for exactly the reason a missing yield does: there is
+// no honest number to show, and a wrong one would look identical to a right one.
 export function expectedIncomeFor(
   plotArea: number | null,
   cropCycle: CropCycle | null,
@@ -109,7 +129,9 @@ export function expectedIncomeFor(
   ) {
     return null;
   }
-  return plotArea * cropCycle.expectedYieldPerArea * cropCycle.expectedPricePerUnit;
+  const { factor } = forecastUnits(cropCycle.yieldUnit, cropCycle.priceUnit);
+  if (factor == null) return null;
+  return plotArea * cropCycle.expectedYieldPerArea * factor * cropCycle.expectedPricePerUnit;
 }
 
 export function plotProfitForecast(
@@ -173,58 +195,42 @@ export function staleForecastSince(cropCycle: CropCycle | null, now: Date): stri
 }
 
 // ============================================================
-// יחידת יבול, הצעות נפוצות.
+// שורות היבול והמחיר בטאב צפי ההכנסה.
 //
-// **זו רשימת הצעות ולא רשימה סגורה.** העמודה במסד היא טקסט חופשי
-// בכוונה (prd.md, מודל חקלאות-אגנוסטי), ולכן הרכיב מציע את הנפוצות
-// ומשאיר "אחר" לכל דבר אחר. שתי משפחות המדידה מיוצגות, משקל וספירה,
-// לפי הערת שדה של עידו שגידולים מסוימים נספרים ולא נשקלים.
+// **היחידה מוצגת דרך yieldUnits.ts ולא כטקסט הגולמי מהעמודה.** מאז
+// שהצומצמו לשלוש (קילו, טון, יחידה) הערך השמור הוא קוד באנגלית, ורק
+// שורות ישנות מחזיקות מחרוזת עברית חופשית. שתי המשפחות עוברות באותה
+// פונקציה: מה שמזוהה מוצג בשמו העברי, וכל השאר מוצג כפי שהחקלאי כתב.
 // ============================================================
 
-export const YIELD_UNIT_PRESET_KEYS = [
-  'plots.crop.yieldUnitPreset.kg',
-  'plots.crop.yieldUnitPreset.ton',
-  'plots.crop.yieldUnitPreset.units',
-  'plots.crop.yieldUnitPreset.crates',
-] as const;
-
-// הערך שנשמר הוא המחרוזת המתורגמת עצמה, ולכן הפונקציה נקראת בזמן
-// ריצה ולא נפרסת לקבוע ברמת המודול, כדי שהחלפת שפה בשלב 8 תשפיע.
-export function yieldUnitPresets(): string[] {
-  return YIELD_UNIT_PRESET_KEYS.map((key) => t(key));
-}
-
-// "אחר" נבחר כשיש ערך שאינו אחת ההצעות, למשל יחידה שהחקלאי הקליד
-// בעצמו או ערך שנשמר לפני שההצעות היו קיימות.
-export function isCustomYieldUnit(value: string): boolean {
-  const trimmed = value.trim();
-  return trimmed !== '' && !yieldUnitPresets().includes(trimmed);
-}
-
-// "850 ק״ג לדונם". המספר יחד עם **שתי** היחידות, יחידת היבול ויחידת
+// "850 קילו לדונם". המספר יחד עם **שתי** היחידות, יחידת היבול ויחידת
 // השטח של החלקה. הגרסה הראשונה הציגה רק את יחידת היבול ("850 ק״ג"),
 // והשאירה פתוחה את השאלה "לדונם או לכל החלקה?", אותה משפחת בלבול
 // שהתוויות בגיליון עדכון הצפי סבלו ממנה.
 export function expectedYieldDisplay(cropCycle: CropCycle, areaUnit: AreaUnit | null): string {
   if (cropCycle.expectedYieldPerArea == null) return t('plots.forecast.notSet');
   const value = formatNumber(cropCycle.expectedYieldPerArea);
-  if (!areaUnit) return cropCycle.yieldUnit ? `${value} ${cropCycle.yieldUnit}` : value;
-  return `${value} ${yieldRateUnitLabel(cropCycle.yieldUnit, areaUnit)}`;
+  const { yieldLabel } = forecastUnits(cropCycle.yieldUnit, cropCycle.priceUnit);
+  if (!areaUnit) return yieldLabel ? `${value} ${yieldLabel}` : value;
+  return `${value} ${yieldRateUnitLabel(yieldLabel, areaUnit)}`;
 }
 
-// "‏60 ₪ / ק״ג", המחיר יחד עם היחידה שהוא מתייחס אליה. לוכסן ולא ל׳,
-// אותו נימוק בדיוק כמו ב-priceUnitLabel: היחידה כאן היא המכנה, והיא
-// טקסט חופשי שיכול להגיע ברבים ("יחידות", "ארגזים").
+// "‏60 ₪ / קילו", המחיר יחד עם היחידה שהוא מתייחס אליה, **שהיא עכשיו
+// יחידת המחיר ולא יחידת היבול**. זה בדיוק התיקון: חקלאי שמצהיר יבול
+// בטון ומחיר לקילו ראה כאן "60 ₪ / טון" ולא היה לו שום רמז לטעות.
+//
+// לוכסן ולא ל׳, אותו נימוק בדיוק כמו ב-priceUnitLabel: היחידה כאן היא
+// המכנה, ובשורות ישנות היא עדיין טקסט חופשי שיכול להגיע ברבים.
 export function expectedPriceDisplay(cropCycle: CropCycle, currency: Currency): string {
   if (cropCycle.expectedPricePerUnit == null) return t('plots.forecast.notSet');
   const amount = formatAmount(cropCycle.expectedPricePerUnit, currency);
-  const unit = cropCycle.yieldUnit?.trim();
-  return unit ? `${amount} / ${unit}` : amount;
+  const { priceLabel } = forecastUnits(cropCycle.yieldUnit, cropCycle.priceUnit);
+  return priceLabel ? `${amount} / ${priceLabel}` : amount;
 }
 
 const PLOT_COLUMNS = 'id, farm_id, name, area, area_unit, responsible_user_id';
 const CROP_CYCLE_COLUMNS =
-  'id, plot_id, name, season, yield_unit, expected_yield_per_area, expected_price_per_unit, forecast_updated_at, created_at';
+  'id, plot_id, name, season, yield_unit, price_unit, expected_yield_per_area, expected_price_per_unit, expected_harvest_date, forecast_updated_at, created_at';
 
 type PlotRow = {
   id: string;
@@ -241,8 +247,10 @@ type CropCycleRow = {
   name: string;
   season: string | null;
   yield_unit: string | null;
+  price_unit: string | null;
   expected_yield_per_area: number | null;
   expected_price_per_unit: number | null;
+  expected_harvest_date: string | null;
   forecast_updated_at: string | null;
   created_at: string;
 };
@@ -258,6 +266,12 @@ function mapPlot(row: PlotRow): Plot {
   };
 }
 
+// **The two new columns are read with `?? null` and not read straight off the
+// row.** A client running against a database that has not had 20260909120000
+// applied yet gets `undefined` for them from PostgREST rather than a field that
+// is missing, and `undefined` flowing into forecastUnits would be read as "no
+// unit" instead of "the same unit as the yield". Defaulting here keeps that one
+// deployment ordering from restating anyone's forecast.
 function mapCropCycle(row: CropCycleRow): CropCycle {
   return {
     id: row.id,
@@ -265,8 +279,10 @@ function mapCropCycle(row: CropCycleRow): CropCycle {
     name: row.name,
     season: row.season,
     yieldUnit: row.yield_unit,
+    priceUnit: row.price_unit ?? null,
     expectedYieldPerArea: row.expected_yield_per_area,
     expectedPricePerUnit: row.expected_price_per_unit,
+    expectedHarvestDate: row.expected_harvest_date ?? null,
     forecastUpdatedAt: row.forecast_updated_at,
   };
 }
@@ -590,6 +606,17 @@ export async function updatePlot(
 // responsibleUserId מקבל null כשמנקים אחראי. RLS מתיר עדכון plots
 // ל-owner/manager בלבד (core_schema.sql, plots_update), והלקוח רק
 // מדווח על מה שהשרת החליט דרך writeOutcome, לא מחליט הרשאה מראש.
+//
+// **אין לזה יותר קורא בשום מסך, וזה בכוונה.** 2026-09-09, אחרי מעבר של
+// עידו והיזם על מסכי החלקה: בורר "אחראי החלקה" הוסר משני הלקוחות, כי
+// חלקה היא שם, שטח וגידול וזה הכל. **הוסרו רק נקודות הכניסה ב-UI**;
+// העמודה plots.responsible_user_id והפונקציה הזאת נשארו במקומן, כדי
+// שההחלטה תהיה הפיכה בלי מיגרציה.
+//
+// מה שכן ממשיך לקרוא את השדה עצמו: myPlots.ts, כלומר מתג "החלקות שלי"
+// במסך הבית. כל עוד אין UI שמציב אחראי, השדה נשאר null בכל החלקות,
+// myPlotsToggleVisible מחזיר false, והמתג פשוט לא מוצג. אין מסך שבור,
+// יש תכונה שממתינה לדרך להזין אותה.
 // ============================================================
 
 export async function setPlotResponsible(
@@ -606,14 +633,20 @@ export async function setPlotResponsible(
 }
 
 // ============================================================
-// עריכת פרטי הגידול, שם / עונה / יחידת יבול. יבול ומחיר צפויים
-// נשמרים בנפרד, דרך updateForecast, בדיוק לפי Forecast Update ב-design.md.
+// עריכת פרטי הגידול. יבול, מחיר, היחידות שלהם ומועד הקטיף נשמרים
+// בנפרד דרך updateForecast, לפי Forecast Update ב-design.md.
+//
+// **הגיליון הנפרד של "עריכת גידול" בוטל.** היזם, מול עידו, על שני
+// כפתורי העריכה שהיו במסך: "החלקה **היא** הגידול, למה יש שניים".
+// מאז שם הגידול נערך בתוך טופס עריכת החלקה עצמו (ראה setPlotCrop),
+// ולכן העונה ויחידת היבול אינן חלק מהקלט הזה יותר, אלא אופציונליות:
+// מה שלא נמסר פשוט לא נכתב, ואינו נמחק.
 // ============================================================
 
 export type UpdateCropCycleInput = {
   name: string;
-  season: string | null;
-  yieldUnit: string | null;
+  season?: string | null;
+  yieldUnit?: string | null;
 };
 export type UpdateCropCycleResult =
   { ok: true } | { ok: false; reason: 'forbidden' | 'nameRequired' | 'error' };
@@ -632,7 +665,14 @@ export async function updateCropCycle(
 
   const write = await supabase
     .from('crop_cycles')
-    .update({ name, season: input.season, yield_unit: input.yieldUnit })
+    .update({
+      name,
+      // undefined means the caller is not editing this field. Spreading it in
+      // conditionally, rather than passing it through, is what keeps a form
+      // that only knows the crop name from blanking a season it never showed.
+      ...(input.season !== undefined ? { season: input.season } : {}),
+      ...(input.yieldUnit !== undefined ? { yield_unit: input.yieldUnit } : {}),
+    })
     .eq('id', cropCycleId);
   if (write.error) return { ok: false, reason: 'error' };
 
@@ -647,22 +687,68 @@ export async function updateCropCycle(
   return { ok: true };
 }
 
+// מה שגדל בחלקה, מתוך טופס עריכת החלקה. **החלקה היא הגידול**, ולכן
+// שינוי הגידול הוא חלק מעריכת פרטי החלקה ולא מסך שני.
+//
+// cropCycleId הוא null כשלחלקה אין בכלל מחזור גידול. createPlot תמיד
+// יוצר אחד, אז זה לא אמור לקרות, אבל אם קרה (שורה ישנה, מחיקה ידנית)
+// העדיפות היא שהחקלאי יוכל להגדיר גידול ולא שהשמירה תיכשל בשקט. אז
+// נוצר מחזור חדש, בדיוק כמו ב-createPlot, כולל העונה של השנה הנוכחית.
+export async function setPlotCrop(
+  supabase: SupabaseClient,
+  farmId: string,
+  plotId: string,
+  cropCycleId: string | null,
+  cropName: string,
+): Promise<UpdateCropCycleResult> {
+  const name = cropName.trim();
+  if (!name) return { ok: false, reason: 'nameRequired' };
+
+  if (cropCycleId) return updateCropCycle(supabase, cropCycleId, { name });
+
+  // בלי select(), אותה סיבה בדיוק כמו ב-createPlot: ה-SELECT על
+  // crop_cycles מוסר מהלקוח כדי שמיסוך התחזית ב-view לא ייעקף.
+  const season = String(new Date().getFullYear());
+  const write = await supabase
+    .from('crop_cycles')
+    .insert({ farm_id: farmId, plot_id: plotId, name, season });
+  if (write.error) return { ok: false, reason: 'error' };
+  return { ok: true };
+}
+
 // ============================================================
-// עדכון צפי, יבול ומחיר בלבד. design.md, Forecast Update: גיליון של
-// שני שדות, שום שדה נוסף.
+// עדכון צפי: יבול והיחידה שלו, מחיר והיחידה שלו, ומועד קטיף משוער.
+//
+// **שתי יחידות ולא אחת, וזה תיקון של באג ולא תוספת.** עידו מצהיר יבול
+// בטון לדונם ומחיר בשקלים לקילו, ועד היום היה כאן שדה יחידה יחיד ששירת
+// את שניהם, כלומר המספרים הוכפלו זה בזה כאילו הם באותה יחידה. ההמרה
+// עצמה חיה ב-yieldUnits.ts, וכאן רק נשמרות שתי היחידות שהחקלאי בחר.
+//
+// **שתי היחידות נשמרות באותה כתיבה כמו שני המספרים.** בלעדיהן שני
+// המספרים חסרי משמעות ("300 של מה?"), וכתיבה שנייה נפרדת הייתה מאפשרת
+// מצב ביניים שבו הצפי נשמר בלי היחידות שמסבירות אותו.
 // ============================================================
 
-// yieldUnit אופציונלי, ונשלח רק כשהחקלאי הגדיר אותו בתוך הגיליון הזה,
-// כלומר רק כשהוא היה ריק מלכתחילה. בלי היחידה, שני המספרים כאן חסרי
-// משמעות ("300 של מה?"), ולכן היא נשמרת באותה כתיבה ולא בקריאה שנייה:
-// שתי כתיבות נפרדות היו מאפשרות מצב ביניים שבו הצפי נשמר בלי היחידה
-// שמסבירה אותו.
+// undefined בכל שדה יחידה או תאריך פירושו "הקורא לא ערך את השדה הזה",
+// והוא פשוט לא נכתב. null פירושו "נמחק במפורש". ההבחנה חשובה כאן במיוחד
+// כי שורה ישנה מחזיקה יחידת יבול בטקסט חופשי, ואסור שמסך שלא הציג אותה
+// ימחק אותה בשקט.
 export type UpdateForecastInput = {
   expectedYieldPerArea: number;
   expectedPricePerUnit: number;
   yieldUnit?: string | null;
+  priceUnit?: string | null;
+  expectedHarvestDate?: string | null;
 };
 export type UpdateForecastResult = { ok: true } | { ok: false; reason: 'forbidden' | 'error' };
+
+// '' is a box the farmer left empty, and the column it lands in is nullable, so
+// it is stored as "no unit" rather than as an empty string that every later read
+// would have to trim before asking whether it is set.
+function emptyToNull(value: string | null): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
 
 export async function updateForecast(
   supabase: SupabaseClient,
@@ -670,14 +756,17 @@ export async function updateForecast(
   input: UpdateForecastInput,
 ): Promise<UpdateForecastResult> {
   const forecastUpdatedAt = new Date().toISOString();
-  const yieldUnit = input.yieldUnit?.trim();
   const write = await supabase
     .from('crop_cycles')
     .update({
       expected_yield_per_area: input.expectedYieldPerArea,
       expected_price_per_unit: input.expectedPricePerUnit,
       forecast_updated_at: forecastUpdatedAt,
-      ...(yieldUnit ? { yield_unit: yieldUnit } : {}),
+      ...(input.yieldUnit !== undefined ? { yield_unit: emptyToNull(input.yieldUnit) } : {}),
+      ...(input.priceUnit !== undefined ? { price_unit: emptyToNull(input.priceUnit) } : {}),
+      ...(input.expectedHarvestDate !== undefined
+        ? { expected_harvest_date: input.expectedHarvestDate }
+        : {}),
     })
     .eq('id', cropCycleId);
   if (write.error) return { ok: false, reason: 'error' };

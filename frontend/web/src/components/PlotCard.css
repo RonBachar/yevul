@@ -30,6 +30,14 @@
   color: var(--color-slate-600);
 }
 
+/* תווית המספר. יושבת צמוד מעליו ולכן המרווח העליון של המספר עצמו
+   מבוטל כשהיא קיימת, אחרת נוצר חלל בין התווית לערך שלה. */
+.plot-card__label {
+  margin-top: var(--spacing-8);
+  font-size: var(--text-caption);
+  color: var(--color-slate-600);
+}
+
 /* מספר הרווח, שלב 4. heading-lg (60) לפי design.md, עם clamp כדי
    שסכום ארוך לא יגלוש בכרטיס צר ברשת. אותו טיפול סימן+חץ+צבע כמו
    ה-Hero, כי design.md דורש שצבע לעולם לא יישא משמעות לבדו. */
@@ -37,7 +45,6 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-8);
-  margin-top: var(--spacing-8);
   font-size: clamp(var(--text-heading-sm), 7vw, var(--text-heading-lg));
   font-weight: var(--font-weight-bold);
   line-height: 1.05;

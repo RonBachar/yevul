@@ -1,20 +1,20 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { SprayCan } from 'lucide-react';
 import {
-  assignableMembers,
-  canManagePlotResponsible,
   expectedPriceDisplay,
   expectedYieldDisplay,
   fontSize,
+  forecastSentence,
+  forecastUnits,
   formatAmount,
+  formatCalendarDate,
   formatSignedAmount,
+  parseYieldUnit,
   plotProfitForecast,
-  setPlotResponsible,
   usePlotExpensesTotal,
   useLogEntries,
-  useMembers,
   openSafeHarvestDate,
+  reconcileYieldUnits,
   staleForecastSince,
   formatMonthName,
   plotSummaryLine,
@@ -22,36 +22,47 @@ import {
   profitTone,
   scaledAmountFontSize,
   t,
-  updateCropCycle,
   updateForecast,
   useFarmSettings,
   useMyRole,
   usePlotDetail,
   workerModeShell,
   yieldRateUnitLabel,
+  yieldUnitLabel,
+  YIELD_UNITS,
   type AreaUnit,
   type CropCycle,
   type Currency,
   type PlotDetailTab,
+  type YieldUnit,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
+import { DateField } from '../components/DateField';
 import { ExpenseList } from '../components/ExpenseList';
 import { JournalList } from '../components/JournalList';
 import { TaskBoard } from '../components/TaskBoard';
-import { YieldUnitField } from '../components/YieldUnitField';
 import '../styles/form.css';
 import './PlotDetailScreen.css';
 
-// מסך פרטי חלקה. ארבעה טאבים לפי design.md, אבל רק רווחיות מקבל תוכן
-// אמיתי במשימה הזו. משימות, יומן והוצאות נשארים שלד ריק בכוונה.
+// מסך פרטי חלקה. ארבעה טאבים לפי design.md.
 //
-// עריכת הגידול והתחזית כאן היא עריכה מהירה בתוך השורה (toggle בין
-// תצוגה לטופס), לא דיאלוג צף. prd.md סעיף 12 מונה במפורש "הגדרת
-// חלקות וגידולים ועדכון צפי" בין הדברים שהדפדפן מציע כעריכה מהירה,
-// בניגוד לגיליון התחתון שהנייד משתמש בו לאותה פעולה בדיוק.
-// **טאב "רווחיות" המאוחד פוצל**, לפי הערת מוצר של עידו: שני צדי הכסף
-// מקבלים טאב משלהם, וסיכום צפי הרווח עלה לכותרת קבועה כדי שייראה מכל
-// טאב. ברגע שהסיכום יצא מהטאב, מה שנשאר בו הוא בדיוק תוכן צפי ההכנסה.
+// **מסך אחד, כפתור עריכה אחד.** עידו והיזם עברו על המסך ב-2026-09-09
+// ומצאו בו שתי עריכות שונות לאותה ישות: "עריכת פרטי החלקה" בכותרת,
+// ו"עריכת גידול" בתוך טאב צפי ההכנסה. דברי היזם: "החלקה **היא** הגידול,
+// למה יש שניים". מאז שם הגידול נערך בתוך טופס עריכת החלקה עצמו, יחד עם
+// השם והשטח, וכאן נשארה רק **תצוגה** של הזהות.
+//
+// מה עוד ירד מהמסך באותה ישיבה, ולמה:
+//   - בורר "אחראי החלקה". חלקה היא שם, שטח וגידול, וזה הכל. הוסר ה-UI
+//     בלבד: העמודה ו-setPlotResponsible נשארו במקומם כדי שההחזרה תהיה
+//     הפיכה בלי מיגרציה. ראה ההערה מעל setPlotResponsible ב-plots.ts.
+//   - הקישור ליומן הריסוס. הוא נשאר נגיש מהיומן, ולא היה לו מה לחפש
+//     בתוך טאב שמדבר על כסף.
+//
+// עריכת התחזית כאן היא עריכה מהירה בתוך השורה (toggle בין תצוגה
+// לטופס), לא דיאלוג צף. prd.md סעיף 12 מונה במפורש "הגדרת חלקות
+// וגידולים ועדכון צפי" בין הדברים שהדפדפן מציע כעריכה מהירה, בניגוד
+// לגיליון התחתון שהנייד משתמש בו לאותה פעולה בדיוק.
 // סדר הטאבים והתוויות. הרשימה הנראית עצמה (מלאה מול מצומצמת לעובד)
 // מגיעה מ-workerModeShell, וסוג הטאב חי ב-@yevul/shared כמקור אחד.
 type Tab = PlotDetailTab;
@@ -121,7 +132,10 @@ export function PlotDetailScreen() {
           רחבה 1144, ולכן כפתור העריכה כבר לא מיושר לקצה השמאלי שלה.
           כל מה שיושב במסך מיושר לקצה **הימני**, שהוא קצה ההתחלה
           ב-RTL, וזה הקצה שהעין קוראת ממנו. יישור הכפתור לקצה של
-          רשימה שמשתנה מטאב לטאב היה שובר את הכותרת בכל לחיצה. */}
+          רשימה שמשתנה מטאב לטאב היה שובר את הכותרת בכל לחיצה.
+
+          **זהו כפתור העריכה היחיד במסך**, בקצה ה-inline-end של השורה
+          העליונה (justify-content: space-between, כלומר שמאל ב-RTL). */}
       <div className="plot-detail__header prose-width">
         <div>
           <h1 className="screen__title plot-detail__title">{plot.name}</h1>
@@ -171,22 +185,6 @@ export function PlotDetailScreen() {
             safeHarvest={safeHarvest}
             onSaved={detail.refresh}
           />
-          {/* design.md, Spray Log Screen: "a button on the Plot Detail
-              Screen's Profitability tab", אחת משלוש נקודות הכניסה
-              הקבועות למסך יומן הריסוס. */}
-          <Link className="plot-detail__spray-log-link" to={`/spray-log?plot=${plot.id}`}>
-            <SprayCan size={18} strokeWidth={2} aria-hidden="true" />
-            <span>{t('sprayLog.title')}</span>
-          </Link>
-
-          {/* אחראי החלקה, שלב 6, prd.md סעיף 11. הבורר מנהל את עצמו:
-              נעלם לגמרי אם אין חברים שאפשר להציב או שהמשתמש אינו
-              owner/manager, design.md, Sharing. */}
-          <ResponsibleMemberCard
-            plotId={plot.id}
-            responsibleUserId={plot.responsibleUserId}
-            onSaved={detail.refresh}
-          />
         </div>
       )}
 
@@ -208,6 +206,10 @@ export function PlotDetailScreen() {
 // סיכום צפי הרווח בראש המסך, מחוץ לטאבים. design.md דורש שכל מספר
 // רווח/הפסד יישא סימן וחץ ולא יסתמך על צבע בלבד, ולכן שניהם כאן.
 // אפס נשאר Ink-900, כי אפס אינו רווח ואינו הפסד.
+//
+// **התווית "צפי רווח" יושבת מעל המספר ולא לצידו, והיא לא קישוט.** עידו
+// ראה כאן "10,708.16-" ולא ידע אם זה הרווח או ההוצאה. בלי מילה שאומרת
+// מה המספר, מספר גדול על מסך כסף הוא חידה.
 function ProfitForecastHeader({
   plotArea,
   cropCycle,
@@ -255,10 +257,9 @@ function ProfitForecastHeader({
   );
 }
 
-// כרטיס רווחיות מאוחד: שורת זהות קומפקטית (שם/עונה/יחידת יבול) למעלה,
-// קו מפריד, ואזור הכסף (צפי הכנסה + פירוק) מתחתיו. שתי עריכות עצמאיות
-// לגמרי בשרת (updateCropCycle מול updateForecast, שני מצבי busy/status
-// נפרדים), רק המעטפת החזותית התאחדה לכרטיס אחד במקום שניים צפים.
+// כרטיס רווחיות: שורת זהות קומפקטית (שם הגידול והעונה) למעלה, קו מפריד,
+// ואזור הכסף מתחתיו. **שורת הזהות היא תצוגה בלבד** מאז שעריכת הגידול
+// עברה לטופס עריכת החלקה, ראה ההערה בראש הקובץ.
 function ProfitabilityCard({
   plotArea,
   areaUnit,
@@ -276,281 +277,226 @@ function ProfitabilityCard({
   safeHarvest: string | null;
   onSaved: () => void;
 }) {
-  const [cropEditing, setCropEditing] = useState(false);
-  const [name, setName] = useState(cropCycle?.name ?? '');
-  const [season, setSeason] = useState(cropCycle?.season ?? '');
-  const [yieldUnit, setYieldUnit] = useState(cropCycle?.yieldUnit ?? '');
-  const [cropStatus, setCropStatus] = useState<
-    'idle' | 'saving' | 'nameRequired' | 'forbidden' | 'error'
+  const [editing, setEditing] = useState(false);
+  const [yieldText, setYieldText] = useState('');
+  const [priceText, setPriceText] = useState('');
+  // היחידות מוחזקות כקודים ולא כטקסט. שורה ישנה שהערך שלה אינו אחת
+  // משלוש היחידות (למשל "ארגזים") נפתחת עם בורר ריק, כלומר החקלאי
+  // מתבקש לבחור אחת מהשלוש. עד שיישמר, הערך המקורי שלו נשאר במסד
+  // ומוצג בשורות התצוגה כפי שכתב אותו.
+  const [yieldUnit, setYieldUnit] = useState<YieldUnit | null>(null);
+  const [priceUnit, setPriceUnit] = useState<YieldUnit | null>(null);
+  const [harvestDate, setHarvestDate] = useState<string | null>(null);
+  const [status, setStatus] = useState<
+    'idle' | 'saving' | 'unitRequired' | 'forbidden' | 'error'
   >('idle');
-  const cropBusy = cropStatus === 'saving';
+  const busy = status === 'saving';
 
-  const [forecastEditing, setForecastEditing] = useState(false);
-  const [yieldText, setYieldText] = useState(String(cropCycle?.expectedYieldPerArea ?? ''));
-  const [priceText, setPriceText] = useState(String(cropCycle?.expectedPricePerUnit ?? ''));
-  const [unitText, setUnitText] = useState(cropCycle?.yieldUnit ?? '');
-  const [forecastStatus, setForecastStatus] = useState<'idle' | 'saving' | 'forbidden' | 'error'>(
-    'idle',
-  );
-  const forecastBusy = forecastStatus === 'saving';
+  const stored = forecastUnits(cropCycle?.yieldUnit ?? null, cropCycle?.priceUnit ?? null);
 
-  const needsUnit = !cropCycle?.yieldUnit?.trim();
-  // התווית עוקבת אחרי מה שמוקלד עכשיו, לא אחרי מה ששמור. החקלאי מקליד
-  // "טון" ורואה מיד "טון לדונם" בשדה שמתחת.
-  const effectiveUnit = needsUnit ? unitText : (cropCycle?.yieldUnit ?? null);
-
-  function startCropEdit() {
-    setName(cropCycle?.name ?? '');
-    setSeason(cropCycle?.season ?? '');
-    setYieldUnit(cropCycle?.yieldUnit ?? '');
-    setCropStatus('idle');
-    setCropEditing(true);
-  }
-
-  async function onCropSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (!cropCycle) return;
-    setCropStatus('saving');
-    const result = await updateCropCycle(supabase, cropCycle.id, {
-      name,
-      season: season.trim() === '' ? null : season.trim(),
-      yieldUnit: yieldUnit.trim() === '' ? null : yieldUnit.trim(),
-    });
-    if (result.ok) {
-      setCropEditing(false);
-      onSaved();
-      return;
-    }
-    setCropStatus(result.reason);
-  }
-
-  function startForecastEdit() {
+  function startEdit() {
     if (!cropCycle) return;
     setYieldText(String(cropCycle.expectedYieldPerArea ?? ''));
     setPriceText(String(cropCycle.expectedPricePerUnit ?? ''));
-    setUnitText(cropCycle.yieldUnit ?? '');
-    setForecastStatus('idle');
-    setForecastEditing(true);
+    setYieldUnit(parseYieldUnit(cropCycle.yieldUnit));
+    // אין יחידת מחיר בשורה: היא נקראת כ"אותה יחידה כמו היבול", וזה גם
+    // מה שהבורר צריך להראות, אחרת החקלאי היה נשאל שאלה שכבר ענה עליה.
+    setPriceUnit(parseYieldUnit(cropCycle.priceUnit ?? cropCycle.yieldUnit));
+    setHarvestDate(cropCycle.expectedHarvestDate);
+    setStatus('idle');
+    setEditing(true);
   }
 
-  async function onForecastSubmit(event: FormEvent) {
+  // כלל ה"יחידה" חי ב-@yevul/shared ונבדק שם. כאן רק מחווטים אותו לשני
+  // הבוררים, כדי ששניהם יזוזו יחד מול העין של החקלאי.
+  function chooseYieldUnit(next: YieldUnit | null) {
+    const pair = reconcileYieldUnits(next, priceUnit, 'yield');
+    setYieldUnit(pair.yieldUnit);
+    setPriceUnit(pair.priceUnit);
+  }
+
+  function choosePriceUnit(next: YieldUnit | null) {
+    const pair = reconcileYieldUnits(yieldUnit, next, 'price');
+    setYieldUnit(pair.yieldUnit);
+    setPriceUnit(pair.priceUnit);
+  }
+
+  const yieldValue = Number(yieldText.replace(',', '.'));
+  const priceValue = Number(priceText.replace(',', '.'));
+
+  async function onSubmit(event: FormEvent) {
     event.preventDefault();
     if (!cropCycle) return;
-    const expectedYieldPerArea = Number(yieldText.replace(',', '.'));
-    const expectedPricePerUnit = Number(priceText.replace(',', '.'));
-    if (!Number.isFinite(expectedYieldPerArea) || !Number.isFinite(expectedPricePerUnit)) return;
+    if (!Number.isFinite(yieldValue) || !Number.isFinite(priceValue)) return;
+    // **שתי היחידות נדרשות**, כי בלעדיהן שני המספרים חסרי משמעות
+    // ("300 של מה?") והמשפט שמתחת לשדות לא יכול להיכתב בכלל.
+    if (!yieldUnit || !priceUnit) {
+      setStatus('unitRequired');
+      return;
+    }
 
-    setForecastStatus('saving');
+    setStatus('saving');
     const result = await updateForecast(supabase, cropCycle.id, {
-      expectedYieldPerArea,
-      expectedPricePerUnit,
-      yieldUnit: needsUnit ? unitText : undefined,
+      expectedYieldPerArea: yieldValue,
+      expectedPricePerUnit: priceValue,
+      yieldUnit,
+      priceUnit,
+      expectedHarvestDate: harvestDate,
     });
     if (result.ok) {
-      setForecastEditing(false);
+      setEditing(false);
       onSaved();
       return;
     }
-    setForecastStatus(result.reason);
+    setStatus(result.reason);
   }
 
-  const canCompute =
-    plotArea != null &&
-    cropCycle?.expectedYieldPerArea != null &&
-    cropCycle?.expectedPricePerUnit != null;
-  const expectedIncome = canCompute
-    ? plotArea! * cropCycle!.expectedYieldPerArea! * cropCycle!.expectedPricePerUnit!
-    : null;
+  const expectedIncome = cropCycle ? expectedIncomeOf(plotArea, cropCycle) : null;
 
-  // תצוגה מקדימה חיה בזמן העריכה, מחושבת ממה שמוקלד ולא ממה ששמור.
-  const yieldValue = Number(yieldText.replace(',', '.'));
-  const priceValue = Number(priceText.replace(',', '.'));
-  const previewTotal =
-    plotArea != null &&
-    yieldText !== '' &&
-    priceText !== '' &&
-    Number.isFinite(yieldValue) &&
-    Number.isFinite(priceValue)
-      ? plotArea * yieldValue * priceValue
-      : null;
+  // המשפט שמראה לחקלאי את החשבון של עצמו, חי, ממה שמוקלד עכשיו ולא
+  // ממה ששמור. זו ההגנה האמיתית מפני בלבול קילו/טון: סדר גודל שגוי
+  // קופץ לעין לפני השמירה ולא אחריה.
+  const sentence = forecastSentence({
+    area: plotArea,
+    areaUnit,
+    expectedYieldPerArea: yieldText !== '' && Number.isFinite(yieldValue) ? yieldValue : null,
+    yieldUnit,
+    expectedPricePerUnit: priceText !== '' && Number.isFinite(priceValue) ? priceValue : null,
+    priceUnit,
+    currency,
+  });
 
   return (
     <div className="plot-detail__card">
-      {cropEditing ? (
-        <form className="form" onSubmit={onCropSubmit} noValidate>
-          <div className="form__row">
-            <label className="form__label" htmlFor="crop-edit-name">
-              {t('plots.form.cropName')}
-            </label>
-            <input
-              id="crop-edit-name"
-              className="form__input"
-              type="text"
-              placeholder={t('plots.form.cropNamePlaceholder')}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              disabled={cropBusy}
-            />
-          </div>
-          <div className="form__row">
-            <label className="form__label" htmlFor="crop-edit-season">
-              {t('plots.crop.season')}
-            </label>
-            <input
-              id="crop-edit-season"
-              className="form__input"
-              type="text"
-              placeholder={t('plots.crop.seasonPlaceholder')}
-              value={season}
-              onChange={(e) => setSeason(e.target.value)}
-              disabled={cropBusy}
-            />
-          </div>
-          <YieldUnitField
-            id="crop-edit-yield-unit"
-            label={t('plots.crop.yieldUnit')}
-            value={yieldUnit}
-            onChange={setYieldUnit}
-            disabled={cropBusy}
-          />
-          <div className="form__actions">
-            <button type="submit" className="form__submit" disabled={cropBusy}>
-              {cropBusy ? t('plots.saving') : t('plots.save')}
-            </button>
-            <button
-              type="button"
-              className="form__cancel"
-              onClick={() => setCropEditing(false)}
-              disabled={cropBusy}
-            >
-              {t('plots.detail.back')}
-            </button>
-            {cropStatus === 'nameRequired' && (
-              <p className="form__message form__message--bad" role="alert">
-                {t('plots.crop.nameRequired')}
-              </p>
+      <div className="plot-detail__identity-row">
+        {cropCycle ? (
+          <p className="plot-detail__identity-text">
+            {cropCycle.name}
+            {cropCycle.season && (
+              <span className="plot-detail__identity-meta"> · {cropCycle.season}</span>
             )}
-            {cropStatus === 'forbidden' && (
-              <p className="form__message form__message--bad" role="alert">
-                {t('plots.crop.forbidden')}
-              </p>
-            )}
-            {cropStatus === 'error' && (
-              <p className="form__message form__message--bad" role="alert">
-                {t('plots.crop.saveError')}
-              </p>
-            )}
-          </div>
-        </form>
-      ) : (
-        <div className="plot-detail__identity-row">
-          {cropCycle ? (
-            <p className="plot-detail__identity-text">
-              {cropCycle.name}
-              {cropCycle.season && (
-                <span className="plot-detail__identity-meta"> · {cropCycle.season}</span>
-              )}
-            </p>
-          ) : (
-            <p className="plot-detail__identity-text plot-detail__identity-text--muted">
-              {t('plots.noCrop')}
-            </p>
-          )}
-          {cropCycle && (
-            <button type="button" className="plot-detail__identity-edit" onClick={startCropEdit}>
-              {t('plots.crop.edit')}
-            </button>
-          )}
-        </div>
-      )}
+          </p>
+        ) : (
+          <p className="plot-detail__identity-text plot-detail__identity-text--muted">
+            {t('plots.noCrop')}
+          </p>
+        )}
+      </div>
 
       {cropCycle && (
         <>
           <div className="plot-detail__divider" />
 
-          {forecastEditing ? (
-            <form className="form" onSubmit={onForecastSubmit} noValidate>
-              {/* שדה יחידת היבול מופיע רק כשהיא עדיין לא הוגדרה. בלעדיה
-                  שני המספרים חסרי משמעות ("300 של מה?"), והיא נערכת
-                  אחרת רק במסך זהות הגידול. חקלאי שכבר הגדיר יחידה רואה
-                  בדיוק שני שדות, כפי ש-design.md דורש. */}
-              {needsUnit && (
-                <YieldUnitField
-                  id="forecast-unit"
-                  label={t('plots.forecast.unitQuestion')}
-                  value={unitText}
-                  onChange={setUnitText}
-                  disabled={forecastBusy}
-                />
-              )}
+          {editing ? (
+            <form className="form" onSubmit={onSubmit} noValidate>
               <div className="form__row">
                 <label className="form__label" htmlFor="forecast-yield">
                   {t('plots.forecast.yield')}
                   {areaUnit && (
                     <span className="form__label-unit">
                       {' '}
-                      · {yieldRateUnitLabel(effectiveUnit, areaUnit)}
+                      ·{' '}
+                      {yieldRateUnitLabel(yieldUnit ? yieldUnitLabel(yieldUnit) : null, areaUnit)}
                     </span>
                   )}
                 </label>
-                <input
-                  id="forecast-yield"
-                  className="form__input"
-                  type="number"
-                  step="any"
-                  placeholder={t('common.numberPlaceholder')}
-                  value={yieldText}
-                  onChange={(e) => setYieldText(e.target.value)}
-                  disabled={forecastBusy}
-                />
+                <div className="plot-detail__unit-row">
+                  <input
+                    id="forecast-yield"
+                    className="form__input"
+                    type="number"
+                    step="any"
+                    placeholder={t('common.numberPlaceholder')}
+                    value={yieldText}
+                    onChange={(e) => setYieldText(e.target.value)}
+                    disabled={busy}
+                  />
+                  <UnitSelect
+                    id="forecast-yield-unit"
+                    label={t('plots.forecast.yieldUnitQuestion')}
+                    value={yieldUnit}
+                    onChange={chooseYieldUnit}
+                    disabled={busy}
+                  />
+                </div>
               </div>
+
               <div className="form__row">
                 <label className="form__label" htmlFor="forecast-price">
                   {t('plots.forecast.price')}
                   <span className="form__label-unit">
                     {' '}
-                    · {priceUnitLabel(effectiveUnit, currency)}
+                    · {priceUnitLabel(priceUnit ? yieldUnitLabel(priceUnit) : null, currency)}
                   </span>
                 </label>
-                <input
-                  id="forecast-price"
-                  className="form__input"
-                  type="number"
-                  step="any"
-                  placeholder={t('common.numberPlaceholder')}
-                  value={priceText}
-                  onChange={(e) => setPriceText(e.target.value)}
-                  disabled={forecastBusy}
-                />
-              </div>
-              {/* התוצאה נראית לפני השמירה ולא רק אחריה, זו ההגנה האמיתית
-                  מפני בלבול ק״ג/טון: סדר גודל שגוי קופץ לעין מיד. */}
-              {previewTotal != null && (
-                <div className="plot-detail__preview">
-                  <span className="plot-detail__preview-label">{t('plots.forecast.total')}</span>
-                  <span className="plot-detail__preview-value">
-                    {formatAmount(previewTotal, currency)}
-                  </span>
+                <div className="plot-detail__unit-row">
+                  <input
+                    id="forecast-price"
+                    className="form__input"
+                    type="number"
+                    step="any"
+                    placeholder={t('common.numberPlaceholder')}
+                    value={priceText}
+                    onChange={(e) => setPriceText(e.target.value)}
+                    disabled={busy}
+                  />
+                  <UnitSelect
+                    id="forecast-price-unit"
+                    label={t('plots.forecast.priceUnitQuestion')}
+                    value={priceUnit}
+                    onChange={choosePriceUnit}
+                    disabled={busy}
+                  />
                 </div>
+              </div>
+
+              {/* הבורר השני קפץ בעקבות הראשון. בלי המשפט הזה זה נראה
+                  כמו באג ולא ככלל. */}
+              {yieldUnit === 'unit' && priceUnit === 'unit' && (
+                <p className="plot-detail__unit-note">{t('plots.forecast.unitCountLocked')}</p>
               )}
+
+              {/* מועד קטיף משוער, באותו לוח שנה כמו כל תאריך אחר במוצר.
+                  'future' כי זה יעד ולא רישום של מה שקרה. */}
+              <DateField
+                id="forecast-harvest-date"
+                label={t('plots.forecast.harvestDate')}
+                value={harvestDate}
+                onChange={setHarvestDate}
+                direction="future"
+                shortcuts={false}
+                clearLabel={t('plots.forecast.harvestDateClear')}
+                disabled={busy}
+              />
+
+              {/* **רשת הביטחון.** סכום לבדו אי אפשר לבדוק, 96,000 ו-96
+                  שניהם נראים כמו כסף. משפט שמפרט כל יחידה בדרך הוא מה
+                  שתופס חקלאי שהתכוון ל-4 לקילו והקליד 4,000 לטון. */}
+              {sentence && <p className="plot-detail__sentence">{sentence}</p>}
+
               <div className="form__actions">
-                <button type="submit" className="form__submit" disabled={forecastBusy}>
-                  {forecastBusy ? t('plots.saving') : t('plots.save')}
+                <button type="submit" className="form__submit" disabled={busy}>
+                  {busy ? t('plots.saving') : t('plots.save')}
                 </button>
                 <button
                   type="button"
                   className="form__cancel"
-                  onClick={() => setForecastEditing(false)}
-                  disabled={forecastBusy}
+                  onClick={() => setEditing(false)}
+                  disabled={busy}
                 >
                   {t('plots.detail.back')}
                 </button>
-                {forecastStatus === 'forbidden' && (
+                {status === 'unitRequired' && (
+                  <p className="form__message form__message--bad" role="alert">
+                    {t('plots.forecast.unitRequired')}
+                  </p>
+                )}
+                {status === 'forbidden' && (
                   <p className="form__message form__message--bad" role="alert">
                     {t('plots.forecast.forbidden')}
                   </p>
                 )}
-                {forecastStatus === 'error' && (
+                {status === 'error' && (
                   <p className="form__message form__message--bad" role="alert">
                     {t('plots.forecast.saveError')}
                   </p>
@@ -563,11 +509,7 @@ function ProfitabilityCard({
                   טקסט אחת מעל המספר, לא כרטיס ולא מודאל. לחיצה עליה
                   פותחת בדיוק את אותה עריכת צפי. */}
               {staleSince && (
-                <button
-                  type="button"
-                  className="plot-detail__stale-nudge"
-                  onClick={startForecastEdit}
-                >
+                <button type="button" className="plot-detail__stale-nudge" onClick={startEdit}>
                   {t('plots.forecast.stalePrefix')} {formatMonthName(staleSince)},{' '}
                   {t('plots.forecast.staleSuffix')}
                 </button>
@@ -587,6 +529,12 @@ function ProfitabilityCard({
                   {formatAmount(expectedIncome, currency)}
                 </p>
               )}
+              {/* יחידות שלא ניתנות להמרה זו לזו. לא אמור לקרות דרך
+                  המסך, אבל עדיף לומר את זה מאשר לא להציג שום מספר
+                  ולהשאיר את החקלאי בלי הסבר. */}
+              {stored.factor == null && (
+                <p className="plot-detail__unit-note">{t('plots.forecast.unitMismatch')}</p>
+              )}
               <dl className="kv-list">
                 <KvRow
                   label={t('plots.forecast.yield')}
@@ -596,12 +544,16 @@ function ProfitabilityCard({
                   label={t('plots.forecast.price')}
                   value={expectedPriceDisplay(cropCycle, currency)}
                 />
+                <KvRow
+                  label={t('plots.forecast.harvestDate')}
+                  value={
+                    cropCycle.expectedHarvestDate
+                      ? formatCalendarDate(cropCycle.expectedHarvestDate)
+                      : t('plots.forecast.notSet')
+                  }
+                />
               </dl>
-              <button
-                type="button"
-                className="plot-detail__forecast-update"
-                onClick={startForecastEdit}
-              >
+              <button type="button" className="plot-detail__forecast-update" onClick={startEdit}>
                 {t('plots.forecast.update')}
               </button>
 
@@ -625,63 +577,51 @@ function ProfitabilityCard({
   );
 }
 
-// בורר האחראי לחלקה, שלב 6, prd.md סעיף 11. עריכת שדה יחיד בשמירה
-// מיידית בעת הבחירה, בלי כפתור נפרד, כמו שאר העריכות המהירות בווב.
-// **מנהל את הנראות של עצמו**: נעלם כשאין חברים שאפשר להציב (משק של
-// אדם אחד) או כשהמשתמש אינו owner/manager, design.md, Sharing. RLS
-// אוכף את ההרשאה ממילא, זו רק הסתרת ה-UI מהמי שלא יכול.
-function ResponsibleMemberCard({
-  plotId,
-  responsibleUserId,
-  onSaved,
+// שלוש יחידות, ואין רביעית. תפריט נפתח בווב וצ'יפים בנייד, אותה הפרדה
+// שכבר קיימת בין הלקוחות לשדות עם קבוצת ערכים סגורה (roadmap.md, שלב 2).
+//
+// **אין כאן "אחר".** קודם זה היה שדה טקסט חופשי עם הצעות, וזו בדיוק
+// הסיבה שהמסד מחזיק היום "ארגזים" ליד "ק״ג": ערך שאי אפשר להמיר ואי
+// אפשר לתמחר מול שום דבר אחר. הרשימה נסגרה בהחלטת מוצר.
+function UnitSelect({
+  id,
+  label,
+  value,
+  onChange,
+  disabled,
 }: {
-  plotId: string;
-  responsibleUserId: string | null;
-  onSaved: () => void;
+  id: string;
+  label: string;
+  value: YieldUnit | null;
+  onChange: (next: YieldUnit | null) => void;
+  disabled: boolean;
 }) {
-  const membersState = useMembers(supabase);
-  const assignable = assignableMembers(membersState.members);
-  const [failed, setFailed] = useState(false);
-
-  if (assignable.length === 0 || !canManagePlotResponsible(membersState.myRole)) {
-    return null;
-  }
-
-  async function onChange(value: string) {
-    setFailed(false);
-    const result = await setPlotResponsible(supabase, plotId, value === '' ? null : value);
-    if (result.ok) {
-      onSaved();
-      return;
-    }
-    setFailed(true);
-  }
-
   return (
-    <div className="form__row">
-      <label className="form__label" htmlFor="plot-responsible">
-        {t('plots.responsible.label')}
-      </label>
-      <select
-        id="plot-responsible"
-        className="form__input"
-        value={responsibleUserId ?? ''}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        <option value="">{t('plots.responsible.none')}</option>
-        {assignable.map((member) => (
-          <option key={member.id} value={member.userId ?? ''}>
-            {member.email ?? member.userId}
-          </option>
-        ))}
-      </select>
-      {failed && (
-        <p className="form__message form__message--bad" role="alert">
-          {t('plots.responsible.saveError')}
-        </p>
-      )}
-    </div>
+    <select
+      id={id}
+      className="form__input plot-detail__unit-select"
+      aria-label={label}
+      value={value ?? ''}
+      onChange={(e) => onChange(e.target.value === '' ? null : (e.target.value as YieldUnit))}
+      disabled={disabled}
+    >
+      {/* אפשרות ריקה ראשונה, כדי שלא תיבחר יחידה שהחקלאי לא ביקש רק
+          בגלל שהיא הראשונה ברשימה. */}
+      <option value="">{t('plots.crop.yieldUnitUnset')}</option>
+      {YIELD_UNITS.map((unit) => (
+        <option key={unit} value={unit}>
+          {yieldUnitLabel(unit)}
+        </option>
+      ))}
+    </select>
   );
+}
+
+// ההכנסה הצפויה כפי שהיא שמורה, לא כפי שהיא מוקלדת. עוטף את הפונקציה
+// המשותפת רק כדי שהמסך לא יחזיק עותק משלו של הכפל, ובעיקר של ההמרה
+// בין היחידות שיושבת בתוכה.
+function expectedIncomeOf(plotArea: number | null, cropCycle: CropCycle): number | null {
+  return plotProfitForecast(plotArea, cropCycle, null)?.expectedIncome ?? null;
 }
 
 function KvRow({ label, value }: { label: string; value: string }) {

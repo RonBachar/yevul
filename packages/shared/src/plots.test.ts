@@ -3,22 +3,24 @@ import {
   expectedIncomeFor,
   expectedPriceDisplay,
   expectedYieldDisplay,
-  isCustomYieldUnit,
   plotProfitForecast,
   staleForecastSince,
-  yieldUnitPresets,
 } from './plots';
 import type { CropCycle } from './plots';
 
+// The default is a row as it exists today for every farm: a yield unit and no
+// price unit, which the read path treats as "priced in the yield's own unit".
 function cropCycle(overrides: Partial<CropCycle> = {}): CropCycle {
   return {
     id: 'cc-1',
     plotId: 'plot-1',
     name: 'זיתים',
     season: '2026',
-    yieldUnit: 'ק"ג',
+    yieldUnit: 'kg',
+    priceUnit: null,
     expectedYieldPerArea: 300,
     expectedPricePerUnit: 60,
+    expectedHarvestDate: null,
     forecastUpdatedAt: null,
     ...overrides,
   };
@@ -28,12 +30,20 @@ function cropCycle(overrides: Partial<CropCycle> = {}): CropCycle {
 // ביחידות ולא נשקלים, ולכן שתי משפחות המדידה נבדקות כאן במפורש.
 describe('expectedYieldDisplay', () => {
   it('shows both units, yield and area', () => {
-    expect(expectedYieldDisplay(cropCycle(), 'dunam')).toBe('300 ק"ג לדונם');
+    expect(expectedYieldDisplay(cropCycle(), 'dunam')).toBe('300 קילו לדונם');
   });
 
   it('reads correctly for a counted crop', () => {
-    expect(expectedYieldDisplay(cropCycle({ yieldUnit: 'יחידות' }), 'dunam')).toBe(
-      '300 יחידות לדונם',
+    expect(expectedYieldDisplay(cropCycle({ yieldUnit: 'unit' }), 'dunam')).toBe(
+      '300 יחידה לדונם',
+    );
+  });
+
+  // A row written before the list narrowed to three units. Its text is not one
+  // of them and it is shown exactly as the farmer left it.
+  it('shows a legacy free-text unit unchanged', () => {
+    expect(expectedYieldDisplay(cropCycle({ yieldUnit: 'ארגזים' }), 'dunam')).toBe(
+      '300 ארגזים לדונם',
     );
   });
 
@@ -119,57 +129,67 @@ describe('expectedIncomeFor', () => {
     expect(expectedIncomeFor(40, cropCycle())).toBe(720000);
   });
 
+  // **The bug this whole change is about.** Ido states a yield in tons per dunam
+  // and a price per kilo; before the second unit column the two numbers were
+  // multiplied as if they shared a unit, and the income came out a thousand
+  // times too small with nothing on screen to say so.
+  it('converts tons of yield into the kilos the price is quoted in', () => {
+    const cycle = cropCycle({
+      yieldUnit: 'ton',
+      priceUnit: 'kg',
+      expectedYieldPerArea: 3,
+      expectedPricePerUnit: 4,
+    });
+    expect(expectedIncomeFor(8, cycle)).toBe(96000);
+  });
+
+  it('converts the other way too, kilos of yield priced by the ton', () => {
+    const cycle = cropCycle({
+      yieldUnit: 'kg',
+      priceUnit: 'ton',
+      expectedYieldPerArea: 3000,
+      expectedPricePerUnit: 4000,
+    });
+    expect(expectedIncomeFor(8, cycle)).toBe(96000);
+  });
+
+  // Every row written before price_unit existed. Reading a null price unit as
+  // the yield's own unit is what keeps their number exactly where it was.
+  it('leaves a row from before price_unit computing exactly as it did', () => {
+    expect(expectedIncomeFor(40, cropCycle({ priceUnit: null }))).toBe(720000);
+    expect(expectedIncomeFor(40, cropCycle({ yieldUnit: 'ארגזים', priceUnit: null }))).toBe(720000);
+  });
+
   it('returns null when any of the three inputs is missing', () => {
     expect(expectedIncomeFor(null, cropCycle())).toBeNull();
     expect(expectedIncomeFor(40, cropCycle({ expectedYieldPerArea: null }))).toBeNull();
     expect(expectedIncomeFor(40, cropCycle({ expectedPricePerUnit: null }))).toBeNull();
   });
-});
 
-// בורר יחידת היבול מציע את הנפוצות ומשאיר "אחר" לכל השאר. הבדיקות
-// מקבעות שהעמודה נשארת טקסט חופשי בפועל, ושערך שנשמר לפני שההצעות
-// היו קיימות לא נמחק אלא נפתח כ"אחר".
-describe('yieldUnitPresets', () => {
-  it('covers both measurement families, weight and count', () => {
-    const presets = yieldUnitPresets();
-    expect(presets).toContain('ק"ג');
-    expect(presets).toContain('טון');
-    expect(presets).toContain('יחידות');
-    expect(presets).toContain('ארגזים');
-  });
-});
-
-describe('isCustomYieldUnit', () => {
-  it('treats every preset as not custom', () => {
-    for (const preset of yieldUnitPresets()) {
-      expect(isCustomYieldUnit(preset)).toBe(false);
-    }
-  });
-
-  it('treats an unrecognised unit as custom, so it opens under "other"', () => {
-    expect(isCustomYieldUnit('שקים')).toBe(true);
-    expect(isCustomYieldUnit('מיכלים')).toBe(true);
-  });
-
-  it('does not treat an empty or whitespace value as custom', () => {
-    expect(isCustomYieldUnit('')).toBe(false);
-    expect(isCustomYieldUnit('   ')).toBe(false);
-  });
-
-  it('ignores surrounding whitespace when matching a preset', () => {
-    expect(isCustomYieldUnit('  טון  ')).toBe(false);
+  // A count against a weight does not convert, so there is no honest income.
+  // null, exactly as for a missing yield, rather than a plausible wrong number.
+  it('returns null rather than guessing what one piece of fruit weighs', () => {
+    expect(expectedIncomeFor(40, cropCycle({ yieldUnit: 'unit', priceUnit: 'kg' }))).toBeNull();
   });
 });
 
 describe('expectedPriceDisplay', () => {
   it('pairs the amount with the unit it refers to', () => {
-    expect(expectedPriceDisplay(cropCycle(), 'ILS')).toContain('/ ק"ג');
+    expect(expectedPriceDisplay(cropCycle(), 'ILS')).toContain('/ קילו');
   });
 
-  it('stays grammatical for a plural counted unit', () => {
-    const display = expectedPriceDisplay(cropCycle({ yieldUnit: 'יחידות' }), 'ILS');
-    expect(display).toContain('/ יחידות');
-    expect(display).not.toContain('ליחידות');
+  // **The price line follows the PRICE unit now.** A farmer with tons of yield
+  // priced by the kilo used to read "60 ₪ / טון" here, with no hint of the slip.
+  it('names the unit the price is actually quoted in, not the yield unit', () => {
+    const display = expectedPriceDisplay(cropCycle({ yieldUnit: 'ton', priceUnit: 'kg' }), 'ILS');
+    expect(display).toContain('/ קילו');
+    expect(display).not.toContain('טון');
+  });
+
+  it('stays grammatical for a legacy plural unit', () => {
+    const display = expectedPriceDisplay(cropCycle({ yieldUnit: 'ארגזים' }), 'ILS');
+    expect(display).toContain('/ ארגזים');
+    expect(display).not.toContain('לארגזים');
   });
 
   it('shows the amount alone when no unit is set', () => {

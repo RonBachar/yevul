@@ -45,6 +45,9 @@ export function PlotCard({
 
       {forecast && (
         <>
+          {/* התווית חסרה כאן עד היום, ועידו נתקל בזה בפועל: מספר שלילי
+              בלי מילה שאומרת מה הוא נקרא כמו ההוצאה ולא כמו הרווח. */}
+          <Text style={styles.label}>{t('plots.profit.forecast')}</Text>
           <View style={styles.valueRow}>
             {tone !== 'zero' && <Glyph size={26} strokeWidth={2.5} color={toneColor} />}
             <Text
@@ -90,11 +93,19 @@ const styles = StyleSheet.create({
     color: colors.slate600,
     writingDirection: 'rtl',
   },
+  // תווית המספר. המרווח העליון עבר אליה מ-valueRow, אחרת נפתח חלל בין
+  // התווית לערך שהיא מתארת.
+  label: {
+    marginTop: spacing.s8,
+    fontFamily: fonts.regular,
+    fontSize: fontSize.caption,
+    color: colors.slate600,
+    writingDirection: 'rtl',
+  },
   valueRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.s8,
-    marginTop: spacing.s8,
   },
   // heading-lg/900, אותו טיפול כמו ה-Hero, design.md.
   value: {

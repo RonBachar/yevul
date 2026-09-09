@@ -198,6 +198,20 @@
   border-top: 1px solid var(--color-border-200);
 }
 
+/* השעון: מידע רקע שקט, לא כותרת. אותו טיפול חזותי כמו sidebar__email
+   ממש מתחתיו — Slate, גודל caption, בלי משקל מודגש — כדי שלא יתחרה
+   בכותרת המסך או בנתון הרווח שיושבים בתוכן עצמו. tabular-nums כדי
+   שרוחב הטקסט לא ירטוט קלות בכל טיק כשהספרות משתנות. */
+.shell-clock {
+  font-variant-numeric: tabular-nums;
+}
+
+.sidebar__clock {
+  padding-inline: var(--spacing-12);
+  color: var(--color-slate-600);
+  font-size: var(--text-caption);
+}
+
 .sidebar__email {
   padding-inline: var(--spacing-12);
   overflow: hidden;
@@ -247,13 +261,38 @@
 }
 
 .shell-topbar__brand {
+  flex-shrink: 0;
   font-size: var(--text-subheading);
   font-weight: var(--font-weight-bold);
   color: var(--color-field-700);
 }
 
+/* השעון בפס העליון: יושב בין כפתור הסנדוויץ' למותג, לוקח לעצמו את כל
+   הרווח הפנוי (flex:1) כדי שהשניים האחרים לא יזוזו ולא יידחסו לעולם.
+   min-width:0 + overflow:hidden מאפשרים לטקסט להיקטע בשלוש נקודות אם
+   אין מספיק מקום, במקום למתוח את הפס או לדחוף את כפתור התפריט. גרסה
+   קומפקטית בלבד (ראה lib/clock.ts), הגרסה המלאה שמורה לסיידבר.
+
+   direction:ltr כי התוכן כאן שתי קבוצות ספרות מופרדות בנקודה אמצעית
+   בלי שום אות עברית שתעגן אותן — בלי זה אלגוריתם ה-bidi, בהקשר RTL
+   של הדף, מחליף את סדר התאריך והשעה חזותית (התאריך שאמור לבוא ראשון
+   מוצג שני). text-align:center לא תלוי בכיוון וממשיך למרכז את התיבה
+   כרגיל בתוך שורת הפס. */
+.shell-topbar__clock {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-slate-600);
+  font-size: var(--text-caption);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  direction: ltr;
+}
+
 .shell-topbar__toggle {
   display: inline-flex;
+  flex-shrink: 0;
   align-items: center;
   justify-content: center;
   width: var(--touch-min);

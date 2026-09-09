@@ -30,6 +30,11 @@ export function PlotCard({ plot, currency }: { plot: PlotProfitRow; currency: Cu
 
       {forecast && (
         <>
+          {/* התווית חסרה כאן עד היום, ועידו נתקל בזה בפועל: הוא ראה
+              "10,708.16-" על חלקה בהפסד ולא ידע אם זה הרווח או ההוצאה.
+              מספר בלי מילה שאומרת מה הוא אינו מספר. אותה תווית בדיוק
+              כמו בכותרת פרטי החלקה. */}
+          <span className="plot-card__label">{t('plots.profit.forecast')}</span>
           <span className={`plot-card__value plot-card__value--${tone}`}>
             {tone !== 'zero' && (
               <Glyph className="plot-card__glyph" size={28} strokeWidth={2.5} aria-hidden="true" />

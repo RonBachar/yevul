@@ -148,6 +148,28 @@ export {
   profitTone,
   type ProfitTone,
 } from './format';
+// The three units a yield and a price can be stated in, the conversion between
+// them, the rule that a counted crop is priced by the count, and the plain
+// sentence that shows a farmer the arithmetic he just typed. **The safety net
+// for the whole forecast**: a total alone cannot be checked, while "8 דונם × 3
+// טון לדונם = 24 טון. במחיר 4 ₪ לקילו ← צפי הכנסה 96,000 ₪" catches a farmer who
+// meant 4 per kilo and typed 4000 per ton. Pure and tested; see yieldUnits.ts.
+export {
+  forecastSentence,
+  forecastUnits,
+  isYieldUnit,
+  parseYieldUnit,
+  reconcileYieldUnits,
+  yieldUnitFactor,
+  yieldUnitLabel,
+  yieldUnitLabelKey,
+  yieldUnitText,
+  KG_PER_TON,
+  YIELD_UNITS,
+  type ForecastSentenceInput,
+  type ForecastUnits,
+  type YieldUnit,
+} from './yieldUnits';
 export {
   usePlots,
   usePlotDetail,
@@ -155,16 +177,18 @@ export {
   plotSummaryLine,
   expectedYieldDisplay,
   expectedPriceDisplay,
-  YIELD_UNIT_PRESET_KEYS,
-  yieldUnitPresets,
-  isCustomYieldUnit,
   expectedIncomeFor,
   plotProfitForecast,
   staleForecastSince,
   type PlotProfitForecast,
   createPlot,
   updatePlot,
+  // No screen calls this any more -- the responsible-member picker was removed
+  // from both clients on 2026-09-09 -- and it is exported on purpose, together
+  // with the column it writes, so that restoring the picker is a UI change and
+  // not a migration. See the header above it in plots.ts.
   setPlotResponsible,
+  setPlotCrop,
   updateCropCycle,
   updateForecast,
   type Plot,

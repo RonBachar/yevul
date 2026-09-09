@@ -1,15 +1,17 @@
-import { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
-import { isCustomYieldUnit, t, yieldUnitPresets } from '@yevul/shared';
-import { colors } from '../theme/tokens';
+import { Pressable, Text, View } from 'react-native';
+import { parseYieldUnit, yieldUnitLabel, YIELD_UNITS } from '@yevul/shared';
 import { formStyles } from '../theme/formStyles';
 
-// בחירת יחידת יבול. הופיעה כשדה טקסט חופשי בשלושה מקומות שונים
-// (עריכת גידול, עדכון צפי, ובווב פעמיים), ולכן עברה לרכיב אחד.
+// בחירת יחידה, גם ליבול וגם למחיר. משמש בעריכת החלקה ובעדכון הצפי,
+// ומקביל ל-YieldUnitField של הווב. צ'יפים בנייד, תפריט נפתח בווב.
 //
-// **הצעות ולא רשימה סגורה.** העמודה במסד היא טקסט חופשי בכוונה, ולכן
-// "אחר" תמיד זמין ופותח שדה הקלדה. ערך שנשמר לפני שההצעות היו קיימות,
-// או יחידה חריגה, נפתח אוטומטית במצב "אחר" עם הערך בתוכו ולא נמחק.
+// **שלוש יחידות בלבד: קילו, טון, יחידה. אין "אחר" ואין טקסט חופשי.**
+// זו החלטת מוצר, והיא מה שמאפשר לאפליקציה להמיר בין יבול למחיר במקום
+// להכפיל טונות בשקלים לקילו. הרשימה הישנה כללה גם "ארגזים", שאינו
+// משקל ואינו ספירה ולכן לא ניתן להמרה כלל.
+//
+// **ערך ישן שאינו אחת מהשלוש מוצג כצ'יפ משלו ולא נמחק.** שורה שנכתבה
+// לפני השינוי עם "ארגזים" תמשיך להראות "ארגזים" עד שהחקלאי יבחר אחרת.
 export function YieldUnitField({
   label,
   value,
@@ -21,78 +23,43 @@ export function YieldUnitField({
   onChange: (value: string) => void;
   disabled: boolean;
 }) {
-  const presets = yieldUnitPresets();
-  // מצב "אחר" נדבק ברגע שנבחר, גם כשהשדה עדיין ריק. בלי זה, לחיצה על
-  // "אחר" הייתה מקפיצה את הבחירה חזרה כי הערך הריק לא נחשב מותאם.
-  const [otherSticky, setOtherSticky] = useState(() => isCustomYieldUnit(value));
-  const isOther = otherSticky || isCustomYieldUnit(value);
+  const canonical = parseYieldUnit(value);
+  const trimmed = value.trim();
+  // ערך שמור שאינו נפתר לאחת מהשלוש, נשמר כצ'יפ כדי שרינדור לבדו לא
+  // ידרוס אותו.
+  const legacy = trimmed !== '' && canonical === null ? trimmed : null;
 
-  function selectPreset(preset: string) {
-    setOtherSticky(false);
-    onChange(preset);
-  }
-
-  function selectOther() {
-    setOtherSticky(true);
-    // הערך הקודם נמחק רק אם הוא היה אחת ההצעות. יחידה מותאמת שכבר
-    // הוקלדה נשארת, כדי שלחיצה על "אחר" לא תמחק מה שכבר נכתב.
-    if (!isCustomYieldUnit(value)) onChange('');
-  }
+  const options: { value: string; label: string }[] = [
+    ...YIELD_UNITS.map((unit) => ({ value: unit, label: yieldUnitLabel(unit) })),
+    ...(legacy ? [{ value: legacy, label: legacy }] : []),
+  ];
 
   return (
     <View style={formStyles.field}>
       <Text style={formStyles.label}>{label}</Text>
       <View style={formStyles.chips}>
-        {presets.map((preset) => {
-          const active = !isOther && value.trim() === preset;
+        {options.map((option) => {
+          const active = (canonical ?? legacy ?? '') === option.value;
           return (
             <Pressable
-              key={preset}
+              key={option.value}
               style={[
                 formStyles.chip,
                 active && formStyles.chipActive,
                 disabled && formStyles.chipDisabled,
               ]}
-              onPress={() => selectPreset(preset)}
+              onPress={() => onChange(option.value)}
               disabled={disabled}
               accessibilityRole="radio"
               accessibilityState={{ selected: active, disabled }}
             >
               <Text style={[formStyles.chipText, active && formStyles.chipTextActive]}>
-                {preset}
+                {option.label}
               </Text>
             </Pressable>
           );
         })}
-        <Pressable
-          style={[
-            formStyles.chip,
-            isOther && formStyles.chipActive,
-            disabled && formStyles.chipDisabled,
-          ]}
-          onPress={selectOther}
-          disabled={disabled}
-          accessibilityRole="radio"
-          accessibilityState={{ selected: isOther, disabled }}
-        >
-          <Text style={[formStyles.chipText, isOther && formStyles.chipTextActive]}>
-            {t('common.other')}
-          </Text>
-        </Pressable>
       </View>
-
-      {isOther && (
-        <TextInput
-          style={formStyles.input}
-          value={value}
-          onChangeText={onChange}
-          editable={!disabled}
-          placeholder={t('plots.crop.yieldUnitPlaceholder')}
-          placeholderTextColor={colors.slate600}
-          textAlign="right"
-          autoFocus
-        />
-      )}
     </View>
   );
 }
