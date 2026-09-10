@@ -363,6 +363,7 @@ describe('a parsed record becoming the arguments of a create call', () => {
       sprayUnitPrice: null,
       workHours: null,
       workHourlyRate: null,
+      workKind: null,
       cost: null,
       harvestQty: null,
       harvestUnit: null,

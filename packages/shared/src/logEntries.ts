@@ -20,6 +20,10 @@ import {
   type SprayHistoryRow,
   type SprayPriceRow,
 } from './sprayEntry';
+// The cap-and-dedupe rule the kind-of-work grid shares with the spray, crop and
+// expense grids. Pure, and it lives beside computeWorkCost because a kind of work
+// and the hours it took are one field pair, asked in one breath by Ido.
+import { workKindOptions } from './workEntry';
 
 // הסוגים עצמם חיים ב-logEntryTypes.ts, מודול טהור בלי ייבוא, כי
 // ה-Worker זקוק להם דרך voice.ts ואין לו צורך ב-react ולא ב-supabase-js
@@ -107,6 +111,12 @@ export type LogEntry = {
   // 20260906120000_work_hours.sql.
   workHours: number | null;
   workHourlyRate: number | null;
+  // What the work actually was, in the farmer's own words. **Free text, and the
+  // deliberate counterpart of `type` above rather than a replacement for it**:
+  // `type` is the closed domain the spray filter and the regulator export depend
+  // on, and this is the sentence there was nowhere to write. Also on every entry
+  // type. See 20260910130000_work_kind.sql.
+  workKind: string | null;
   // The expense this entry created, and its amount. **The entry does not store a
   // cost of its own any more** -- see the money header below. `cost` is read back
   // off the linked expense rather than off this row, so a screen showing what an
@@ -130,7 +140,7 @@ export type LogEntry = {
 // hide the journal entry itself, which is exactly what must not happen when an
 // expense is deleted (see deleteExpense).
 const LOG_ENTRY_COLUMNS =
-  'id, farm_id, plot_id, date, type, note, source, spray_pest, spray_material, spray_dose, spray_phi_days, spray_quantity, spray_quantity_unit, spray_unit_price, work_hours, work_hourly_rate, created_expense_id, expenses(id, amount, deleted_at), harvest_qty, harvest_unit, created_at';
+  'id, farm_id, plot_id, date, type, note, source, spray_pest, spray_material, spray_dose, spray_phi_days, spray_quantity, spray_quantity_unit, spray_unit_price, work_hours, work_hourly_rate, work_kind, created_expense_id, expenses(id, amount, deleted_at), harvest_qty, harvest_unit, created_at';
 
 type LogEntryRow = {
   id: string;
@@ -149,6 +159,7 @@ type LogEntryRow = {
   spray_unit_price: number | null;
   work_hours: number | null;
   work_hourly_rate: number | null;
+  work_kind: string | null;
   created_expense_id: string | null;
   // A to-one embed, so PostgREST hands back one object or null. Optional as well
   // as nullable because a client running against a database that has not had the
@@ -183,6 +194,7 @@ function mapLogEntry(row: LogEntryRow): LogEntry {
     sprayUnitPrice: row.spray_unit_price,
     workHours: row.work_hours,
     workHourlyRate: row.work_hourly_rate,
+    workKind: row.work_kind,
     createdExpenseId: expense ? expense.id : null,
     cost: expense ? expense.amount : null,
     harvestQty: row.harvest_qty,
@@ -381,6 +393,75 @@ export function useSpraySuggestions(
 }
 
 // ============================================================
+// The kinds of work this farm has done, for the grid on the journal sheet.
+//
+// **useExpenseSuggestions' shape, not a second pattern.** Same fifty rows, same
+// newest-first ordering, same `active` flag, same "an inactive hook keeps what it
+// had rather than blanking the grid". The one list rule (recentValues) and the
+// cap live in workEntry.ts as a pure function, exactly as expenseNameOptions
+// lives in expenseForm.ts, because that is the half a test can reach.
+//
+// **The one difference from the expense twin, and it is a necessary one:
+// `work_kind is not null` is in the query.** An expense almost always has a name,
+// so fifty expense rows yield a full grid; a kind of work will be on a small
+// minority of journal entries for a long time, and without the filter a farm that
+// sprayed fifty times since it last pruned would get fifty nulls back and an
+// empty grid -- on exactly the farm that has the history to fill it. Filtering in
+// the database rather than over-fetching and dropping them in the client is the
+// same principle useLogEntries applies to `type` and `workHoursOnly`.
+//
+// **useLogEntries cannot answer this**, for the reasons the expense header sets
+// out and which all hold here: the sheet is opened from screens with no journal
+// list behind them, the plot detail screen's list is one plot's while a farm's
+// vocabulary is the farm's, and that query pulls every column with an embed where
+// this one wants a single column.
+//
+// The farmer can always type something never typed before -- that is what makes
+// this a grid of suggestions and not the closed list `type` deliberately is.
+// ============================================================
+
+export type WorkKindSuggestions = { kinds: string[] };
+
+const EMPTY_WORK_KIND_SUGGESTIONS: WorkKindSuggestions = { kinds: [] };
+
+export function useWorkKindSuggestions(
+  supabase: SupabaseClient,
+  farmId: string | null,
+  active: boolean = true,
+): WorkKindSuggestions {
+  const [suggestions, setSuggestions] = useState<WorkKindSuggestions>(EMPTY_WORK_KIND_SUGGESTIONS);
+
+  useEffect(() => {
+    let alive = true;
+    if (!farmId) {
+      setSuggestions(EMPTY_WORK_KIND_SUGGESTIONS);
+      return;
+    }
+    if (!active) return;
+
+    void supabase
+      .from('log_entries')
+      .select('work_kind')
+      .eq('farm_id', farmId)
+      .is('deleted_at', null)
+      .not('work_kind', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data }) => {
+        if (!alive) return;
+        const rows = (data ?? []) as { work_kind: string | null }[];
+        setSuggestions({ kinds: workKindOptions(rows.map((row) => row.work_kind)) });
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [supabase, farmId, active]);
+
+  return suggestions;
+}
+
+// ============================================================
 // יצירה ועריכה. מזיק וחומר חובה רק כשהסוג ריסוס, prd.md סעיף 8:
 // "ההבדל היחיד הוא שכשבוחרים בסוג ריסוס נפתחים ארבעה שדות נוספים...
 // המינון וימי ההמתנה אופציונליים". כמות ויחידת קטיף אופציונליים
@@ -436,6 +517,10 @@ export type LogEntryInput = {
   sprayUnitPrice: number | null;
   workHours: number | null;
   workHourlyRate: number | null;
+  // What the work was. Trimmed on the way in, and blank becomes null, so "not
+  // stated" has one spelling in the column and the suggestion grid cannot fill
+  // up with whitespace. See writePayload.
+  workKind: string | null;
   // What this entry cost, all of it, as one number. Written to `expenses` and to
   // nothing else. null means the entry cost nothing that the farmer is recording
   // -- and on an edit it means *remove* the cost, which soft-deletes the expense
@@ -485,6 +570,16 @@ function writePayload(input: LogEntryInput) {
     // sits next to them any more** -- the cost went to `expenses`, see the header.
     work_hours: input.workHours,
     work_hourly_rate: input.workHourlyRate,
+    // **Ungated for the same reason, and it is the same sentence of Ido's.**
+    // "שעות עבודה וסוג עבודה ביומן" is one request, so the kind of work follows
+    // the hours exactly: a spray that was also a pruning keeps what the farmer
+    // wrote when the record is retyped to 'other', and a fence repair can say so
+    // without the type strip having to grow an eleventh value.
+    //
+    // Trimmed here rather than in either client, and blank collapses to null, so
+    // the two sheets cannot disagree about what an empty box means. Same
+    // treatment `note` and `spray_dose` already get two lines up.
+    work_kind: input.workKind?.trim() ? input.workKind.trim() : null,
     harvest_qty: isHarvest ? input.harvestQty : null,
     harvest_unit: isHarvest ? (input.harvestUnit?.trim() ? input.harvestUnit.trim() : null) : null,
   };

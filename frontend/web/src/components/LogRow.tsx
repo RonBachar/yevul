@@ -77,14 +77,24 @@ export function LogRow({
             ? t('log.row.sourceTask')
             : (entry.note ?? '');
 
-  // The hours and the entry's whole cost, on the work-hours screen only.
-  // Appended rather than replacing `detail`, because an entry there is still a
-  // spray or a pruning and losing what it was would make the list unreadable.
-  // **`entry.cost` here is the entry's whole cost, material included, and not a
-  // labour-only figure** -- since 2026-09-10 there is no separate work_cost
-  // column to read. See the money header in logEntries.ts and workLogTotals.
+  // The kind of work, the hours and the entry's whole cost, on the work-hours
+  // screen only. Appended rather than replacing `detail`, because an entry there
+  // is still a spray or a pruning and losing what it was would make the list
+  // unreadable. **`entry.cost` here is the entry's whole cost, material
+  // included, and not a labour-only figure** -- since 2026-09-10 there is no
+  // separate work_cost column to read. See the money header in logEntries.ts and
+  // workLogTotals.
+  //
+  // **The kind of work leads the line, ahead of the hours and the cost.** Ido
+  // asked for this field precisely because "אחר" told him nothing about what he
+  // had actually done -- the hours and the cost were already on screen before
+  // 2026-09-10, and neither answers that question. Read straight off `entry`
+  // (LogEntry, not WorkLogTotals' WorkLogRow), so this needed no shared change:
+  // useLogEntries already selects work_kind, it is only the totals helper that
+  // narrows its input to the two fields it sums.
   const workDetail = workDetailed
     ? [
+        entry.workKind?.trim() ? entry.workKind.trim() : null,
         entry.workHours != null ? `${entry.workHours} ${t('work.hoursSuffix')}` : null,
         entry.cost != null ? `${t('log.form.cost')}: ${entry.cost}` : null,
       ]

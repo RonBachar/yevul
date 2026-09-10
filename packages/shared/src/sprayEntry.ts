@@ -714,6 +714,11 @@ export function sprayEntryInput(draft: SprayDraft): LogEntryInput {
     // them here without that would erase hours written elsewhere on this record.
     workHours: null,
     workHourlyRate: null,
+    // Not asked here either, and carried through by the caller on an edit for
+    // the same reason the hours are: the kind of work is entered on the journal
+    // sheet, which offers it for every entry type, and nulling it from this walk
+    // would erase what the farmer wrote about the job somewhere else.
+    workKind: null,
     harvestQty: null,
     harvestUnit: null,
   };

@@ -29,6 +29,7 @@ function entry(overrides: Partial<LogEntry> = {}): LogEntry {
     sprayUnitPrice: null,
     workHours: null,
     workHourlyRate: null,
+    workKind: null,
     createdExpenseId: null,
     cost: null,
     harvestQty: null,
@@ -53,6 +54,7 @@ function input(overrides: Partial<LogEntryInput> = {}): LogEntryInput {
     sprayUnitPrice: null,
     workHours: null,
     workHourlyRate: null,
+    workKind: null,
     cost: null,
     harvestQty: null,
     harvestUnit: null,
@@ -402,6 +404,68 @@ describe('saveSprayPrice', () => {
       unit: 'kg',
     });
     expect(result).toEqual({ ok: false, reason: 'forbidden' });
+  });
+});
+
+// ============================================================
+// The kind of work, item (ו) of Ido's first feedback round. Free text next to
+// the closed `type`, and these four tests are the four ways it could quietly be
+// broken back into a domain field or into another spray column.
+// ============================================================
+
+describe('createLogEntry, the kind of work', () => {
+  it('writes what the farmer said the work was', async () => {
+    const { supabase, on } = fakeSupabase();
+    await createLogEntry(
+      supabase,
+      'farm-1',
+      input({ type: 'other', workKind: 'גיזום', workHours: 3 }),
+    );
+    expect(on('log_entries', 'insert')[0]?.payload).toMatchObject({
+      type: 'other',
+      work_kind: 'גיזום',
+      work_hours: 3,
+    });
+  });
+
+  // The rule work_hours already carries, and the reason the column exists at all:
+  // Ido's own example is a spray that also took him three hours. Every spray
+  // column above it is nulled when the type moves away; this one is not.
+  it('keeps the kind of work on every type, including a spray', async () => {
+    const { supabase, on } = fakeSupabase();
+    await createLogEntry(
+      supabase,
+      'farm-1',
+      input({
+        type: 'spray',
+        sprayPest: 'כנימה',
+        sprayMaterial: 'קונפידור',
+        workKind: 'ריסוס וגיזום',
+      }),
+    );
+    expect(on('log_entries', 'insert')[0]?.payload).toMatchObject({ work_kind: 'ריסוס וגיזום' });
+  });
+
+  // Retyping a record to another type must not throw away what he wrote about the
+  // job. This is the same assertion in the update path, where the bug would
+  // actually bite: the spray fields do get nulled there and this one must not.
+  it('survives an edit that changes the type', async () => {
+    const { supabase, on } = fakeSupabase({ farm_id: 'farm-1', created_expense_id: null });
+    await updateLogEntry(supabase, 'log-1', input({ type: 'other', workKind: 'תיקון גדר' }));
+    const payload = on('log_entries', 'update')[0]?.payload ?? {};
+    expect(payload).toMatchObject({ work_kind: 'תיקון גדר', spray_material: null });
+  });
+
+  // One spelling for "not stated", so the suggestion grid cannot fill up with
+  // whitespace and two farms' histories cannot differ by a trailing space.
+  it('trims it, and turns a blank box into null', async () => {
+    const trimmed = fakeSupabase();
+    await createLogEntry(trimmed.supabase, 'farm-1', input({ workKind: '  גיזום  ' }));
+    expect(trimmed.on('log_entries', 'insert')[0]?.payload).toMatchObject({ work_kind: 'גיזום' });
+
+    const blank = fakeSupabase();
+    await createLogEntry(blank.supabase, 'farm-1', input({ workKind: '   ' }));
+    expect(blank.on('log_entries', 'insert')[0]?.payload).toMatchObject({ work_kind: null });
   });
 });
 

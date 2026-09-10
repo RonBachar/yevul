@@ -176,6 +176,7 @@ function entry(overrides: Partial<LogEntry> = {}): LogEntry {
     sprayUnitPrice: null,
     workHours: null,
     workHourlyRate: null,
+    workKind: null,
     createdExpenseId: null,
     cost: null,
     harvestQty: null,

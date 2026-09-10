@@ -463,6 +463,12 @@ export function voiceJournalInput(
     // took him any. Safe to null unconditionally: this input only ever creates.
     workHours: null,
     workHourlyRate: null,
+    // Nor is the kind of work spoken. VoiceJournal has no such field, and giving
+    // it one is a change to the JSON schema the model is given -- the same
+    // sentence as the hours above, and it belongs in the same change as them if
+    // the schema is ever reopened. Safe to null unconditionally: this input only
+    // ever creates.
+    workKind: null,
     // No cost, so no expense is written and nothing is linked. A spoken expense
     // is its own flow (voiceExpenseInput), which writes to `expenses` directly --
     // so a farmer who says both gets exactly the two records he described, and a

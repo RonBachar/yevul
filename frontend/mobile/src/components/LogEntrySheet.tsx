@@ -16,13 +16,16 @@ import {
   useFarmSettings,
   usePlots,
   useSpraySuggestions,
+  useWorkKindSuggestions,
+  workKindOptions,
   type LogEntry,
   type LogEntryType,
 } from '@yevul/shared';
-import { colors, fonts, fontSize } from '../theme/tokens';
+import { colors, fonts, fontSize, spacing } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from './BottomSheet';
 import { DateField } from './DateField';
+import { TilePicker } from './TilePicker';
 
 // The device's calendar day, never the UTC one, for a new entry's default.
 // toISOString() is wrong from local midnight until 02:00 or 03:00, and here
@@ -62,6 +65,12 @@ export function LogEntrySheet({
   const suggestions = useSpraySuggestions(supabase, farmId);
   // Only for the farm's hourly rate, which pre-fills the rate box below.
   const settings = useFarmSettings(supabase);
+  // The kind-of-work grid, out of this farm's own journal. Passed the sheet's
+  // own `visible` as `active`, the same rule useExpenseSuggestions is called
+  // with in ExpenseSheet: this component stays mounted behind the tab bar, so a
+  // grid read once on mount would go stale the moment a farmer types a new kind
+  // of work and reopens the sheet.
+  const workKindSuggestions = useWorkKindSuggestions(supabase, farmId, visible);
 
   const [type, setType] = useState<LogEntryType>(initialLogEntryType(entry, defaultType));
   const [plotId, setPlotId] = useState<string | null>(null);
@@ -78,6 +87,18 @@ export function LogEntrySheet({
   // why a typed total always beats hours x rate.
   const [workHours, setWorkHours] = useState('');
   const [workHourlyRate, setWorkHourlyRate] = useState('');
+  // The kind of work, Ido's second half of the same 2026-09-06 request:
+  // "שעות עבודה וסוג עבודה ביומן". Free text with a grid of suggestions, and
+  // **not gated on `type`** -- pruning, tilling and a fence repair are all work,
+  // and a spray that also took three hours is work too, exactly like workHours
+  // above. See the header of workEntry.ts for why `type` itself stays a closed
+  // list instead.
+  const [workKind, setWorkKind] = useState('');
+  // Whether the "new kind" square has opened its box. The box writes straight
+  // into workKind, exactly as ExpenseSheet's name box writes straight into
+  // draft.name -- there is no confirm tap between typing a kind and saving the
+  // entry.
+  const [addingWorkKind, setAddingWorkKind] = useState(false);
   // The entry's single cost box -- material and labour together, see
   // computeEntryCost in workEntry.ts. This sheet has no material/quantity UI
   // (that lives in SprayEntrySheet's tile flow), so in practice this box only
@@ -115,6 +136,7 @@ export function LogEntrySheet({
       setSprayPhiDays(entry.sprayPhiDays != null ? String(entry.sprayPhiDays) : '');
       setWorkHours(entry.workHours != null ? String(entry.workHours) : '');
       setWorkHourlyRate(entry.workHourlyRate != null ? String(entry.workHourlyRate) : '');
+      setWorkKind(entry.workKind ?? '');
       setCost(entry.cost != null ? String(entry.cost) : '');
       // The rate (and material, if this entry was written by SprayEntrySheet)
       // on the row is the one this job was priced at, never today's. See
@@ -143,11 +165,16 @@ export function LogEntrySheet({
       // Left empty here: the settings may not have arrived yet. The effect below
       // fills it the moment they do, and only while the box is still empty.
       setWorkHourlyRate('');
+      setWorkKind('');
       setCost('');
       setCostTyped(false);
       setHarvestQty('');
       setHarvestUnit('');
     }
+    // The add-a-kind box closes on every open, exactly like ExpenseSheet's
+    // add-a-name box, so a sheet reopened after an edit does not show a keyboard
+    // left over from a previous use.
+    setAddingWorkKind(false);
     setStatus('idle');
   }, [visible, entry, defaultPlotId, defaultType]);
 
@@ -186,6 +213,15 @@ export function LogEntrySheet({
     // Only the two inputs, the entry's frozen spray half, and the typed flag
     // drive the recompute; amountOrNull is a pure local helper with no state.
   }, [workHours, workHourlyRate, costTyped, entry]);
+
+  // The tiles: the farm's fifty most recent kinds of work, newest first, plus
+  // whatever this record already carries -- the held value dropped out while the
+  // add box is open, same as ExpenseSheet's nameOptions immediately above.
+  const workKindChoices = workKindOptions(
+    workKindSuggestions.kinds,
+    addingWorkKind ? null : workKind,
+  );
+  const selectedWorkKind = addingWorkKind || workKind.trim() === '' ? null : workKind.trim();
 
   const phiDaysNumber = sprayPhiDays.trim() ? Number(sprayPhiDays) : null;
   const safeHarvest =
@@ -233,6 +269,10 @@ export function LogEntrySheet({
       // and the money header in logEntries.ts.
       workHours: amountOrNull(workHours),
       workHourlyRate: amountOrNull(workHourlyRate),
+      // Not gated on `type`, same as workHours just above: a farmer typing a
+      // kind of work is stating what the job was, and that is true of every
+      // entry type, not only ones that already have hours logged.
+      workKind: workKind.trim() ? workKind.trim() : null,
       cost: amountOrNull(cost),
       harvestQty:
         harvestQty.trim() && Number.isFinite(Number(harvestQty)) ? Number(harvestQty) : null,
@@ -421,6 +461,43 @@ export function LogEntrySheet({
         </View>
       </View>
 
+      {/* סוג העבודה, מחוץ לכל תנאי סוג, בדיוק כמו השעות. עידו,
+          6.9.2026, החצי השני של אותה בקשה: "שעות עבודה וסוג עבודה
+          ביומן". רשת מתוך היסטוריית המשק, ותמיד אפשר להקליד סוג
+          שאף אחד לא הקליד קודם. */}
+      <View style={sheetGap}>
+        <TilePicker
+          title={t('work.kind')}
+          options={workKindChoices.map((value) => ({ value, label: value }))}
+          selectedValue={selectedWorkKind}
+          onSelect={(value) => {
+            setWorkKind(value);
+            setAddingWorkKind(false);
+          }}
+          actions={[
+            { key: 'add', label: t('work.kindAdd'), onPress: () => setAddingWorkKind(true) },
+          ]}
+          emptyHint={t('work.kindEmpty')}
+          disabled={busy}
+          footer={
+            addingWorkKind ? (
+              <View style={workKindAnswer}>
+                <TextInput
+                  style={formStyles.input}
+                  value={workKind}
+                  onChangeText={setWorkKind}
+                  editable={!busy}
+                  placeholder={t('work.kindPlaceholder')}
+                  placeholderTextColor={colors.slate600}
+                  textAlign="right"
+                  autoFocus
+                />
+              </View>
+            ) : null
+          }
+        />
+      </View>
+
       <View style={[formStyles.field, sheetGap]}>
         <Text style={formStyles.label}>
           {t('log.form.cost')} · {t('common.optional')}
@@ -565,6 +642,9 @@ function SuggestionRow({
 }
 
 const sheetGap = { marginTop: 16 };
+// The box a grid cannot answer, under the grid. Same gap ExpenseSheet's
+// `styles.answer` uses for its own add-a-name box.
+const workKindAnswer = { gap: spacing.s12, marginTop: spacing.s4 };
 // Field-700, לא Profit-600: design.md מפרט את שורת "בטוח לקטיף" בצבע
 // הזה במפורש (Spray Log Screen), זו תזכורת רגועה ולא הכרזת רווח.
 const safeHarvestText = {

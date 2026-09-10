@@ -21,6 +21,8 @@ import {
   usePlots,
   useSprayPrices,
   useSpraySuggestions,
+  useWorkKindSuggestions,
+  workKindOptions,
   type Currency,
   type LogEntry,
   type LogEntryType,
@@ -82,6 +84,12 @@ export function LogEntrySheet({
   const plotsState = usePlots(supabase);
   const suggestions = useSpraySuggestions(supabase, farmId);
   const prices = useSprayPrices(supabase, farmId);
+  // The kind-of-work grid, out of this farm's own journal. Passed the sheet's
+  // own `open` as `active`: ExpenseSheet's suggestions hook re-reads on every
+  // open rather than once on mount, because the sheet lives behind the work-log
+  // screen for its whole session and a grid missing the kind typed an hour ago
+  // is a grid that sends him back to the keyboard.
+  const workKindSuggestions = useWorkKindSuggestions(supabase, farmId, open);
   // רק בשביל המטבע שמתחת לשם החומר במשבצת. מחיר בלי סימן מטבע הוא
   // מספר, לא כסף, ואת הכלל הזה קובע formatAmount ולא המסך.
   const settings = useFarmSettings(supabase);
@@ -109,6 +117,18 @@ export function LogEntrySheet({
   // just the same. The rate pre-fills from the farm's pricelist rate.
   const [workHours, setWorkHours] = useState('');
   const [workHourlyRate, setWorkHourlyRate] = useState('');
+  // The kind of work, Ido's second half of the same 2026-09-06 request:
+  // "שעות עבודה וסוג עבודה ביומן". Free text with a grid of suggestions, and
+  // **not gated on `type`** -- pruning, tilling and a fence repair are all work,
+  // and a spray that also took three hours is work too, exactly like workHours
+  // above. See the header of workEntry.ts for why `type` itself stays a closed
+  // list instead.
+  const [workKind, setWorkKind] = useState('');
+  // Whether the "new kind" square has opened its box. The box writes straight
+  // into workKind, exactly as ExpenseSheet's name box writes straight into
+  // draft.name -- there is no confirm click between typing a kind and saving
+  // the entry.
+  const [addingWorkKind, setAddingWorkKind] = useState(false);
   // **The one cost box.** Founder's decision 2026-09-10: an entry writes a
   // single expense, so there is a single amount for it, not a spray total and a
   // work total the farmer had to add up himself. It is suggested from quantity x
@@ -149,6 +169,7 @@ export function LogEntrySheet({
       setSprayUnitPrice(entry.sprayUnitPrice != null ? String(entry.sprayUnitPrice) : '');
       setWorkHours(entry.workHours != null ? String(entry.workHours) : '');
       setWorkHourlyRate(entry.workHourlyRate != null ? String(entry.workHourlyRate) : '');
+      setWorkKind(entry.workKind ?? '');
       setCost(entry.cost != null ? String(entry.cost) : '');
       // A saved cost that does not match quantity x price plus hours x rate was
       // typed by hand and must be kept as-is; one that matches was computed and
@@ -180,15 +201,18 @@ export function LogEntrySheet({
       // may not have arrived yet when the sheet opens. The effect below fills it
       // the moment they do, and only while the box is still empty.
       setWorkHourlyRate('');
+      setWorkKind('');
       setCost('');
       setCostEdited(false);
       setHarvestQty('');
       setHarvestUnit('');
     }
-    // מחוץ לענף: תיבת "חומר חדש" נסגרת בכל פתיחה, גם בעריכה, כדי
-    // שגיליון שנפתח מחדש לא יציג תיבה פתוחה משימוש קודם.
+    // מחוץ לענף: תיבת "חומר חדש" ותיבת "סוג עבודה חדש" נסגרות בכל
+    // פתיחה, גם בעריכה, כדי שגיליון שנפתח מחדש לא יציג תיבה פתוחה
+    // משימוש קודם.
     setAddingMaterial(false);
     setNewMaterial('');
+    setAddingWorkKind(false);
     setStatus('idle');
   }, [open, entry, defaultPlotId, defaultType]);
 
@@ -267,6 +291,17 @@ export function LogEntrySheet({
     setAddingMaterial(false);
   }
 
+  // The tiles: the farm's fifty most recent kinds of work, newest first, plus
+  // whatever this record already carries. **The held value is dropped out of
+  // the grid while the box is open**, exactly like ExpenseSheet's nameOptions,
+  // so typing a new kind cannot push a square in or out of the grid above the
+  // box the farmer is typing into.
+  const workKindChoices = workKindOptions(
+    workKindSuggestions.kinds,
+    addingWorkKind ? null : workKind,
+  );
+  const selectedWorkKind = addingWorkKind || workKind.trim() === '' ? null : workKind.trim();
+
   const unitPriceLabel =
     sprayQuantityUnit === 'kg'
       ? t('spray.unitPricePerKg')
@@ -295,6 +330,10 @@ export function LogEntrySheet({
       // from the pricelist. See 20260906120000_work_hours.sql.
       workHours: amountOrNull(workHours),
       workHourlyRate: amountOrNull(workHourlyRate),
+      // Not gated on `type`, same as workHours just above: a farmer typing a
+      // kind of work is stating what the job was, and that is true of every
+      // entry type, not only ones that already have hours logged.
+      workKind: workKind.trim() ? workKind.trim() : null,
       // The one cost, written to `expenses` via createLogEntry/updateLogEntry.
       // See the money header in logEntries.ts.
       cost: amountOrNull(cost),
@@ -578,6 +617,48 @@ export function LogEntrySheet({
             disabled={busy}
           />
         </div>
+
+        {/* **סוג העבודה, מחוץ לכל תנאי סוג, בדיוק כמו השעות.** עידו,
+            6.9.2026, החצי השני של אותה בקשה: "שעות עבודה וסוג עבודה
+            ביומן". שדה טקסט חופשי עם רשת הצעות מתוך היסטוריית המשק,
+            ולא רשימה סגורה -- ראו את הכותרת של workEntry.ts לנימוק
+            המלא מדוע `type` עצמו נשאר רשימה סגורה. */}
+        <TilePicker
+          id="log-work-kind"
+          title={t('work.kind')}
+          options={workKindChoices.map((value) => ({ value, label: value }))}
+          selectedValue={selectedWorkKind}
+          onSelect={(value) => {
+            setWorkKind(value);
+            setAddingWorkKind(false);
+          }}
+          actions={[
+            { key: 'add', label: t('work.kindAdd'), onPress: () => setAddingWorkKind(true) },
+          ]}
+          emptyHint={t('work.kindEmpty')}
+          disabled={busy}
+          footer={
+            addingWorkKind ? (
+              <div className="tile-picker__footer">
+                {/* Bound straight to workKind, with no confirm button under it --
+                    same as ExpenseSheet's add-a-name box, and for the same
+                    reason: there is no next step to advance to on a form. */}
+                <input
+                  id="log-work-kind-new"
+                  className="form__input"
+                  type="text"
+                  value={workKind}
+                  placeholder={t('work.kindPlaceholder')}
+                  onChange={(e) => setWorkKind(e.target.value)}
+                  disabled={busy}
+                  aria-labelledby="log-work-kind"
+                  autoFocus
+                />
+              </div>
+            ) : null
+          }
+        />
+
         {/* **תיבת העלות היחידה.** החלטת היזם 2026-09-10: רשומה אחת יוצרת
             הוצאה אחת, אז יש לה סכום אחד, לא סכום ריסוס וסכום עבודה שהחקלאי
             צריך לחבר בעצמו. ההצעה היא כמות כפול מחיר ליחידה ועוד שעות כפול

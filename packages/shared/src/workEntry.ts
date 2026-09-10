@@ -1,7 +1,7 @@
 // The material half of the entry's cost, borrowed rather than restated: the same
 // function the spray flow uses, so a spray's contribution to the one total below
 // cannot be computed two ways. See computeEntryCost.
-import { computeSprayCost } from './sprayEntry';
+import { computeSprayCost, recentValues } from './sprayEntry';
 
 // Work hours on a journal entry, and what they cost.
 //
@@ -67,6 +67,75 @@ export function computeWorkCost(hours: number | null, hourlyRate: number | null)
 // expense. Keeping them would have left two ways to ask one question, each right
 // about half a number. `entryCostEdited` and `recomputedEntryCost` below are the
 // replacements, and they ask it about the whole.
+
+// ============================================================
+// What the work actually was.
+//
+// Ido's first feedback round, item (ו): "שעות עבודה וסוג עבודה ביומן". The hours
+// shipped in 20260906120000_work_hours.sql; this is the other half of that
+// sentence, and the founder decided on 2026-09-10 how to answer it.
+//
+// **A free-text field of its own, and `type` stays the closed list it is.** When
+// Ido logs three hours of pruning he picks "אחר", because the ten types are a
+// domain rather than a label and there is nowhere in them to say what he did.
+// The obvious fix -- let him type into `type` -- was rejected: the Spray Log
+// Screen filters `type = 'spray'` in the database and the regulator export is
+// that filtered list, so one typo would drop a real spray out of a regulatory
+// document silently. Two questions, two fields. See the header of
+// 20260910130000_work_kind.sql, which carries the argument in full.
+//
+// **The grid is a convenience and never a list.** He types "גיזום" once and taps
+// it every time after; he can also type something no farm has ever typed, on any
+// entry, forever. Manual entry always wins -- the standing founder rule this
+// product applies to every cost box, every material and every expense name.
+// ============================================================
+
+// **Five, matching EXPENSE_NAME_TILE_LIMIT rather than the six of the spray
+// grids, and for that same reason.** The spray and crop grids own a whole step
+// of a walk and can afford a fourth row; this field sits on the journal sheet
+// underneath a type strip, a date, a note, the hours, the rate and a cost box.
+// Five values plus a "something else" square is exactly three full rows. If the
+// sheet turns out too tall on a phone, this number is the cheap lever, not the
+// grid itself -- the same note expenseForm.ts leaves.
+export const WORK_KIND_TILE_LIMIT = 5;
+
+// **recentValues, and newest-first rather than most-used.** Three reasons, and
+// the first is the one that decided it:
+//
+//   seasonality  Farm work is seasonal. Pruning happens for a few weeks in
+//                winter and harvest for a few weeks in summer, so a most-used
+//                ranking, built over a whole year, would keep offering January's
+//                work in August -- it gets *worse* the longer the farm uses the
+//                product, which is the wrong direction for a shortcut to move.
+//                Newest-first tracks the season the farmer is actually standing
+//                in.
+//
+//   one rule     recentValues is already what the pest, material, dose, crop and
+//                expense-name grids all use. A sixth grid with a ranking of its
+//                own would mean a fix to "what this farm did recently" could land
+//                in five places and miss the sixth.
+//
+//   the window   The read is capped at fifty rows anyway (useWorkKindSuggestions),
+//                so "most used" would in truth be "most used in the last fifty
+//                entries" -- a frequency count over a recency window, which is
+//                the same idea as recency with an extra step that is harder to
+//                explain and harder to test.
+//
+// `selected` is the value the sheet is currently holding, on the grid whether or
+// not the history still remembers it -- identical to expenseNameOptions, and for
+// the identical reason: reopening a six-month-old entry whose kind of work has
+// since dropped off the end of the last fifty rows must not look like the value
+// got lost.
+export function workKindOptions(
+  kinds: readonly (string | null)[],
+  selected: string | null = null,
+  limit: number = WORK_KIND_TILE_LIMIT,
+): string[] {
+  const recent = recentValues(kinds, limit);
+  const current = selected?.trim();
+  if (!current || recent.includes(current)) return recent;
+  return [current, ...recent].slice(0, limit);
+}
 
 // ============================================================
 // What a journal entry cost, as one number.

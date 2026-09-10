@@ -1,0 +1,83 @@
+-- What the work actually was, in the farmer's own words.
+--
+-- Ido, first feedback round 2026-09-02, item (ו): "שעות עבודה וסוג עבודה
+-- ביומן". The hours half shipped in 20260906120000_work_hours.sql. This is the
+-- other half of that one sentence, and it stayed open because until 2026-09-10
+-- nobody had decided what "kind of work" was supposed to be.
+--
+-- **It is a new free-text column, and log_entries.type is deliberately left
+-- exactly as it is.** Founder's decision 2026-09-10, taken after both options
+-- were put side by side:
+--
+--   rejected  Open `type` up to free text, so that "גיזום" and "תיקון גדר" are
+--             simply typed into the field the farmer already sees. One field,
+--             no new column. It is rejected because `type` is not a label, it
+--             is a **closed domain two features depend on being closed**:
+--             20260825060000_log_entries_type_domain.sql pins it to ten values
+--             with a check constraint, the Spray Log Screen filters on
+--             `type = 'spray'` in the database (useLogEntries), and the
+--             regulator export is that filtered list. A farmer who types
+--             "ריסוס " with a trailing space, or "ריסוסים", drops his own spray
+--             out of the regulatory document and nothing anywhere tells him.
+--             The same argument that made the domain a constraint in the first
+--             place makes it wrong to dissolve now.
+--
+--   chosen    A separate `work_kind`, free text, alongside the type. The type
+--             keeps answering "which of the ten operational kinds is this, for
+--             the filter and the report"; work_kind answers "what did I
+--             actually do", which is the question Ido is asking when he logs
+--             three hours of pruning and has to pick "אחר" because there is
+--             nowhere else to say it. Two questions, two columns, and neither
+--             one is asked to be both a domain and a sentence.
+--
+-- **Not gated on the entry type**, exactly like work_hours and for the identical
+-- reason. Pruning, tilling and a fence repair are all work, and a spray that
+-- took three hours is work too, so writePayload() in
+-- packages/shared/src/logEntries.ts nulls the spray columns per type and
+-- deliberately does not null this one -- see the comment there. Switching a
+-- record from 'spray' to 'other' must not throw away what the farmer wrote about
+-- the job.
+--
+-- **Free text and it stays free text.** The suggestions the app offers
+-- (useWorkKindSuggestions, packages/shared/src/logEntries.ts) are read back out
+-- of this farm's own history so that he types "גיזום" once and taps it
+-- afterwards. They are a convenience and never a closed list: manual entry
+-- always wins, the standing founder rule this product has applied to every cost
+-- box, every material and every expense name.
+
+-- Nullable, no default, no check constraint.
+--
+-- Nullable because most entries will never carry one and an entry without a
+-- stated kind of work is a perfectly good record -- the same standing as
+-- work_hours and spray_dose. Empty string is never written: the shared write
+-- path trims and turns blank into null, so "not stated" has exactly one
+-- spelling in the column and a suggestion grid cannot fill up with whitespace.
+--
+-- No check constraint on purpose, and this is the whole point of the column: it
+-- is the non-domain twin of `type`. A constraint here would recreate, one
+-- migration later, the closed list this column exists to sit next to.
+--
+-- **No index, and it was checked rather than assumed.** The only query that ever
+-- reads this column other than as part of a row already in hand is the
+-- suggestion read:
+--
+--   select work_kind from log_entries
+--   where farm_id = $1 and deleted_at is null and work_kind is not null
+--   order by created_at desc limit 50
+--
+-- log_entries_farm_id_idx (core_schema.sql) already narrows that to one farm's
+-- journal, which for a real vineyard is thousands of rows and not millions, and
+-- what is left is a filter and a sort over that handful. Nothing filters or
+-- joins on the *value* of work_kind anywhere -- it is never a where clause, only
+-- ever something read out -- so a btree on it would be an index nothing can use.
+-- If the sort itself ever shows up as the cost, the answer is a partial index on
+-- (farm_id, created_at desc) where work_kind is not null, which serves this one
+-- query exactly; it is not added today because a farm's journal is not big
+-- enough for it to pay for its own writes.
+--
+-- Like work_hours and spray_unit_price, this is NOT masked from a worker.
+-- log_entries is the operational table the worker himself writes to and it
+-- carries no masking view; that is the stage 6 worker-mode question already
+-- recorded in docs/open-items.md, and this column is plainly on the operational
+-- side of it -- "what did I do today" is exactly what a worker records.
+alter table public.log_entries add column work_kind text;

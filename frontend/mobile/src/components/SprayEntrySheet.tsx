@@ -230,19 +230,29 @@ export function SprayEntrySheet({
     setStatus('saving');
     const input = sprayEntryInput(draft);
     const result = entry
-      ? // Neither the note nor the work hours are among the six fields this flow
-        // asks for, so an edit carries the existing ones through instead of
-        // erasing them. Hours are entered on the journal sheet, for any type.
-        // `input.cost` is not overridden here -- the draft already carries the
-        // farmer's own number (or the material+labour suggestion CostPanel
-        // computed below) from the cost step, and there is no second, separate
-        // work_cost column left to carry through. See the money header in
-        // logEntries.ts.
+      ? // Neither the note, the work hours nor the kind of work are among the six
+        // fields this flow asks for, so an edit carries the existing ones through
+        // instead of erasing them. Hours and the kind of work are entered on the
+        // journal sheet, for any type. `input.cost` is not overridden here -- the
+        // draft already carries the farmer's own number (or the material+labour
+        // suggestion CostPanel computed below) from the cost step, and there is
+        // no second, separate work_cost column left to carry through. See the
+        // money header in logEntries.ts.
+        //
+        // **workKind was the same bug as sprayQuantity/sprayUnitPrice, found and
+        // fixed the same day, one field later.** writePayload() in logEntries.ts
+        // builds the FULL row on every update and work_kind is ungated (it
+        // belongs to the work, not to the type -- see its own comment there), so
+        // a null here is a null written to the column: editing a spray from this
+        // walk silently erased whatever kind of work had been typed on the
+        // journal sheet, exactly like the quantity/price bug did for the
+        // material half.
         await updateLogEntry(supabase, entry.id, {
           ...input,
           note: entry.note,
           workHours: entry.workHours,
           workHourlyRate: entry.workHourlyRate,
+          workKind: entry.workKind,
         })
       : await createLogEntry(supabase, farmId, input);
     if (result.ok) {

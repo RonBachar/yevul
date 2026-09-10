@@ -10,7 +10,7 @@ create extension if not exists pgtap;
 
 begin;
 
-select plan(70);
+select plan(75);
 
 -- ====================================================================
 -- הכנה, חמישה משתמשי בדיקה, שני משקים נפרדים
@@ -582,6 +582,51 @@ select is(
   (select count(*)::int from public.expenses where id = (select value from fixture where key = 'expense_link')),
   0,
   'but the expense it points at stays invisible to worker_a, the pointer is not a back door into the money table'
+);
+
+-- ====================================================================
+-- קבוצה 13ג, log_entries.work_kind (20260910130000). "סוג עבודה" בטקסט
+-- חופשי לצד `type`, שנשאר רשימה סגורה. שתי שאלות שונות על אותה שורה:
+-- `type` הוא הדומיין שמסך יומן הריסוס והדוח לרגולטור מסננים לפיו,
+-- ו-work_kind הוא מה שהחקלאי באמת עשה. הבדיקות כאן נועלות את שלושת
+-- הדברים שאפשר לשבור בטעות: שאין אילוץ על הערך, שהוא אינו תלוי בסוג
+-- הרשומה, ושהעובד כותב וקורא אותו כמו כל שאר הטבלה התפעולית.
+-- ====================================================================
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
+
+select lives_ok(
+  $$ insert into public.log_entries (farm_id, plot_id, date, type, source, work_kind, work_hours)
+     values ((select value from fixture where key = 'farm_a'), (select value from fixture where key = 'plot_a'), current_date, 'other', 'manual', 'תיקון גדר', 3) $$,
+  'owner_a can say what the work was in his own words, which is the whole point: type stayed a closed list and this did not'
+);
+select is(
+  (select work_kind from public.log_entries where farm_id = (select value from fixture where key = 'farm_a') and work_kind = 'תיקון גדר'),
+  'תיקון גדר',
+  'the free text landed as typed, no domain, no check constraint, nothing normalised behind his back'
+);
+
+-- Not gated on the type, exactly like work_hours. A spray that also took three
+-- hours of pruning around it is one entry, and writePayload() in
+-- packages/shared/src/logEntries.ts deliberately does not null this column per
+-- type the way it nulls the spray columns.
+select lives_ok(
+  $$ insert into public.log_entries (farm_id, plot_id, date, type, source, spray_pest, spray_material, work_kind)
+     values ((select value from fixture where key = 'farm_a'), (select value from fixture where key = 'plot_a'), current_date, 'spray', 'manual', 'כנימה', 'שמן קיץ', 'ריסוס וגיזום') $$,
+  'a spray can carry a kind of work too, the column belongs to the work and not to one entry type'
+);
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000003', 'role', 'authenticated')::text, true);
+
+select lives_ok(
+  $$ insert into public.log_entries (farm_id, plot_id, date, type, source, work_kind, work_hours)
+     values ((select value from fixture where key = 'farm_a'), (select value from fixture where key = 'plot_a'), current_date, 'other', 'manual', 'ניקוי שוחות', 4) $$,
+  'worker_a can record what he did today, log_entries is the operational table he himself writes to'
+);
+select is(
+  (select work_kind from public.log_entries where farm_id = (select value from fixture where key = 'farm_a') and work_kind = 'תיקון גדר'),
+  'תיקון גדר',
+  'and he reads the owner''s too, there is no masking view on log_entries yet, see docs/open-items.md'
 );
 
 -- ====================================================================

@@ -541,12 +541,18 @@ export {
   recomputedEntryCost,
   workLogTotals,
   parseWorkAmountInput,
+  // The kind-of-work grid: what it offers and how many squares it is. Free text
+  // with a shortcut, never a list -- `type` is the closed domain and this is
+  // deliberately not. See 20260910130000_work_kind.sql.
+  workKindOptions,
+  WORK_KIND_TILE_LIMIT,
   type WorkLogRow,
   type WorkLogTotals,
 } from './workEntry';
 export {
   useLogEntries,
   useSpraySuggestions,
+  useWorkKindSuggestions,
   useSprayPrices,
   createLogEntry,
   updateLogEntry,
@@ -565,4 +571,5 @@ export {
   type SprayPriceInput,
   type SprayPriceWriteResult,
   type SpraySuggestions,
+  type WorkKindSuggestions,
 } from './logEntries';

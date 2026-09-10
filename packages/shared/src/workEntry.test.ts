@@ -5,6 +5,8 @@ import {
   entryCostEdited,
   parseWorkAmountInput,
   recomputedEntryCost,
+  WORK_KIND_TILE_LIMIT,
+  workKindOptions,
   workLogTotals,
 } from './workEntry';
 
@@ -152,5 +154,66 @@ describe('workLogTotals', () => {
 
   it('is zero for an empty list', () => {
     expect(workLogTotals([])).toEqual({ entries: 0, hours: 0, cost: 0 });
+  });
+});
+
+// ============================================================
+// The kind-of-work grid. Item (ו) of Ido's first feedback round, the half that
+// was still open: he logs three hours of pruning, has to pick "אחר" for the type,
+// and has nowhere to say what he actually did.
+//
+// The grid is the shortcut so he types it once. **What these tests hold is that
+// it stays a shortcut**: it never becomes a list he has to pick from, and it
+// never loses the value that is already on the record in front of him.
+// ============================================================
+
+describe('workKindOptions', () => {
+  it('offers the farm’s own recent kinds of work, newest first', () => {
+    expect(workKindOptions(['גיזום', 'תיקון גדר', 'ניקוי שוחות'])).toEqual([
+      'גיזום',
+      'תיקון גדר',
+      'ניקוי שוחות',
+    ]);
+  });
+
+  // Newest-first and not most-used, decided on seasonality: pruning happens for a
+  // few weeks in winter and harvest for a few weeks in summer, so a frequency
+  // ranking built over a year keeps offering January's work in August. Here
+  // 'גיזום' is the older, more frequent value and still comes second.
+  it('ranks by recency and not by how often a kind was used', () => {
+    expect(workKindOptions(['ריסוס', 'גיזום', 'גיזום', 'גיזום'])).toEqual(['ריסוס', 'גיזום']);
+  });
+
+  it('trims, drops blanks and nulls, and shows each kind once', () => {
+    expect(workKindOptions(['  גיזום  ', 'גיזום', '', '   ', null, 'קטיף'])).toEqual([
+      'גיזום',
+      'קטיף',
+    ]);
+  });
+
+  it('caps the grid at the tile limit', () => {
+    const many = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+    expect(workKindOptions(many)).toHaveLength(WORK_KIND_TILE_LIMIT);
+  });
+
+  // Reopening a six-month-old entry whose kind of work has since dropped off the
+  // end of the last fifty rows must not look like the value got lost. First
+  // square, and the grid stays the same length so the rows under it cannot move.
+  it('puts the value already on the record first, even when history has forgotten it', () => {
+    const options = workKindOptions(['a', 'b', 'c', 'd', 'e'], 'תיקון גדר');
+    expect(options[0]).toBe('תיקון גדר');
+    expect(options).toHaveLength(WORK_KIND_TILE_LIMIT);
+  });
+
+  it('does not repeat a selected value the history still remembers', () => {
+    expect(workKindOptions(['גיזום', 'קטיף'], 'קטיף')).toEqual(['גיזום', 'קטיף']);
+  });
+
+  // **The grid is never the whole answer.** A farmer can always type something no
+  // farm has ever typed -- manual entry always wins -- so an empty history is a
+  // real state that returns an empty grid rather than a fallback list of guesses.
+  it('offers nothing rather than inventing a starter list', () => {
+    expect(workKindOptions([])).toEqual([]);
+    expect(workKindOptions([null, '  '])).toEqual([]);
   });
 });
