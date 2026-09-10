@@ -64,10 +64,10 @@ function entry(overrides: Partial<LogEntry> = {}): LogEntry {
     sprayQuantity: null,
     sprayQuantityUnit: null,
     sprayUnitPrice: null,
-    sprayCost: null,
     workHours: null,
     workHourlyRate: null,
-    workCost: null,
+    createdExpenseId: null,
+    cost: null,
     harvestQty: null,
     harvestUnit: null,
     createdAt: '2026-08-25T06:00:00.000Z',
@@ -461,10 +461,9 @@ describe('sprayEntryInput', () => {
       sprayQuantity: null,
       sprayQuantityUnit: null,
       sprayUnitPrice: null,
-      sprayCost: null,
       workHours: null,
       workHourlyRate: null,
-      workCost: null,
+      cost: null,
       harvestQty: null,
       harvestUnit: null,
     });
@@ -514,14 +513,16 @@ describe('sprayDraftFromEntry', () => {
   });
 
   // A saved cost that equals quantity x unit price was computed and may still
-  // recompute; anything else was typed and must be left alone.
+  // recompute; anything else was typed -- or included hours this walk never asked
+  // about -- and must be left alone. The cost read back is the entry's one cost,
+  // off the expense it created; there is no `spray_cost` column any more.
   it('marks a saved cost as edited only when it is not the quantity x price', () => {
     const computed = sprayDraftFromEntry(
-      entry({ sprayQuantity: 3, sprayQuantityUnit: 'kg', sprayUnitPrice: 40, sprayCost: 120 }),
+      entry({ sprayQuantity: 3, sprayQuantityUnit: 'kg', sprayUnitPrice: 40, cost: 120 }),
     );
     expect(computed.costEdited).toBe(false);
     const typed = sprayDraftFromEntry(
-      entry({ sprayQuantity: 3, sprayQuantityUnit: 'kg', sprayUnitPrice: 40, sprayCost: 200 }),
+      entry({ sprayQuantity: 3, sprayQuantityUnit: 'kg', sprayUnitPrice: 40, cost: 200 }),
     );
     expect(typed.costEdited).toBe(true);
   });
@@ -728,7 +729,7 @@ describe('the cost as the farmer builds it', () => {
   it('accepts a bare total with no quantity and no price', () => {
     const draft = applySprayCost({ ...base, pest: 'כנימה', material: 'עלסר' }, 250);
     const input = sprayEntryInput(draft);
-    expect(input.sprayCost).toBe(250);
+    expect(input.cost).toBe(250);
     expect(input.sprayQuantity).toBeNull();
     expect(input.sprayUnitPrice).toBeNull();
   });
@@ -745,7 +746,7 @@ describe('the cost as the farmer builds it', () => {
     expect(input.sprayQuantity).toBe(3);
     expect(input.sprayQuantityUnit).toBe('kg');
     expect(input.sprayUnitPrice).toBe(40);
-    expect(input.sprayCost).toBe(120);
+    expect(input.cost).toBe(120);
   });
 
   // Picking a different material re-decides the price, like the dose, and the

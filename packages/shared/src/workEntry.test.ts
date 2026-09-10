@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  computeEntryCost,
   computeWorkCost,
+  entryCostEdited,
   parseWorkAmountInput,
-  recomputedWorkCost,
-  workCostEdited,
+  recomputedEntryCost,
   workLogTotals,
 } from './workEntry';
 
@@ -40,25 +41,55 @@ describe('computeWorkCost', () => {
 describe('the manual override', () => {
   it('keeps a typed total when the hours later change', () => {
     const typed = 500;
-    expect(workCostEdited(typed, 3, 60)).toBe(true);
-    expect(recomputedWorkCost(typed, 8, 60, true)).toBe(500);
+    expect(entryCostEdited(typed, null, null, 3, 60)).toBe(true);
+    expect(recomputedEntryCost(typed, null, null, 8, 60, true)).toBe(500);
   });
 
   it('recomputes a total that was never touched', () => {
-    expect(workCostEdited(180, 3, 60)).toBe(false);
-    expect(recomputedWorkCost(180, 8, 60, false)).toBe(480);
+    expect(entryCostEdited(180, null, null, 3, 60)).toBe(false);
+    expect(recomputedEntryCost(180, null, null, 8, 60, false)).toBe(480);
   });
 
   // סכום שהוקלד לבד, בלי שעות ובלי תעריף, הוא רישום תקין לחלוטין.
   it('accepts a cost typed with no hours and no rate at all', () => {
-    expect(workCostEdited(400, null, null)).toBe(true);
-    expect(recomputedWorkCost(400, null, null, true)).toBe(400);
+    expect(entryCostEdited(400, null, null, null, null)).toBe(true);
+    expect(recomputedEntryCost(400, null, null, null, null, true)).toBe(400);
   });
 
   // רישום בלי עלות בכלל אינו "עריכה ידנית של אפס".
   it('does not call a missing cost an edited one', () => {
-    expect(workCostEdited(null, 3, 60)).toBe(false);
-    expect(recomputedWorkCost(null, 3, 60, false)).toBe(180);
+    expect(entryCostEdited(null, null, null, 3, 60)).toBe(false);
+    expect(recomputedEntryCost(null, null, null, 3, 60, false)).toBe(180);
+  });
+});
+
+// **One entry, one cost.** Founder's decision 2026-09-10: a journal entry that
+// carries a cost writes a single expense, and its amount is the material plus the
+// hours. What used to be two stored numbers -- and therefore two chances to
+// subtract the same money -- is one suggestion for one box.
+describe('computeEntryCost', () => {
+  it('adds the material cost and the labour cost into one number', () => {
+    expect(computeEntryCost(3, 40, 3, 60)).toBe(300);
+  });
+
+  // A half that cannot be computed is skipped, not read as zero: a spray with no
+  // stated hours still suggests what the material cost.
+  it('suggests the half it has when the other half is missing', () => {
+    expect(computeEntryCost(3, 40, null, null)).toBe(120);
+    expect(computeEntryCost(null, null, 3, 60)).toBe(180);
+  });
+
+  // Null, not 0: nothing to suggest is not the claim that the job was free.
+  it('has nothing to suggest when neither half can be computed', () => {
+    expect(computeEntryCost(null, null, null, null)).toBeNull();
+    expect(computeEntryCost(3, null, null, 60)).toBeNull();
+  });
+
+  // A cost that is the sum of both halves was computed and may recompute; the same
+  // number with only one half behind it was the farmer's own.
+  it('calls the summed total computed and any other total edited', () => {
+    expect(entryCostEdited(300, 3, 40, 3, 60)).toBe(false);
+    expect(entryCostEdited(120, 3, 40, 3, 60)).toBe(true);
   });
 });
 
@@ -78,8 +109,8 @@ describe('parseWorkAmountInput', () => {
 describe('workLogTotals', () => {
   it('sums the hours and the money of the entries on screen', () => {
     const totals = workLogTotals([
-      { workHours: 3, workCost: 180 },
-      { workHours: 2.5, workCost: 150 },
+      { workHours: 3, cost: 180 },
+      { workHours: 2.5, cost: 150 },
     ]);
     expect(totals.entries).toBe(2);
     expect(totals.hours).toBe(5.5);
@@ -91,8 +122,8 @@ describe('workLogTotals', () => {
   // אחת מהשנייה הייתה ממציאה מספר בשני המקרים.
   it('counts hours with no cost and a cost with no hours, without inventing either', () => {
     const totals = workLogTotals([
-      { workHours: 4, workCost: null },
-      { workHours: null, workCost: 250 },
+      { workHours: 4, cost: null },
+      { workHours: null, cost: 250 },
     ]);
     expect(totals.entries).toBe(2);
     expect(totals.hours).toBe(4);
@@ -101,8 +132,8 @@ describe('workLogTotals', () => {
 
   it('ignores rows that carry neither', () => {
     const totals = workLogTotals([
-      { workHours: null, workCost: null },
-      { workHours: 1, workCost: 60 },
+      { workHours: null, cost: null },
+      { workHours: 1, cost: 60 },
     ]);
     expect(totals.entries).toBe(1);
     expect(totals.hours).toBe(1);
@@ -112,8 +143,8 @@ describe('workLogTotals', () => {
   // שורה אחת מקולקלת לא מרעילה את כל המסך.
   it('drops an unusable number instead of poisoning the total', () => {
     const totals = workLogTotals([
-      { workHours: Number.NaN, workCost: 100 },
-      { workHours: 2, workCost: 120 },
+      { workHours: Number.NaN, cost: 100 },
+      { workHours: 2, cost: 120 },
     ]);
     expect(totals.hours).toBe(2);
     expect(totals.cost).toBe(220);

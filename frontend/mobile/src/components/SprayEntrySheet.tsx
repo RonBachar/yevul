@@ -7,6 +7,7 @@ import {
   applySprayQuantity,
   applySprayUnit,
   applySprayUnitPrice,
+  computeEntryCost,
   createLogEntry,
   formatCalendarDate,
   newSprayDraft,
@@ -232,12 +233,16 @@ export function SprayEntrySheet({
       ? // Neither the note nor the work hours are among the six fields this flow
         // asks for, so an edit carries the existing ones through instead of
         // erasing them. Hours are entered on the journal sheet, for any type.
+        // `input.cost` is not overridden here -- the draft already carries the
+        // farmer's own number (or the material+labour suggestion CostPanel
+        // computed below) from the cost step, and there is no second, separate
+        // work_cost column left to carry through. See the money header in
+        // logEntries.ts.
         await updateLogEntry(supabase, entry.id, {
           ...input,
           note: entry.note,
           workHours: entry.workHours,
           workHourlyRate: entry.workHourlyRate,
-          workCost: entry.workCost,
         })
       : await createLogEntry(supabase, farmId, input);
     if (result.ok) {
@@ -295,7 +300,14 @@ export function SprayEntrySheet({
           // the dose and the waiting period from this farm's history, and that
           // rule is tested in the shared package rather than written here.
           onSelect={(value) =>
-            answered('material', applySprayMaterial(draft, value, suggestions.rows, prices))
+            answered(
+              'material',
+              withEntryCostSuggestion(
+                applySprayMaterial(draft, value, suggestions.rows, prices),
+                entry?.workHours ?? null,
+                entry?.workHourlyRate ?? null,
+              ),
+            )
           }
           actions={[{ key: 'add', label: t('spray.addMaterial'), onPress: () => setAdding(true) }]}
           emptyHint={t('spray.emptyMaterials')}
@@ -312,7 +324,11 @@ export function SprayEntrySheet({
                   if (material) {
                     answered(
                       'material',
-                      applySprayMaterial(draft, material, suggestions.rows, prices),
+                      withEntryCostSuggestion(
+                        applySprayMaterial(draft, material, suggestions.rows, prices),
+                        entry?.workHours ?? null,
+                        entry?.workHourlyRate ?? null,
+                      ),
                     );
                   }
                 }}
@@ -326,6 +342,13 @@ export function SprayEntrySheet({
         <CostPanel
           draft={draft}
           setDraft={setDraft}
+          // Hours have no box on this walk -- they are entered on the journal
+          // sheet, for any entry type -- but an entry already carrying some
+          // (Ido's example: a spray that also took three hours) must still
+          // suggest material + labour here, not material alone. See
+          // computeEntryCost in workEntry.ts and the sheet header above.
+          workHours={entry?.workHours ?? null}
+          workHourlyRate={entry?.workHourlyRate ?? null}
           subtitle={subtitle}
           disabled={busy}
           // Cost has no single value to "select", so it advances on an explicit
@@ -524,6 +547,24 @@ export function SprayEntrySheet({
   );
 }
 
+// **Layers the work-hours half onto a draft's auto suggestion.**
+// applySprayMaterial/applySprayQuantity/applySprayUnitPrice (packages/shared,
+// not owned here) only know the material half -- quantity x unit price --
+// because sprayEntry.ts has no notion of hours. This sheet does carry hours,
+// frozen on the entry being edited (see the 'cost' step header below), so
+// whenever those setters leave the draft on "auto" (costEdited false) this
+// widens the suggestion to material + labour, exactly what a farmer reopening
+// a spray that also took him three hours expects to see. A typed cost
+// (costEdited true) is never touched here -- manual entry always wins.
+function withEntryCostSuggestion(
+  draft: SprayDraft,
+  workHours: number | null,
+  workHourlyRate: number | null,
+): SprayDraft {
+  if (draft.costEdited) return draft;
+  return { ...draft, cost: computeEntryCost(draft.quantity, draft.unitPrice, workHours, workHourlyRate) };
+}
+
 // A history value is its own label: the farmer wrote "כנימה" and that is what
 // the square says.
 function toTiles(values: readonly string[]): TileOption[] {
@@ -634,12 +675,18 @@ function amountToText(value: number | null): string {
 function CostPanel({
   draft,
   setDraft,
+  workHours,
+  workHourlyRate,
   subtitle,
   disabled,
   onContinue,
 }: {
   draft: SprayDraft;
   setDraft: (next: SprayDraft) => void;
+  // The entry's frozen work hours and rate, for the suggestion only -- this
+  // panel has no boxes of its own for them. See withEntryCostSuggestion above.
+  workHours: number | null;
+  workHourlyRate: number | null;
   subtitle?: string;
   disabled: boolean;
   onContinue: () => void;
@@ -651,13 +698,14 @@ function CostPanel({
   // undefined from the parser is "not a number" and must not become a null
   // value, exactly as the phiDays panel guards it. The typed text stays on screen
   // either way; only the draft is left alone until the box reads as empty or a
-  // number. When the total is still auto, the newly computed figure is mirrored
-  // into the cost box so it is never a stale number the farmer did not type.
+  // number. When the total is still auto, the newly computed figure -- material
+  // plus whatever labour the entry already carries -- is mirrored into the cost
+  // box so it is never a stale number the farmer did not type.
   function onChangeQuantity(text: string) {
     setQuantityText(text);
     const parsed = parseSprayAmountInput(text);
     if (parsed === undefined) return;
-    const next = applySprayQuantity(draft, parsed);
+    const next = withEntryCostSuggestion(applySprayQuantity(draft, parsed), workHours, workHourlyRate);
     setDraft(next);
     if (!next.costEdited) setCostText(amountToText(next.cost));
   }
@@ -666,7 +714,7 @@ function CostPanel({
     setUnitPriceText(text);
     const parsed = parseSprayAmountInput(text);
     if (parsed === undefined) return;
-    const next = applySprayUnitPrice(draft, parsed);
+    const next = withEntryCostSuggestion(applySprayUnitPrice(draft, parsed), workHours, workHourlyRate);
     setDraft(next);
     if (!next.costEdited) setCostText(amountToText(next.cost));
   }

@@ -71,36 +71,26 @@ describe('farmProfitForecast', () => {
     expect(result.plotsWithForecast).toBe(0);
   });
 
-  // Spray material cost lowers the profit (founder's decision 2026-09-04), as a
-  // distinct line so `expenses` still equals the expense list and does not
-  // double-count.
-  it('subtracts spray costs from profit without folding them into expenses', () => {
-    const result = farmProfitForecast([plot(100000, 20000)], 5000, true, 8000);
+  // **Profit is income minus expenses, and that is the whole of it.** Founder's
+  // decision 2026-09-10. There were three cost lines here until today -- the
+  // expenses, plus a spray-cost and a work-cost line read straight off the journal
+  // rows -- and a farmer who recorded a spray in the journal and also filed the
+  // material as an expense paid for it twice on this screen. The journal writes an
+  // expense now (see the money header in logEntries.ts), so every cost arrives
+  // through the one list and cannot arrive through two.
+  it('subtracts expenses and has no second cost line to subtract', () => {
+    const result = farmProfitForecast([plot(100000, 20000)], 5000, true);
     expect(result.expenses).toBe(25000);
-    expect(result.sprayCosts).toBe(8000);
-    expect(result.profit).toBe(100000 - 25000 - 8000);
+    expect(result.profit).toBe(100000 - 25000);
+    expect(result).not.toHaveProperty('sprayCosts');
+    expect(result).not.toHaveProperty('workCosts');
   });
 
-  it('leaves spray costs at zero when none are passed', () => {
-    const result = farmProfitForecast([plot(100000, 0)], 0, true);
-    expect(result.sprayCosts).toBe(0);
-    expect(result.profit).toBe(100000);
-  });
-
-  // The cost of the hours worked, Ido 2026-09-06. Counted exactly like the spray
-  // cost above: straight off the log rows, as its own line, never written as an
-  // expense (see 20260906120000_work_hours.sql).
-  it('subtracts work costs from profit without folding them into expenses', () => {
-    const result = farmProfitForecast([plot(100000, 20000)], 5000, true, 8000, 3000);
-    expect(result.expenses).toBe(25000);
-    expect(result.sprayCosts).toBe(8000);
-    expect(result.workCosts).toBe(3000);
-    expect(result.profit).toBe(100000 - 25000 - 8000 - 3000);
-  });
-
-  it('leaves work costs at zero when none are passed', () => {
-    const result = farmProfitForecast([plot(100000, 0)], 0, true, 0);
-    expect(result.workCosts).toBe(0);
-    expect(result.profit).toBe(100000);
+  // The guarantee stated as arithmetic: one recorded cost of 8000, however it was
+  // entered, moves the profit by 8000 and never by 16000.
+  it('moves the profit by a cost exactly once', () => {
+    const before = farmProfitForecast([plot(100000, 0)], 0, true);
+    const after = farmProfitForecast([plot(100000, 8000)], 0, true);
+    expect(before.profit - after.profit).toBe(8000);
   });
 });

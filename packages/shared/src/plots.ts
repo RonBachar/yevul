@@ -92,18 +92,17 @@ export function plotSummaryLine(plot: Plot, cropCycle: CropCycle | null): string
 // everything yet" ולא "אתה מפסיד כסף".
 // ============================================================
 
+// **One cost line, and that is the whole of the 2026-09-10 change here.** This
+// used to carry `sprayCost` and `workCost` beside `expenses`, because the journal
+// froze those two figures on its own rows and profit subtracted all three. A
+// farmer who recorded a spray in the journal and filed the same material as an
+// expense was charged twice over. The journal no longer holds money at all -- an
+// entry with a cost writes an expense (see the money header in logEntries.ts) --
+// so `expenses` is now every shekel this plot cost, and there is nothing left to
+// subtract twice.
 export type PlotProfitForecast = {
   expectedIncome: number;
   expenses: number;
-  // Spray material cost, frozen on the spray rows (20260904130000_spray_pricelist.sql).
-  // Kept separate from `expenses` so the money-expenses figure still matches the
-  // expense list; profit subtracts both. Founder's decision 2026-09-04.
-  sprayCost: number;
-  // The cost of the hours worked on this plot, frozen on the log rows
-  // (20260906120000_work_hours.sql). Kept apart from both figures above for the
-  // same reason spray cost is kept apart from `expenses`: profit subtracts all
-  // three, while each line still means exactly one thing.
-  workCost: number;
   expensesTracked: boolean;
   profit: number;
 };
@@ -138,8 +137,6 @@ export function plotProfitForecast(
   plotArea: number | null,
   cropCycle: CropCycle | null,
   expensesTotal: number | null,
-  sprayCost: number = 0,
-  workCost: number = 0,
 ): PlotProfitForecast | null {
   const expectedIncome = expectedIncomeFor(plotArea, cropCycle);
   if (expectedIncome == null) return null;
@@ -147,10 +144,8 @@ export function plotProfitForecast(
   return {
     expectedIncome,
     expenses,
-    sprayCost,
-    workCost,
     expensesTracked: expensesTotal != null,
-    profit: expectedIncome - expenses - sprayCost - workCost,
+    profit: expectedIncome - expenses,
   };
 }
 

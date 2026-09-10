@@ -22,9 +22,22 @@ import { workerUrl } from '../lib/aiTransport';
 // המחרוזות נקראות בתוך הרכיב ולא ברמת המודול, כדי שהחלפת שפה בשלב 8
 // תשפיע מיד ולא תיתקע על ערכים שנקראו פעם אחת בזמן ה-import.
 //
-// onJournalPress ו-onExpensePress הם השניים המחוברים בפועל, שלב 3:
-// יומן והוצאות קיבלו מסכי יצירה עד כה. משימה נשארת סוגרת בלבד עד
-// שהמסך שלה נבנה.
+// onJournalPress הוא המחובר בפועל מבין שתי לחיצות הטקסט שנותרו, שלב 3:
+// יומן קיבל מסך יצירה עד כה. משימה נשארת סוגרת בלבד עד שהמסך שלה נבנה,
+// והוצאה איבדה את לחיצת הטקסט שלה כאן לגמרי -- ראו ההערה שמתחת.
+//
+// **The expense row's body no longer opens the plain form, 2026-09-10.**
+// Home screen's quick action and this row opened the exact same ExpenseSheet
+// -- two buttons for one action, on the same screen a farmer already sees
+// both of. The founder's call: keep the quick action, it is the faster path
+// in the field, and drop the second door here. Money's own tab and the
+// plot-detail route keep their own way in; this is only the capture sheet's
+// copy. The mic and the camera on this row stay exactly as they were -- they
+// are the other two of prd.md's three recording methods (speaking,
+// photographing), not another way to reach the typed form, so removing the
+// duplicate must not remove them too. See onOptionPress and the row's render
+// below, where the row becomes a plain View instead of a Pressable for
+// `expense` alone.
 //
 // ---- Stage 5, step 8: the voice entry point. ----
 //
@@ -72,7 +85,6 @@ export function CaptureSheet({
   kinds,
   onClose,
   onJournalPress,
-  onExpensePress,
   onTaskPress,
 }: {
   // Only the voice path needs these, and only from its confirmation step: a
@@ -89,7 +101,10 @@ export function CaptureSheet({
   kinds: CaptureKind[];
   onClose: () => void;
   onJournalPress: () => void;
-  onExpensePress: () => void;
+  // No onExpensePress any more: the row's body no longer opens the plain
+  // form, see the header comment above. openExpense (CaptureActions.tsx)
+  // still exists and still backs the home screen's quick action and the
+  // money tab's own "new expense" -- it is just no longer threaded here.
   onTaskPress: () => void;
 }) {
   const { session } = useAuth();
@@ -117,6 +132,13 @@ export function CaptureSheet({
   // camera and microphone), so the row is not rendered at all rather than shown
   // disabled — the omission is at the render layer over a decision made in
   // @yevul/shared, not a CSS hide.
+  // No EXPO_PUBLIC_WORKER_URL in this build means no endpoint to talk to, so
+  // neither the microphones nor the camera are there. Every manual form still
+  // works, including attaching a photograph to an expense he types, which never
+  // touches the Worker — that is the whole reason aiTransport.ts returns null
+  // instead of throwing.
+  const aiAvailable = workerUrl !== null;
+
   const options = [
     {
       key: 'expense' as const,
@@ -136,21 +158,25 @@ export function CaptureSheet({
       title: t('capture.journal'),
       hint: t('capture.journalHint'),
     },
-  ].filter((option) => kinds.includes(option.key));
+  ].filter(
+    (option) =>
+      kinds.includes(option.key) &&
+      // The expense row's body no longer opens the plain form (see the header
+      // comment), so with no AI worker it would carry no mic, no camera and no
+      // tap of its own -- a row that does nothing. Home's quick action and the
+      // money tab still reach the form either way, so the row is simply left
+      // out rather than rendered dead.
+      (option.key !== 'expense' || aiAvailable),
+  );
 
   function onOptionPress(key: VoiceKind) {
+    // No `expense` branch: its row body is a plain View, not a Pressable, and
+    // never calls this. See the header comment and the render below.
     if (key === 'journal') return onJournalPress();
-    if (key === 'expense') return onExpensePress();
     if (key === 'task') return onTaskPress();
     return onClose();
   }
 
-  // No EXPO_PUBLIC_WORKER_URL in this build means no endpoint to talk to, so
-  // neither the microphones nor the camera are there. Every manual form still
-  // works, including attaching a photograph to an expense he types, which never
-  // touches the Worker — that is the whole reason aiTransport.ts returns null
-  // instead of throwing.
-  const aiAvailable = workerUrl !== null;
   const selected = voiceKind === null ? null : options.find((option) => option.key === voiceKind);
 
   // **The camera is offered whatever the plan, and the panel behind it is what
@@ -186,45 +212,55 @@ export function CaptureSheet({
         />
       ) : (
         <>
-          {options.map(({ key, Icon, title, hint }) => (
-            <Pressable
-              key={key}
-              style={styles.row}
-              onPress={() => onOptionPress(key)}
-              accessibilityRole="button"
-              accessibilityLabel={`${title}, ${hint}`}
-            >
-              <Icon size={24} strokeWidth={2} color={colors.field700} />
-              <View style={styles.rowText}>
-                <Text style={styles.rowTitle}>{title}</Text>
-                <Text style={styles.rowHint}>{hint}</Text>
-              </View>
-              {/* The expense row alone carries a second shortcut, and it is
-                  Wheat rather than Field so a thumb reaching for the microphone
-                  cannot land on the camera by muscle memory. design.md, Tokens
-                  Colors: Wheat 500 is the OCR/scan affordance. */}
-              {aiAvailable && key === 'expense' && (
-                <Pressable
-                  style={styles.rowScan}
-                  onPress={() => setScanningReceipt(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('capture.receipt')}
-                >
-                  <CameraIcon size={22} strokeWidth={2} color={colors.wheat800} />
-                </Pressable>
-              )}
-              {aiAvailable && (
-                <Pressable
-                  style={styles.rowMic}
-                  onPress={() => setVoiceKind(key)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${t('capture.voice')}, ${title}`}
-                >
-                  <Mic size={22} strokeWidth={2} color={colors.field700} />
-                </Pressable>
-              )}
-            </Pressable>
-          ))}
+          {options.map(({ key, Icon, title, hint }) => {
+            // The expense row's body is a plain View, not a Pressable: it no
+            // longer opens the plain form (see the header comment), only its
+            // mic and camera do. Every other row is unchanged. The filter
+            // above guarantees `aiAvailable` whenever `key === 'expense'`
+            // reaches here, so both icons below are always present on it.
+            const RowContainer = key === 'expense' ? View : Pressable;
+            const rowProps =
+              key === 'expense'
+                ? {}
+                : {
+                    onPress: () => onOptionPress(key),
+                    accessibilityRole: 'button' as const,
+                    accessibilityLabel: `${title}, ${hint}`,
+                  };
+            return (
+              <RowContainer key={key} style={styles.row} {...rowProps}>
+                <Icon size={24} strokeWidth={2} color={colors.field700} />
+                <View style={styles.rowText}>
+                  <Text style={styles.rowTitle}>{title}</Text>
+                  <Text style={styles.rowHint}>{hint}</Text>
+                </View>
+                {/* The expense row alone carries a second shortcut, and it is
+                    Wheat rather than Field so a thumb reaching for the microphone
+                    cannot land on the camera by muscle memory. design.md, Tokens
+                    Colors: Wheat 500 is the OCR/scan affordance. */}
+                {aiAvailable && key === 'expense' && (
+                  <Pressable
+                    style={styles.rowScan}
+                    onPress={() => setScanningReceipt(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('capture.receipt')}
+                  >
+                    <CameraIcon size={22} strokeWidth={2} color={colors.wheat800} />
+                  </Pressable>
+                )}
+                {aiAvailable && (
+                  <Pressable
+                    style={styles.rowMic}
+                    onPress={() => setVoiceKind(key)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${t('capture.voice')}, ${title}`}
+                  >
+                    <Mic size={22} strokeWidth={2} color={colors.field700} />
+                  </Pressable>
+                )}
+              </RowContainer>
+            );
+          })}
           <Text style={styles.micHint}>
             {aiAvailable ? t('capture.voiceScanHint') : t('capture.micHint')}
           </Text>

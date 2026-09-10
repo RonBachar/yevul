@@ -1,8 +1,16 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { currentFarmQuery } from './currentFarm';
+import {
+  createExpense,
+  deleteExpense,
+  updateExpense,
+  type ExpenseInput,
+  type ExpenseSource,
+} from './expenses';
+import { t } from './i18n';
 import { LOG_ENTRY_TYPES, type LogEntryType } from './logEntryTypes';
-import { writeOutcome } from './postgrest';
+import { writeOutcome, type WriteOutcome } from './postgrest';
 import { useLoadCount } from './refresh';
 import type { SprayUnit } from './settings';
 import {
@@ -86,27 +94,43 @@ export type LogEntry = {
   sprayMaterial: string | null;
   sprayDose: string | null;
   sprayPhiDays: number | null;
-  // Spray cost, frozen on the row at write time. See the pricelist migration:
-  // the material's remembered price is only a default, the price and cost that
-  // count are the ones stored here and never re-valued from the pricelist.
+  // How much material went on, in what unit, at what price. **Not money, the
+  // record of how the money was reached.** The pricelist's remembered price only
+  // pre-fills these; what is stored here is what this spray used, and it is never
+  // re-valued from the current pricelist.
   sprayQuantity: number | null;
   sprayQuantityUnit: SprayUnit | null;
   sprayUnitPrice: number | null;
-  sprayCost: number | null;
-  // Work hours and their cost, frozen on the row at write time exactly like the
-  // spray cost above. **On every entry type, not only a spray**: Ido's example
-  // is a spray that also took him three hours, but a repair takes hours too. See
+  // Hours worked and the rate they were worked at. Same standing as the three
+  // above, and **on every entry type, not only a spray**: Ido's example is a
+  // spray that also took him three hours, but a repair takes hours too. See
   // 20260906120000_work_hours.sql.
   workHours: number | null;
   workHourlyRate: number | null;
-  workCost: number | null;
+  // The expense this entry created, and its amount. **The entry does not store a
+  // cost of its own any more** -- see the money header below. `cost` is read back
+  // off the linked expense rather than off this row, so a screen showing what an
+  // entry cost and the money screen showing the same shekels cannot drift apart:
+  // there is one number and it lives in `expenses`.
+  //
+  // Both are null for a worker, who is blocked from the money table by RLS and
+  // gets an empty embed rather than an error, exactly as he does from every other
+  // expense read. That is the intended Worker Mode behaviour and not a failure.
+  createdExpenseId: string | null;
+  cost: number | null;
   harvestQty: number | null;
   harvestUnit: string | null;
   createdAt: string;
 };
 
+// The expense is embedded rather than fetched separately: one FK, so PostgREST
+// resolves `expenses(...)` without a hint, and one round trip instead of two.
+// `deleted_at` comes along so a soft-deleted expense can be dropped in the mapper
+// -- filtering it in the query would turn a to-one embed into a row filter and
+// hide the journal entry itself, which is exactly what must not happen when an
+// expense is deleted (see deleteExpense).
 const LOG_ENTRY_COLUMNS =
-  'id, farm_id, plot_id, date, type, note, source, spray_pest, spray_material, spray_dose, spray_phi_days, spray_quantity, spray_quantity_unit, spray_unit_price, spray_cost, work_hours, work_hourly_rate, work_cost, harvest_qty, harvest_unit, created_at';
+  'id, farm_id, plot_id, date, type, note, source, spray_pest, spray_material, spray_dose, spray_phi_days, spray_quantity, spray_quantity_unit, spray_unit_price, work_hours, work_hourly_rate, created_expense_id, expenses(id, amount, deleted_at), harvest_qty, harvest_unit, created_at';
 
 type LogEntryRow = {
   id: string;
@@ -123,16 +147,25 @@ type LogEntryRow = {
   spray_quantity: number | null;
   spray_quantity_unit: SprayUnit | null;
   spray_unit_price: number | null;
-  spray_cost: number | null;
   work_hours: number | null;
   work_hourly_rate: number | null;
-  work_cost: number | null;
+  created_expense_id: string | null;
+  // A to-one embed, so PostgREST hands back one object or null. Optional as well
+  // as nullable because a client running against a database that has not had the
+  // link migration applied yet gets the key back missing rather than null, and
+  // the optional chain in the mapper is what keeps that deployment ordering from
+  // throwing.
+  expenses?: { id: string; amount: number; deleted_at: string | null } | null;
   harvest_qty: number | null;
   harvest_unit: string | null;
   created_at: string;
 };
 
 function mapLogEntry(row: LogEntryRow): LogEntry {
+  // A soft-deleted expense is not a cost. The farmer deleted the money and kept
+  // the record of the work, which is the founder's rule of 2026-09-10, so the
+  // entry reads back with no cost while everything about the spray stays.
+  const expense = row.expenses?.deleted_at ? null : (row.expenses ?? null);
   return {
     id: row.id,
     farmId: row.farm_id,
@@ -148,10 +181,10 @@ function mapLogEntry(row: LogEntryRow): LogEntry {
     sprayQuantity: row.spray_quantity,
     sprayQuantityUnit: row.spray_quantity_unit,
     sprayUnitPrice: row.spray_unit_price,
-    sprayCost: row.spray_cost,
     workHours: row.work_hours,
     workHourlyRate: row.work_hourly_rate,
-    workCost: row.work_cost,
+    createdExpenseId: expense ? expense.id : null,
+    cost: expense ? expense.amount : null,
     harvestQty: row.harvest_qty,
     harvestUnit: row.harvest_unit,
     createdAt: row.created_at,
@@ -255,7 +288,7 @@ export function useLogEntries(
         return;
       }
 
-      const rows = (entriesResult.data ?? []) as LogEntryRow[];
+      const rows = (entriesResult.data ?? []) as unknown as LogEntryRow[];
       const plotRows = (plotsResult.data ?? []) as { id: string; name: string }[];
       setPlotNames(new Map(plotRows.map((row) => [row.id, row.name])));
       setEntries(rows.map(mapLogEntry));
@@ -275,146 +308,6 @@ export function useLogEntries(
   }, [supabase, plotId, type, workHoursOnly, tick, queryKey, settle]);
 
   return { loading, failed, farmId, entries, plotNames, refresh, loadCount };
-}
-
-// ============================================================
-// Costs frozen on a log row, for the profit number. Two of them now: a spray's
-// material cost (20260904130000_spray_pricelist.sql) and the cost of the hours a
-// job took (20260906120000_work_hours.sql). The founder's decision of 2026-09-04
-// is that such a cost lowers the plot's profit -- counted straight from the log
-// row, not turned into an expense, so it stays clear of the still-open "money =
-// invoices only" question in docs/open-items.md. Work hours follow it.
-//
-// plotId filters to one plot (its detail profit header); without it the whole
-// farm, split into per-plot costs and the whole-farm rows (plot_id null) that
-// join the general costs, exactly as expenses are split in useFarmProfit.
-//
-// **One loader, two columns.** The second cost is the same query with a
-// different column and no type filter, and two copies of it would be two places
-// to forget `deleted_at` or the plot split.
-// ============================================================
-
-export type SprayCostsState = {
-  loading: boolean;
-  failed: boolean;
-  farmId: string | null;
-  total: number;
-  byPlot: Map<string, number>;
-  general: number;
-  // Whether any row with a cost exists at all: the same "tracked vs a real
-  // zero" distinction expenses carry.
-  tracked: boolean;
-  refresh: () => void;
-  loadCount: number;
-};
-
-// The cost of the hours worked, across the farm. Same shape as the spray costs,
-// and named separately so a reader of useFarmProfit sees two cost lines rather
-// than one thing used twice.
-export type WorkCostsState = SprayCostsState;
-
-// type is null for work hours on purpose: hours belong to any entry, while a
-// material cost belongs to a spray and to nothing else.
-function useFrozenCosts(
-  supabase: SupabaseClient,
-  costColumn: 'spray_cost' | 'work_cost',
-  type: LogEntryType | null,
-  plotId?: string,
-): SprayCostsState {
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
-  const [farmId, setFarmId] = useState<string | null>(null);
-  const [rows, setRows] = useState<{ plotId: string | null; cost: number }[]>([]);
-  const [tick, setTick] = useState(0);
-  const { loadCount, settle } = useLoadCount();
-
-  const refresh = useCallback(() => setTick((value) => value + 1), []);
-
-  useEffect(() => {
-    let active = true;
-
-    async function load() {
-      const { data: farmRows, error: farmError } = await currentFarmQuery(supabase);
-      const farm = (farmRows as { id: string }[] | null)?.[0];
-      if (!active) return;
-      if (farmError || !farm) {
-        setFailed(true);
-        setLoading(false);
-        settle();
-        return;
-      }
-      setFarmId(farm.id);
-
-      let query = supabase
-        .from('log_entries')
-        .select(`plot_id, ${costColumn}`)
-        .eq('farm_id', farm.id)
-        .is('deleted_at', null)
-        .not(costColumn, 'is', null);
-      if (type) query = query.eq('type', type);
-      if (plotId) query = query.eq('plot_id', plotId);
-
-      const result = await query;
-      if (!active) return;
-      if (result.error) {
-        setFailed(true);
-        setLoading(false);
-        settle();
-        return;
-      }
-
-      const raw = (result.data ?? []) as Record<string, unknown>[];
-      setRows(
-        raw.map((row) => ({
-          plotId: (row.plot_id as string | null) ?? null,
-          cost: row[costColumn] as number,
-        })),
-      );
-      setFailed(false);
-      setLoading(false);
-      settle();
-    }
-
-    void load();
-    return () => {
-      active = false;
-    };
-  }, [supabase, costColumn, type, plotId, tick, settle]);
-
-  const state = useMemo(() => {
-    const byPlot = new Map<string, number>();
-    let general = 0;
-    let total = 0;
-    for (const row of rows) {
-      total += row.cost;
-      if (row.plotId) byPlot.set(row.plotId, (byPlot.get(row.plotId) ?? 0) + row.cost);
-      else general += row.cost;
-    }
-    return { byPlot, general, total, tracked: rows.length > 0 };
-  }, [rows]);
-
-  return {
-    loading,
-    failed,
-    farmId,
-    total: state.total,
-    byPlot: state.byPlot,
-    general: state.general,
-    tracked: state.tracked,
-    refresh,
-    loadCount,
-  };
-}
-
-export function useSprayCosts(supabase: SupabaseClient, plotId?: string): SprayCostsState {
-  return useFrozenCosts(supabase, 'spray_cost', 'spray', plotId);
-}
-
-// The labour half of the same number. **No type filter**, because a job that
-// took hours can be any entry -- Ido's own example is a spray that also took him
-// three hours, and a repair takes hours just the same.
-export function useWorkCosts(supabase: SupabaseClient, plotId?: string): WorkCostsState {
-  return useFrozenCosts(supabase, 'work_cost', null, plotId);
 }
 
 // ============================================================
@@ -492,6 +385,41 @@ export function useSpraySuggestions(
 // "ההבדל היחיד הוא שכשבוחרים בסוג ריסוס נפתחים ארבעה שדות נוספים...
 // המינון וימי ההמתנה אופציונליים". כמות ויחידת קטיף אופציונליים
 // בשניהם, כפי שכבר משתקף בנאלביליות העמודות ב-core_schema.sql.
+//
+// ============================================================
+// **Money lives in `expenses` only. Founder's decision, 2026-09-10.**
+//
+// Until today a cost could be recorded twice over. `log_entries` carried frozen
+// `spray_cost` and `work_cost` columns, profit.ts summed them as two cost lines
+// of their own, and `expenses` was a third. A farmer who wrote the spray in the
+// journal *and* filed the same sack of material as an expense was charged for it
+// twice, and nothing anywhere stopped him -- the two schemas did not know about
+// each other. A guard would have been the wrong fix: it would have had to grow a
+// notion of "the same money", by material, by date, by amount, and be right about
+// it every time.
+//
+// So the two columns are gone (see the migration that drops them) and the journal
+// no longer holds money at all. **The journal records what happened; `expenses`
+// records what it cost.** An entry that carries a cost writes an expense and links
+// to it through `created_expense_id`, mirroring `tasks.created_expense_id`, which
+// has worked this way since Completion Prompts. There is one row of money per
+// cost, so counting it twice is not something the product declines to do -- it is
+// something it has no way to express.
+//
+// **One entry, one expense, even when it carries both a material cost and hours.**
+// The amount is their sum. The founder's words: Ido wants to know what the spray
+// cost him, and that is one number. The breakdown that produced it -- quantity,
+// unit price, hours, rate -- stays on the journal row, because it is the record of
+// how the number was reached and not a second copy of the number.
+//
+// **The cost is still typed, and manual entry still wins.** `cost` is whatever the
+// farmer put in the box. Quantity x price and hours x rate only pre-fill a
+// suggestion for it (computeEntryCost in workEntry.ts), and a farmer with no
+// material, no quantity, no hours and no rate can type a total and be done.
+//
+// **It is still frozen.** The amount is written on the expense at the time of the
+// entry and never re-derived from today's pricelist or today's hourly rate. A
+// price is history, not a value.
 // ============================================================
 
 export type LogEntryInput = {
@@ -506,10 +434,13 @@ export type LogEntryInput = {
   sprayQuantity: number | null;
   sprayQuantityUnit: SprayUnit | null;
   sprayUnitPrice: number | null;
-  sprayCost: number | null;
   workHours: number | null;
   workHourlyRate: number | null;
-  workCost: number | null;
+  // What this entry cost, all of it, as one number. Written to `expenses` and to
+  // nothing else. null means the entry cost nothing that the farmer is recording
+  // -- and on an edit it means *remove* the cost, which soft-deletes the expense
+  // this entry created. See syncEntryExpense.
+  cost: number | null;
   harvestQty: number | null;
   harvestUnit: string | null;
 };
@@ -542,22 +473,103 @@ function writePayload(input: LogEntryInput) {
     spray_quantity: isSpray ? input.sprayQuantity : null,
     spray_quantity_unit: isSpray ? input.sprayQuantityUnit : null,
     spray_unit_price: isSpray ? input.sprayUnitPrice : null,
-    spray_cost: isSpray ? input.sprayCost : null,
     // **Not gated on the type, and that is the point.** Every other field above
     // belongs to one kind of record and is nulled when the type moves away from
     // it. Hours belong to the work, not to the kind of work: Ido's example is a
     // spray that also took three hours, and switching that record to "other"
     // must not throw the hours away. See 20260906120000_work_hours.sql.
     //
-    // work_cost is written as it stands and never recomputed on read. The rate
-    // in settings only pre-filled the box; what is stored here is what this job
-    // cost, and it stays that even after the farm raises its rate.
+    // The rate is stored as it stands and never re-read from settings. That rate
+    // only pre-filled the box; what is on the row is what this job was worked at,
+    // and it stays that even after the farm raises its rate. **No cost column
+    // sits next to them any more** -- the cost went to `expenses`, see the header.
     work_hours: input.workHours,
     work_hourly_rate: input.workHourlyRate,
-    work_cost: input.workCost,
     harvest_qty: isHarvest ? input.harvestQty : null,
     harvest_unit: isHarvest ? (input.harvestUnit?.trim() ? input.harvestUnit.trim() : null) : null,
   };
+}
+
+// The name the expense is filed under. `expenses.category` is the column the
+// expense *name* is stored in -- see the header of expenses.ts, there is no
+// separate name column -- so this is the word the farmer will read on the money
+// screen next to the amount.
+//
+// The material when there is one, because "קונפידור" tells him what he paid for;
+// otherwise the entry type's own Hebrew label, which is already written down for
+// every type in LOG_ENTRY_TYPE_LABEL_KEY. **No new Hebrew string is invented
+// here**: an expense created from a repair is called "תיקון" because that is what
+// this product already calls a repair.
+function entryExpenseName(input: LogEntryInput): string {
+  const material = input.sprayMaterial?.trim();
+  if (material) return material;
+  return t(logEntryTypeLabelKey(input.type));
+}
+
+// log_entries.source and expenses.source answer the same question in two
+// vocabularies that only partly overlap. 'voice' exists in both. 'task' does not
+// exist on an expense, and the honest reading of it is 'manual': a farmer ticked
+// a task off and confirmed the figure himself. There is no 'ocr' journal entry.
+function expenseSourceFor(source: LogEntrySource): ExpenseSource {
+  return source === 'voice' ? 'voice' : 'manual';
+}
+
+// The whole of the money side of a journal write, in one place so create and
+// update cannot come to different conclusions about it.
+//
+// **An edit updates the expense it already made; it never makes a second one.**
+// That is what `existingExpenseId` is for, and it is why updateLogEntry reads the
+// link back before writing. Without it, correcting a typo in a spray would have
+// filed the material a second time -- the very double count this change exists to
+// remove, reintroduced through the back door.
+//
+// **Removing the cost soft-deletes the expense.** A farmer who clears the cost box
+// is saying this did not cost me that; leaving the expense behind would keep the
+// money on his books with nothing on any screen still pointing at it.
+//
+// Best-effort throughout, like writeAllocation and rememberSprayMaterialPrice: the
+// journal entry itself is already safely written, and a worker who is blocked from
+// the money table by RLS must still be able to record that he sprayed.
+async function syncEntryExpense(
+  supabase: SupabaseClient,
+  farmId: string,
+  logEntryId: string,
+  input: LogEntryInput,
+  existingExpenseId: string | null,
+  source: LogEntrySource,
+): Promise<void> {
+  if (input.cost === null) {
+    // deleteExpense clears the back-link itself, in one place, so that an expense
+    // deleted from the money screen and a cost cleared from the journal sheet end
+    // up in exactly the same state.
+    if (existingExpenseId) await deleteExpense(supabase, existingExpenseId);
+    return;
+  }
+
+  const expenseInput: ExpenseInput = {
+    amount: input.cost,
+    name: entryExpenseName(input),
+    // The plot comes from the entry, and a null plot is a farm-level expense with
+    // no allocation at all -- which is how a general expense has always been
+    // written (writeAllocation returns early on a null plot).
+    plotId: input.plotId,
+    date: input.date,
+    note: input.note,
+  };
+
+  if (existingExpenseId) {
+    await updateExpense(supabase, farmId, existingExpenseId, expenseInput);
+    return;
+  }
+
+  const outcome = await createExpense(supabase, farmId, expenseInput, expenseSourceFor(source));
+  if (!outcome.ok) return;
+  // חייב await: PostgrestFilterBuilder הוא thenable עצל ולא Promise נלהב, ובלי
+  // await השאילתה נבנית ואף פעם לא נשלחת. אותו כלל בדיוק כמו ב-completionPrompts.
+  await supabase
+    .from('log_entries')
+    .update({ created_expense_id: outcome.id })
+    .eq('id', logEntryId);
 }
 
 export async function createLogEntry(
@@ -574,12 +586,23 @@ export async function createLogEntry(
     .insert({ farm_id: farmId, source, ...writePayload(input) })
     .select('id');
   const outcome = writeOutcome(write);
+  if (!outcome.ok) return outcome;
+
+  const logEntryId = (write.data as { id: string }[] | null)?.[0]?.id;
+  // A brand new entry has no expense yet, so this can only create one.
+  if (logEntryId) {
+    await syncEntryExpense(supabase, farmId, logEntryId, input, null, source).catch(() => {});
+  }
   // Remember the material's price for next time, only once the spray itself is
   // safely written. Best-effort, never blocks the save. See below.
-  if (outcome.ok) await rememberSprayMaterialPrice(supabase, farmId, input).catch(() => {});
+  await rememberSprayMaterialPrice(supabase, farmId, input).catch(() => {});
   return outcome;
 }
 
+// **The farm and the existing link are read back off the row rather than passed
+// in.** Both are facts about the saved entry, not about the form, and asking every
+// caller for the farm id would have been one more thing two clients could get
+// wrong on a screen that already knows the entry only by its id.
 export async function updateLogEntry(
   supabase: SupabaseClient,
   logEntryId: string,
@@ -588,12 +611,78 @@ export async function updateLogEntry(
   const validationError = sprayValidationError(input);
   if (validationError) return { ok: false, reason: validationError };
 
+  const existing = await supabase
+    .from('log_entries')
+    .select('farm_id, created_expense_id')
+    .eq('id', logEntryId)
+    .maybeSingle();
+  const existingRow = existing.data as {
+    farm_id: string;
+    created_expense_id: string | null;
+  } | null;
+
   const write = await supabase
     .from('log_entries')
     .update(writePayload(input))
     .eq('id', logEntryId)
     .select('id');
-  return writeOutcome(write);
+  const outcome = writeOutcome(write);
+  if (!outcome.ok) return outcome;
+
+  if (existingRow) {
+    await syncEntryExpense(
+      supabase,
+      existingRow.farm_id,
+      logEntryId,
+      input,
+      existingRow.created_expense_id,
+      // 'manual' whatever the entry's own source was, and it is read only when a
+      // cost is being added to an entry that had none. That addition is the farmer
+      // sitting on the edit sheet typing a number -- it is not the recording that
+      // created the entry, so labelling it 'voice' because the spray was spoken
+      // would be the wrong answer to "how did this figure get in".
+      'manual',
+    ).catch(() => {});
+  }
+  return outcome;
+}
+
+// Deleting a journal entry, and the expense it created with it. Founder's rule,
+// 2026-09-10, and the deliberate asymmetry with deleteExpense is the whole of it:
+//
+//   deleting the entry    takes the money with it. The work is being un-recorded,
+//                         so the cost of that work has no subject left.
+//
+//   deleting the expense  leaves the entry standing with no cost. The spray really
+//                         happened, and the regulator's export needs it -- what the
+//                         farmer withdrew was the claim about what it cost him.
+//
+// Soft, `deleted_at`, no DELETE anywhere: the schema grants none. See the header
+// of deleteExpense for the argument, which is the same one.
+export async function deleteLogEntry(
+  supabase: SupabaseClient,
+  logEntryId: string,
+): Promise<WriteOutcome> {
+  const existing = await supabase
+    .from('log_entries')
+    .select('created_expense_id')
+    .eq('id', logEntryId)
+    .maybeSingle();
+  const expenseId = (existing.data as { created_expense_id: string | null } | null)
+    ?.created_expense_id;
+
+  const write = await supabase
+    .from('log_entries')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', logEntryId)
+    .select('id');
+  const outcome = writeOutcome(write);
+  if (!outcome.ok) return outcome;
+
+  // Best-effort, and after the entry is gone: a worker is blocked from the money
+  // table by RLS and must still be able to delete his own journal entry.
+  if (expenseId) await deleteExpense(supabase, expenseId).catch(() => {});
+  return outcome;
 }
 
 // ============================================================

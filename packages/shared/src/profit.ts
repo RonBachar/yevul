@@ -1,7 +1,6 @@
 import { useCallback, useMemo } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useExpenses } from './expenses';
-import { useSprayCosts, useWorkCosts } from './logEntries';
 import {
   plotProfitForecast,
   usePlots,
@@ -23,19 +22,20 @@ import {
 // זו השורה התחתונה האמיתית של המשק. המחיר הוא ש-Hero אינו בהכרח סכום
 // כרטיסי החלקות שמתחתיו, ולכן generalExpenses נחשף בנפרד כאן, כדי
 // שהתצוגה תוכל להסביר את הפער במקום להיראות כמו באג.
+//
+// **צפי רווח = הכנסה פחות הוצאות. שורת עלות אחת, מ-2026-09-10.** קודם היו כאן
+// שלוש: ההוצאות, ועוד sprayCosts ו-workCosts שנקראו ישירות מעמודות קפואות על
+// שורות היומן. חקלאי שרשם ריסוס ביומן וגם רשם את אותו חומר כהוצאה חויב עליו
+// פעמיים, ושום דבר לא מנע את זה. היומן כבר לא מחזיק כסף: רשומה עם עלות כותבת
+// הוצאה ומקושרת אליה (ראה כותרת הכסף ב-logEntries.ts). ספירה כפולה אינה משהו
+// שהמוצר נמנע ממנו, היא משהו שאין לו דרך לבטא.
+//
+// This is the only file that summed the two vanished lines, so removing them here
+// is what makes the guarantee structural rather than a rule someone must remember.
 
 export type FarmProfitForecast = {
   expectedIncome: number;
   expenses: number;
-  // Spray material costs across the farm, frozen on the spray rows. A distinct
-  // cost line so `expenses` still equals the expense list; profit subtracts
-  // both. Founder's decision 2026-09-04, see docs/open-items.md.
-  sprayCosts: number;
-  // What the hours worked across the farm cost, frozen on the log rows. A third
-  // cost line for the same reason spray cost became the second: `expenses` must
-  // keep matching the expense list, and labour is deliberately not written as an
-  // expense row (see 20260906120000_work_hours.sql and docs/open-items.md).
-  workCosts: number;
   profit: number;
   // האם נרשמה בכלל הוצאה אחת במשק. אותה הבחנה בדיוק שקיימת
   // ב-PlotProfitForecast: "לא נרשמו הוצאות" הוא חוסר ידיעה, "אפס
@@ -48,14 +48,9 @@ export type FarmProfitForecast = {
 };
 
 export type PlotProfitRow = PlotWithCropCycle & {
+  // Every shekel allocated to this plot, and now genuinely every one: a spray's
+  // material and the hours it took arrive here as expenses like anything else.
   expenses: number;
-  // Spray material cost for this plot, kept separate from money expenses. The
-  // forecast's profit already subtracts it; exposed so a card can show the line.
-  sprayCost: number;
-  // The cost of the hours worked on this plot. Same treatment as sprayCost: the
-  // forecast's profit already subtracts it, and it is exposed so a card can show
-  // the line.
-  workCost: number;
   forecast: PlotProfitForecast | null;
 };
 
@@ -69,8 +64,6 @@ export function farmProfitForecast(
   plots: { expectedIncome: number | null; expenses: number }[],
   generalExpenses: number,
   expensesTracked: boolean,
-  sprayCosts: number = 0,
-  workCosts: number = 0,
 ): FarmProfitForecast {
   let expectedIncome = 0;
   let expenses = generalExpenses;
@@ -90,9 +83,7 @@ export function farmProfitForecast(
   return {
     expectedIncome,
     expenses,
-    sprayCosts,
-    workCosts,
-    profit: expectedIncome - expenses - sprayCosts - workCosts,
+    profit: expectedIncome - expenses,
     expensesTracked,
     generalExpenses,
     plotsWithForecast,
@@ -152,36 +143,20 @@ export function usePlotExpensesTotal(
   plotId: string | null,
 ): { total: number | null; loading: boolean; refresh: () => void; loadCount: number } {
   const expensesState = useExpenses(supabase, plotId ?? undefined);
-  const sprayState = useSprayCosts(supabase, plotId ?? undefined);
-  const workState = useWorkCosts(supabase, plotId ?? undefined);
 
-  const { expenses } = expensesState;
-  const sprayTotal = sprayState.total;
-  const workTotal = workState.total;
-  const loading = expensesState.loading || sprayState.loading || workState.loading;
-  const failed = expensesState.failed || sprayState.failed || workState.failed;
-  // The minimum, not the sum: the header should stop spinning only once the
-  // slowest of the queries is back. Same rule as useFarmProfit's loadCount.
-  const loadCount = Math.min(expensesState.loadCount, sprayState.loadCount, workState.loadCount);
+  const { expenses, loading, failed, loadCount, refresh } = expensesState;
 
-  const refreshExpenses = expensesState.refresh;
-  const refreshSpray = sprayState.refresh;
-  const refreshWork = workState.refresh;
-  const refresh = useCallback(() => {
-    refreshExpenses();
-    refreshSpray();
-    refreshWork();
-  }, [refreshExpenses, refreshSpray, refreshWork]);
-
-  // The plot's total cost: money expenses, plus spray material cost, plus what
-  // the hours worked on it cost. This is the number the detail profit header
-  // subtracts from income.
+  // **The plot's whole cost, out of one query.** It used to be three -- expenses,
+  // plus the spray costs and the work costs frozen on the journal rows -- and the
+  // sum of the three was where the same material could be counted twice. Since
+  // 2026-09-10 a journal entry with a cost writes an expense, so this list is
+  // already everything the plot cost.
   const total = useMemo(
     () =>
       plotId == null || loading || failed
         ? null
-        : expenses.reduce((sum, expense) => sum + expense.amount, 0) + sprayTotal + workTotal,
-    [plotId, loading, failed, expenses, sprayTotal, workTotal],
+        : expenses.reduce((sum, expense) => sum + expense.amount, 0),
+    [plotId, loading, failed, expenses],
   );
   // ממוזכר, ולא אובייקט literal חדש בכל רינדור, מאותו נימוק שמפורט
   // ב-useFarmProfit: קורא שישים את התוצאה בתלויות של אפקט יקבל זהות
@@ -195,8 +170,6 @@ export function usePlotExpensesTotal(
 export function useFarmProfit(supabase: SupabaseClient): FarmProfitState {
   const plotsState = usePlots(supabase);
   const expensesState = useExpenses(supabase);
-  const sprayCostsState = useSprayCosts(supabase);
-  const workCostsState = useWorkCosts(supabase);
 
   // **הפירוק לשדות בודדים אינו סגנוני, הוא מה שמונע לולאת רינדור
   // אינסופית.** usePlots ו-useExpenses מחזירים אובייקט חדש בכל רינדור
@@ -211,37 +184,14 @@ export function useFarmProfit(supabase: SupabaseClient): FarmProfitState {
   // ריק במקורן, כלומר יציבות מלכתחילה.
   const { plots: rawPlots, loading: plotsLoading, failed: plotsFailed, farmId } = plotsState;
   const { expenses, loading: expensesLoading, failed: expensesFailed } = expensesState;
-  const {
-    byPlot: sprayByPlot,
-    total: sprayTotal,
-    tracked: sprayTracked,
-    loading: sprayLoading,
-    failed: sprayFailed,
-  } = sprayCostsState;
-  const {
-    byPlot: workByPlot,
-    total: workTotal,
-    tracked: workTracked,
-    loading: workLoading,
-    failed: workFailed,
-  } = workCostsState;
   const refreshPlots = plotsState.refresh;
   const refreshExpenses = expensesState.refresh;
-  const refreshSpray = sprayCostsState.refresh;
-  const refreshWork = workCostsState.refresh;
-  const loadCount = Math.min(
-    plotsState.loadCount,
-    expensesState.loadCount,
-    sprayCostsState.loadCount,
-    workCostsState.loadCount,
-  );
+  const loadCount = Math.min(plotsState.loadCount, expensesState.loadCount);
 
   const refresh = useCallback(() => {
     refreshPlots();
     refreshExpenses();
-    refreshSpray();
-    refreshWork();
-  }, [refreshPlots, refreshExpenses, refreshSpray, refreshWork]);
+  }, [refreshPlots, refreshExpenses]);
 
   return useMemo(() => {
     const expensesByPlot = new Map<string, number>();
@@ -259,20 +209,10 @@ export function useFarmProfit(supabase: SupabaseClient): FarmProfitState {
 
     const plots: PlotProfitRow[] = rawPlots.map((plot) => {
       const plotExpenses = expensesByPlot.get(plot.id) ?? 0;
-      const plotSprayCost = sprayByPlot.get(plot.id) ?? 0;
-      const plotWorkCost = workByPlot.get(plot.id) ?? 0;
       return {
         ...plot,
         expenses: plotExpenses,
-        sprayCost: plotSprayCost,
-        workCost: plotWorkCost,
-        forecast: plotProfitForecast(
-          plot.area,
-          plot.cropCycle,
-          plotExpenses,
-          plotSprayCost,
-          plotWorkCost,
-        ),
+        forecast: plotProfitForecast(plot.area, plot.cropCycle, plotExpenses),
       };
     });
 
@@ -281,18 +221,16 @@ export function useFarmProfit(supabase: SupabaseClient): FarmProfitState {
         expectedIncome: plot.forecast?.expectedIncome ?? null,
         expenses: plot.expenses,
       })),
-      // General money expenses and the whole-farm sprays (plot_id null) are both
-      // counted even though they belong to no plot card, the same rule the
-      // founder set for general expenses on 2026-08-29.
+      // הוצאות שלא שויכו לאף חלקה נספרות גם הן, אף שאינן מופיעות על אף כרטיס,
+      // אותו כלל שקבע היזם ב-2026-08-29. עכשיו נכנסות לכאן גם רשומות יומן ברמת
+      // המשק (plot_id null) שנשאו עלות, כי הן הוצאות ככל הוצאה אחרת.
       generalExpenses,
-      expenses.length > 0 || sprayTracked || workTracked,
-      sprayTotal,
-      workTotal,
+      expenses.length > 0,
     );
 
     return {
-      loading: plotsLoading || expensesLoading || sprayLoading || workLoading,
-      failed: plotsFailed || expensesFailed || sprayFailed || workFailed,
+      loading: plotsLoading || expensesLoading,
+      failed: plotsFailed || expensesFailed,
       farmId,
       forecast,
       plots,
@@ -303,20 +241,10 @@ export function useFarmProfit(supabase: SupabaseClient): FarmProfitState {
   }, [
     rawPlots,
     expenses,
-    sprayByPlot,
-    sprayTotal,
-    sprayTracked,
-    workByPlot,
-    workTotal,
-    workTracked,
     plotsLoading,
     plotsFailed,
     expensesLoading,
     expensesFailed,
-    sprayLoading,
-    sprayFailed,
-    workLoading,
-    workFailed,
     farmId,
     refresh,
     loadCount,

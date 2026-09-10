@@ -34,9 +34,7 @@ describe('expectedYieldDisplay', () => {
   });
 
   it('reads correctly for a counted crop', () => {
-    expect(expectedYieldDisplay(cropCycle({ yieldUnit: 'unit' }), 'dunam')).toBe(
-      '300 יחידה לדונם',
-    );
+    expect(expectedYieldDisplay(cropCycle({ yieldUnit: 'unit' }), 'dunam')).toBe('300 יחידה לדונם');
   });
 
   // A row written before the list narrowed to three units. Its text is not one
@@ -84,18 +82,19 @@ describe('plotProfitForecast', () => {
     expect(result?.profit).toBeLessThan(0);
   });
 
-  // Spray material cost is a distinct cost from money expenses; profit subtracts
-  // both, and the expenses figure stays what the expense list shows.
-  it('subtracts spray cost on top of expenses, as its own line', () => {
-    const result = plotProfitForecast(40, cropCycle(), 408000, 12000);
-    expect(result?.expenses).toBe(408000);
-    expect(result?.sprayCost).toBe(12000);
-    expect(result?.profit).toBe(720000 - 408000 - 12000);
-  });
-
-  it('defaults spray cost to zero when it is not given', () => {
+  // **One cost line, founder's decision 2026-09-10.** This used to take a spray
+  // cost and a work cost beside the expenses and subtract all three, which is how
+  // the same sack of material could be charged twice: once off the journal row and
+  // once off the expense the farmer also filed for it. The journal writes an
+  // expense now, so the expenses figure is every shekel the plot cost and there is
+  // nothing else to subtract. The test that guards it is a signature that will not
+  // accept a second cost.
+  it('subtracts expenses and nothing else', () => {
     const result = plotProfitForecast(40, cropCycle(), 408000);
-    expect(result?.sprayCost).toBe(0);
+    expect(result?.expenses).toBe(408000);
+    expect(result?.profit).toBe(720000 - 408000);
+    expect(result).not.toHaveProperty('sprayCost');
+    expect(result).not.toHaveProperty('workCost');
   });
 
   // ההבחנה שמפעילה את חיווי ה-Wheat. "אין מעקב הוצאות" הוא חוסר ידיעה,

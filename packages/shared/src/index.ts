@@ -538,16 +538,18 @@ export {
   type SprayDateOption,
   type SprayEntryBlocker,
 } from './sprayEntry';
-// Work hours on a journal entry, and what they cost. The labour twin of the
-// material pricelist: the cost is frozen onto the row at write time, a typed
-// total always beats hours x rate, and the farm's hourly rate in settings is
-// only a default that pre-fills the next entry. Pure policy, here rather than in
-// a component because neither client has a test runner. See the header of
-// workEntry.ts.
+// Work hours on a journal entry, and what an entry cost. The labour twin of the
+// material pricelist: the cost is frozen at write time, a typed total always beats
+// the computed one, and the farm's hourly rate in settings is only a default that
+// pre-fills the next entry. computeEntryCost adds the two halves into the one
+// number an entry costs, which since 2026-09-10 is the amount of the one expense
+// the entry writes. Pure policy, here rather than in a component because neither
+// client has a test runner. See the header of workEntry.ts.
 export {
   computeWorkCost,
-  workCostEdited,
-  recomputedWorkCost,
+  computeEntryCost,
+  entryCostEdited,
+  recomputedEntryCost,
   workLogTotals,
   parseWorkAmountInput,
   type WorkLogRow,
@@ -556,11 +558,10 @@ export {
 export {
   useLogEntries,
   useSpraySuggestions,
-  useSprayCosts,
-  useWorkCosts,
   useSprayPrices,
   createLogEntry,
   updateLogEntry,
+  deleteLogEntry,
   rememberSprayMaterialPrice,
   saveSprayPrice,
   logEntryTypeLabelKey,
@@ -575,6 +576,4 @@ export {
   type SprayPriceInput,
   type SprayPriceWriteResult,
   type SpraySuggestions,
-  type SprayCostsState,
-  type WorkCostsState,
 } from './logEntries';

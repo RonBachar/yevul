@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
-  computeWorkCost,
+  computeEntryCost,
   createLogEntry,
+  entryCostEdited,
   formatLocalDateOnly,
   initialLogEntryType,
   logEntryTypeLabelKey,
@@ -15,7 +16,6 @@ import {
   useFarmSettings,
   usePlots,
   useSpraySuggestions,
-  workCostEdited,
   type LogEntry,
   type LogEntryType,
 } from '@yevul/shared';
@@ -78,8 +78,15 @@ export function LogEntrySheet({
   // why a typed total always beats hours x rate.
   const [workHours, setWorkHours] = useState('');
   const [workHourlyRate, setWorkHourlyRate] = useState('');
-  const [workCost, setWorkCost] = useState('');
-  const [workCostTyped, setWorkCostTyped] = useState(false);
+  // The entry's single cost box -- material and labour together, see
+  // computeEntryCost in workEntry.ts. This sheet has no material/quantity UI
+  // (that lives in SprayEntrySheet's tile flow), so in practice this box only
+  // ever suggests the labour half, but it stays plumbed through computeEntryCost
+  // rather than computeWorkCost so an entry edited here that already has a
+  // spray quantity/price on it (written by SprayEntrySheet) still suggests the
+  // full total instead of silently dropping the material half.
+  const [cost, setCost] = useState('');
+  const [costTyped, setCostTyped] = useState(false);
   const [harvestQty, setHarvestQty] = useState('');
   const [harvestUnit, setHarvestUnit] = useState('');
   const [status, setStatus] = useState<
@@ -108,9 +115,20 @@ export function LogEntrySheet({
       setSprayPhiDays(entry.sprayPhiDays != null ? String(entry.sprayPhiDays) : '');
       setWorkHours(entry.workHours != null ? String(entry.workHours) : '');
       setWorkHourlyRate(entry.workHourlyRate != null ? String(entry.workHourlyRate) : '');
-      setWorkCost(entry.workCost != null ? String(entry.workCost) : '');
-      // The rate on the row is the one this job was priced at, never today's.
-      setWorkCostTyped(workCostEdited(entry.workCost, entry.workHours, entry.workHourlyRate));
+      setCost(entry.cost != null ? String(entry.cost) : '');
+      // The rate (and material, if this entry was written by SprayEntrySheet)
+      // on the row is the one this job was priced at, never today's. See
+      // entryCostEdited: a stored cost that no longer matches quantity x price
+      // plus hours x rate was typed by hand and must not be silently recomputed.
+      setCostTyped(
+        entryCostEdited(
+          entry.cost,
+          entry.sprayQuantity,
+          entry.sprayUnitPrice,
+          entry.workHours,
+          entry.workHourlyRate,
+        ),
+      );
       setHarvestQty(entry.harvestQty != null ? String(entry.harvestQty) : '');
       setHarvestUnit(entry.harvestUnit ?? '');
     } else {
@@ -125,8 +143,8 @@ export function LogEntrySheet({
       // Left empty here: the settings may not have arrived yet. The effect below
       // fills it the moment they do, and only while the box is still empty.
       setWorkHourlyRate('');
-      setWorkCost('');
-      setWorkCostTyped(false);
+      setCost('');
+      setCostTyped(false);
       setHarvestQty('');
       setHarvestUnit('');
     }
@@ -151,14 +169,23 @@ export function LogEntrySheet({
   }, [visible, entry, farmHourlyRate]);
 
   // Hours x rate while the farmer has not typed a total, and left alone once he
-  // has. Same rule as the web sheet, both reading it from workEntry.ts.
+  // has. Same rule as the web sheet, both reading it from workEntry.ts. This
+  // sheet has no material/quantity boxes of its own, so the two spray-half
+  // arguments are whatever the entry already carries (null for a plain journal
+  // entry, or the frozen values SprayEntrySheet wrote for a spray) -- never
+  // this sheet's own state, since it has none to offer.
   useEffect(() => {
-    if (workCostTyped) return;
-    const computed = computeWorkCost(amountOrNull(workHours), amountOrNull(workHourlyRate));
-    setWorkCost(computed === null ? '' : String(computed));
-    // Only the two inputs and the typed flag drive the recompute; amountOrNull
-    // is a pure local helper with no state of its own.
-  }, [workHours, workHourlyRate, workCostTyped]);
+    if (costTyped) return;
+    const computed = computeEntryCost(
+      entry?.sprayQuantity ?? null,
+      entry?.sprayUnitPrice ?? null,
+      amountOrNull(workHours),
+      amountOrNull(workHourlyRate),
+    );
+    setCost(computed === null ? '' : String(computed));
+    // Only the two inputs, the entry's frozen spray half, and the typed flag
+    // drive the recompute; amountOrNull is a pure local helper with no state.
+  }, [workHours, workHourlyRate, costTyped, entry]);
 
   const phiDaysNumber = sprayPhiDays.trim() ? Number(sprayPhiDays) : null;
   const safeHarvest =
@@ -179,19 +206,34 @@ export function LogEntrySheet({
       sprayMaterial: sprayMaterial.trim() ? sprayMaterial.trim() : null,
       sprayDose: sprayDose.trim() ? sprayDose.trim() : null,
       sprayPhiDays: Number.isFinite(phiDaysNumber) ? phiDaysNumber : null,
-      // The generic journal sheet has no cost UI -- spray cost is entered through
-      // SprayEntrySheet's cost step. These are null only to satisfy the four
-      // fields LogEntryInput gained; createLogEntry treats them as "not stated".
-      sprayQuantity: null,
-      sprayQuantityUnit: null,
-      sprayUnitPrice: null,
-      sprayCost: null,
-      // Frozen as they stand, never recomputed on read: this entry keeps the
-      // cost it had today even after the farm raises its hourly rate. See
-      // 20260906120000_work_hours.sql.
+      // The generic journal sheet has no material/quantity UI -- that walk lives
+      // in SprayEntrySheet's tile flow -- so it carries the entry's existing
+      // values straight back out.
+      //
+      // **Passing null here was a real bug, found 2026-09-10.** The comment that
+      // stood here claimed an existing spray's quantity and price survived
+      // because updateLogEntry "only touches the columns this sheet owns". They
+      // did not: writePayload() in logEntries.ts builds the FULL row on every
+      // update, so a null in the input is a null written to the column. Editing
+      // a spray from the journal instead of the spray log silently erased how
+      // its cost was reached -- the money survived on the expense, the "5 litres
+      // at 20" behind it did not. A farmer who opened the entry to fix a typo in
+      // the note lost the breakdown and was never told.
+      //
+      // A new entry has no `entry`, so these stay null, which is correct. And a
+      // record whose type moves away from spray is cleared by writePayload
+      // itself, which gates all three on isSpray -- so carrying them through
+      // here cannot resurrect a spray half on a record that is no longer one.
+      sprayQuantity: entry?.sprayQuantity ?? null,
+      sprayQuantityUnit: entry?.sprayQuantityUnit ?? null,
+      sprayUnitPrice: entry?.sprayUnitPrice ?? null,
+      // Frozen as it stands, never recomputed on read: this entry keeps the
+      // cost it had today even after the farm raises its hourly rate or a
+      // material's pricelist price changes. See 20260906120000_work_hours.sql
+      // and the money header in logEntries.ts.
       workHours: amountOrNull(workHours),
       workHourlyRate: amountOrNull(workHourlyRate),
-      workCost: amountOrNull(workCost),
+      cost: amountOrNull(cost),
       harvestQty:
         harvestQty.trim() && Number.isFinite(Number(harvestQty)) ? Number(harvestQty) : null,
       harvestUnit: harvestUnit.trim() ? harvestUnit.trim() : null,
@@ -381,15 +423,15 @@ export function LogEntrySheet({
 
       <View style={[formStyles.field, sheetGap]}>
         <Text style={formStyles.label}>
-          {t('work.cost')} · {t('common.optional')}
+          {t('log.form.cost')} · {t('common.optional')}
         </Text>
         <TextInput
           style={formStyles.input}
-          value={workCost}
+          value={cost}
           onChangeText={(text) => {
-            setWorkCost(text);
+            setCost(text);
             // An empty box returns the cost to auto; anything typed wins.
-            setWorkCostTyped(text.trim() !== '');
+            setCostTyped(text.trim() !== '');
           }}
           editable={!busy}
           keyboardType="decimal-pad"
@@ -398,7 +440,7 @@ export function LogEntrySheet({
           placeholderTextColor={colors.slate600}
         />
         <Text style={workHintText}>
-          {!workCostTyped && workCost ? t('work.costComputed') : t('work.costHint')}
+          {!costTyped && cost ? t('work.costComputed') : t('work.costHint')}
         </Text>
       </View>
 

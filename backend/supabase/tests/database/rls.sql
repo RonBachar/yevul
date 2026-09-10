@@ -10,7 +10,7 @@ create extension if not exists pgtap;
 
 begin;
 
-select plan(65);
+select plan(70);
 
 -- ====================================================================
 -- הכנה, חמישה משתמשי בדיקה, שני משקים נפרדים
@@ -497,21 +497,24 @@ select is(
   'the edit actually landed and did not silently no-op like the crop_cycles/tasks SELECT-for-UPDATE gap did before those fixes'
 );
 
--- Spray cost columns (20260904130000). Frozen on the row at write time. They are
--- NOT masked from a worker yet (worker-mode design decision, deferred to stage 6,
--- see docs/open-items.md), so this group asserts the current behaviour on purpose:
--- owner writes a full breakdown, and a worker can write and read one too.
+-- Spray breakdown columns (20260904130000), minus the money.
+-- 20260910120000_money_single_source.sql dropped spray_cost and work_cost: money
+-- lives in public.expenses only, and the journal keeps the breakdown that says
+-- how the number was reached. So this group asserts what is left on the row --
+-- quantity, unit, unit price -- and that a worker can still write and read it,
+-- because log_entries has no masking view (deferred to stage 6, see
+-- docs/open-items.md).
 select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
 
 select lives_ok(
-  $$ insert into public.log_entries (farm_id, plot_id, date, type, source, spray_pest, spray_material, spray_quantity, spray_quantity_unit, spray_unit_price, spray_cost)
-     values ((select value from fixture where key = 'farm_a'), (select value from fixture where key = 'plot_a'), current_date, 'spray', 'manual', 'כנימה', 'קונפידור', 3, 'kg', 40, 120) $$,
-  'owner_a can write a spray with a quantity, unit, unit price and frozen cost'
+  $$ insert into public.log_entries (farm_id, plot_id, date, type, source, spray_pest, spray_material, spray_quantity, spray_quantity_unit, spray_unit_price)
+     values ((select value from fixture where key = 'farm_a'), (select value from fixture where key = 'plot_a'), current_date, 'spray', 'manual', 'כנימה', 'קונפידור', 3, 'kg', 40) $$,
+  'owner_a can write a spray with a quantity, unit and unit price'
 );
 select is(
-  (select spray_cost from public.log_entries where farm_id = (select value from fixture where key = 'farm_a') and spray_material = 'קונפידור'),
-  120::numeric,
-  'the frozen cost is stored on the spray row, not recomputed from a pricelist'
+  (select spray_unit_price from public.log_entries where farm_id = (select value from fixture where key = 'farm_a') and spray_material = 'קונפידור'),
+  40::numeric,
+  'the price that applied on the day stays frozen on the journal row, it is history and not a value'
 );
 select throws_ok(
   $$ insert into public.log_entries (farm_id, date, type, source, spray_pest, spray_material, spray_quantity_unit)
@@ -523,9 +526,62 @@ select throws_ok(
 
 select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000003', 'role', 'authenticated')::text, true);
 select lives_ok(
-  $$ insert into public.log_entries (farm_id, plot_id, date, type, source, spray_pest, spray_material, spray_quantity, spray_quantity_unit, spray_cost)
-     values ((select value from fixture where key = 'farm_a'), (select value from fixture where key = 'plot_a'), current_date, 'spray', 'manual', 'עש', 'ביומקטין', 2, 'liter', 60) $$,
-  'worker_a can write a spray cost too, log_entries cost columns are not masked yet (deferred to stage 6)'
+  $$ insert into public.log_entries (farm_id, plot_id, date, type, source, spray_pest, spray_material, spray_quantity, spray_quantity_unit)
+     values ((select value from fixture where key = 'farm_a'), (select value from fixture where key = 'plot_a'), current_date, 'spray', 'manual', 'עש', 'ביומקטין', 2, 'liter') $$,
+  'worker_a can write a spray breakdown too, log_entries is the operational table he himself writes to'
+);
+
+-- ====================================================================
+-- קבוצה 13ב, log_entries.created_expense_id (20260910120000). הכסף עבר
+-- לטבלה אחת: היומן רושם מה קרה, expenses רושמת כמה זה עלה, והעמודה הזו
+-- היא הקישור החד-כיווני ביניהם, בדיוק כמו tasks.created_expense_id.
+-- העמודה עצמה גלויה ל-worker (log_entries בלי view ממסך), אבל שורת
+-- ההוצאה שהיא מצביעה עליה חסומה לו ברמת השורה. זו בדיוק הנקודה: המצביע
+-- אינו דלת אחורית לכסף.
+-- ====================================================================
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
+
+do $$
+declare
+  v_expense_id uuid;
+begin
+  insert into public.expenses (farm_id, amount, category, date, source)
+  values ((select value from fixture where key = 'farm_a'), 120, 'קונפידור', current_date, 'manual')
+  returning id into v_expense_id;
+  insert into fixture (key, value) values ('expense_link', v_expense_id);
+end $$;
+
+select lives_ok(
+  $$ update public.log_entries
+     set created_expense_id = (select value from fixture where key = 'expense_link')
+     where farm_id = (select value from fixture where key = 'farm_a') and spray_material = 'קונפידור' $$,
+  'owner_a can point a journal entry at the expense it produced'
+);
+select is(
+  (select created_expense_id from public.log_entries where farm_id = (select value from fixture where key = 'farm_a') and spray_material = 'קונפידור'),
+  (select value from fixture where key = 'expense_link'),
+  'the link landed on the journal row'
+);
+select throws_ok(
+  $$ update public.log_entries
+     set created_expense_id = '00000000-0000-0000-0000-0000000000ff'
+     where farm_id = (select value from fixture where key = 'farm_a') and spray_material = 'קונפידור' $$,
+  '23503',
+  null,
+  'the journal cannot point at an expense that does not exist, the foreign key holds'
+);
+
+select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000003', 'role', 'authenticated')::text, true);
+select is(
+  (select created_expense_id from public.log_entries where farm_id = (select value from fixture where key = 'farm_a') and spray_material = 'קונפידור'),
+  (select value from fixture where key = 'expense_link'),
+  'worker_a still reads the journal row and its expense pointer, log_entries carries no masking view yet'
+);
+select is(
+  (select count(*)::int from public.expenses where id = (select value from fixture where key = 'expense_link')),
+  0,
+  'but the expense it points at stays invisible to worker_a, the pointer is not a back door into the money table'
 );
 
 -- ====================================================================

@@ -92,9 +92,8 @@ describe('deleteExpense, the write', () => {
 
     await deleteExpense(supabase, 'expense-1');
 
-    expect(recorded.updates).toHaveLength(1);
     expect(Object.keys(recorded.updates[0] ?? {})).toEqual(['deleted_at']);
-    expect(recorded.updates[0]?.hardDelete).toBeUndefined();
+    expect(recorded.updates.some((update) => update.hardDelete)).toBe(false);
   });
 
   // The column is timestamptz, and the schema grants no DELETE on any table:
@@ -114,7 +113,7 @@ describe('deleteExpense, the write', () => {
 
     await deleteExpense(supabase, 'expense-1');
 
-    expect(recorded.filters).toEqual(['id = expense-1']);
+    expect(recorded.filters[0]).toBe('id = expense-1');
   });
 
   // **Without the select there is no outcome at all.** PostgREST answers an
@@ -142,7 +141,7 @@ describe('deleteExpense, the write', () => {
     expect(Object.keys(expense.recorded.updates[0] ?? {})).toEqual(
       Object.keys(task.recorded.updates[0] ?? {}),
     );
-    expect(expense.recorded.filters).toEqual(task.recorded.filters);
+    expect(expense.recorded.filters[0]).toBe(task.recorded.filters[0]);
     expect(expense.recorded.selected).toBe(task.recorded.selected);
   });
 });
@@ -152,14 +151,32 @@ describe('deleteExpense, what it leaves alone', () => {
   // invisible: every read of either is a child of a query on `expenses` that
   // filters `deleted_at is null`, so they leave the lists, the plot totals and
   // the CSV exports with the expense they belong to.
-  it('touches the expenses table and nothing else', async () => {
+  it('leaves the allocation, the receipt row and the bucket untouched', async () => {
     const { supabase, recorded } = fakeSupabase(ONE_ROW);
 
     await deleteExpense(supabase, 'expense-1');
 
-    expect(recorded.tables).toEqual(['expenses']);
     expect(recorded.tables).not.toContain('expense_allocations');
     expect(recorded.tables).not.toContain('receipts');
+  });
+
+  // **The journal entry survives too, and only its pointer at the money is
+  // dropped.** Founder's rule 2026-09-10: deleting the expense leaves the entry
+  // standing without a cost, because the spray really happened and the
+  // regulator's export needs it. The opposite direction is deliberately not
+  // symmetrical -- deleting the entry does take its expense with it, see
+  // deleteLogEntry.
+  it('clears the journal back-link without deleting the journal entry', async () => {
+    const { supabase, recorded } = fakeSupabase(ONE_ROW);
+
+    await deleteExpense(supabase, 'expense-1');
+
+    expect(recorded.tables).toContain('log_entries');
+    const linkWrite = recorded.updates.find((update) => 'created_expense_id' in update);
+    expect(linkWrite).toEqual({ created_expense_id: null });
+    // Nothing on that write stamps the entry as deleted.
+    expect(recorded.updates.filter((update) => 'deleted_at' in update)).toHaveLength(1);
+    expect(recorded.filters).toContain('created_expense_id = expense-1');
   });
 
   // Deleting bytes cannot be undone and nothing else in this product does it.

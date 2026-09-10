@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
   createLogEntry,
+  deleteLogEntry,
   initialLogEntryType,
   LOG_ENTRY_TYPES,
   logEntryTypeLabelKey,
   saveSprayPrice,
+  updateLogEntry,
   type LogEntry,
   type LogEntryInput,
 } from './logEntries';
@@ -25,10 +27,10 @@ function entry(overrides: Partial<LogEntry> = {}): LogEntry {
     sprayQuantity: null,
     sprayQuantityUnit: null,
     sprayUnitPrice: null,
-    sprayCost: null,
     workHours: null,
     workHourlyRate: null,
-    workCost: null,
+    createdExpenseId: null,
+    cost: null,
     harvestQty: null,
     harvestUnit: null,
     createdAt: '2026-08-25T06:00:00.000Z',
@@ -49,14 +51,103 @@ function input(overrides: Partial<LogEntryInput> = {}): LogEntryInput {
     sprayQuantity: null,
     sprayQuantityUnit: null,
     sprayUnitPrice: null,
-    sprayCost: null,
     workHours: null,
     workHourlyRate: null,
-    workCost: null,
+    cost: null,
     harvestQty: null,
     harvestUnit: null,
     ...overrides,
   };
+}
+
+// ============================================================
+// A PostgREST stand-in the size of what these writes actually touch: a chainable
+// builder that records every operation and is itself thenable, because that is
+// what supabase-js hands back and half the bugs this file has caught were an
+// unfired lazy query.
+//
+// It answers the four reads and writes the money path makes and nothing else: an
+// insert hands back one id, a select of the entry hands back whatever the test
+// said is already stored, and every update reports one affected row (which
+// writeOutcome reads as a permitted write).
+// ============================================================
+
+type Op = {
+  table: string;
+  kind: 'select' | 'insert' | 'update' | 'upsert';
+  payload?: Record<string, unknown>;
+  filters: [string, unknown][];
+};
+
+type StoredEntry = { farm_id: string; created_expense_id: string | null } | null;
+
+function fakeSupabase(stored: StoredEntry = null) {
+  const ops: Op[] = [];
+
+  function result(op: Op) {
+    if (op.kind === 'select') return { data: stored, error: null };
+    if (op.kind === 'insert' && op.table === 'expenses') {
+      return { data: [{ id: 'expense-1' }], error: null };
+    }
+    if (op.kind === 'insert' && op.table === 'log_entries') {
+      return { data: [{ id: 'log-1' }], error: null };
+    }
+    return { data: [{ id: 'row-1' }], error: null };
+  }
+
+  const supabase = {
+    from(table: string) {
+      const op: Op = { table, kind: 'select', filters: [] };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const builder: any = {
+        insert(payload: Record<string, unknown>) {
+          op.kind = 'insert';
+          op.payload = payload;
+          ops.push(op);
+          return builder;
+        },
+        update(payload: Record<string, unknown>) {
+          op.kind = 'update';
+          op.payload = payload;
+          ops.push(op);
+          return builder;
+        },
+        upsert(payload: Record<string, unknown>) {
+          op.kind = 'upsert';
+          op.payload = payload;
+          ops.push(op);
+          return builder;
+        },
+        select() {
+          // Only a read registers here; an insert().select() is already recorded.
+          if (op.kind === 'select') ops.push(op);
+          return builder;
+        },
+        eq(column: string, value: unknown) {
+          op.filters.push([column, value]);
+          return builder;
+        },
+        is(column: string, value: unknown) {
+          op.filters.push([column, value]);
+          return builder;
+        },
+        maybeSingle() {
+          return Promise.resolve(result(op));
+        },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        then(resolve: any, reject: any) {
+          return Promise.resolve(result(op)).then(resolve, reject);
+        },
+      };
+      return builder;
+    },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } as any;
+
+  const on = (table: string, kind: Op['kind']) =>
+    ops.filter((op) => op.table === table && op.kind === kind);
+
+  return { supabase, ops, on };
 }
 
 // כל אחד מעשרת הסוגים חייב מפתח תרגום ייחודי, אחרת שני צ'יפים בגיליון
@@ -311,5 +402,180 @@ describe('saveSprayPrice', () => {
       unit: 'kg',
     });
     expect(result).toEqual({ ok: false, reason: 'forbidden' });
+  });
+});
+
+// ============================================================
+// Money lives in `expenses` only. Founder's decision 2026-09-10, and this is the
+// suite that holds it: the journal must have no way to state a cost of its own,
+// and every cost it does carry must end up as exactly one expense row.
+//
+// The point of the change is that double counting becomes inexpressible, so the
+// first test is the one that would have caught the old behaviour -- no cost
+// column reaches the insert at all.
+// ============================================================
+
+describe('createLogEntry, the money it writes', () => {
+  it('puts no cost column on the journal row', async () => {
+    const { supabase, on } = fakeSupabase();
+    await createLogEntry(
+      supabase,
+      'farm-1',
+      input({ type: 'repair', workHours: 3, workHourlyRate: 60, cost: 180 }),
+    );
+
+    const row = on('log_entries', 'insert')[0]?.payload ?? {};
+    expect(row).not.toHaveProperty('spray_cost');
+    expect(row).not.toHaveProperty('work_cost');
+    expect(row).not.toHaveProperty('cost');
+    // The breakdown itself stays: it is the record of how the number was reached.
+    expect(row).toMatchObject({ work_hours: 3, work_hourly_rate: 60 });
+  });
+
+  it('writes one expense for the entry and links it back', async () => {
+    const { supabase, on } = fakeSupabase();
+    const result = await createLogEntry(
+      supabase,
+      'farm-1',
+      input({ type: 'repair', plotId: 'plot-1', cost: 180 }),
+    );
+
+    expect(result).toEqual({ ok: true });
+    const expenses = on('expenses', 'insert');
+    expect(expenses).toHaveLength(1);
+    expect(expenses[0]?.payload).toMatchObject({ farm_id: 'farm-1', amount: 180 });
+    expect(on('log_entries', 'update')[0]?.payload).toEqual({ created_expense_id: 'expense-1' });
+  });
+
+  // One entry, one expense, even carrying both halves. The founder's words: Ido
+  // wants to know what the spray cost him, and that is one number.
+  it('writes a single expense when the entry carries both material and hours', async () => {
+    const { supabase, on } = fakeSupabase();
+    await createLogEntry(
+      supabase,
+      'farm-1',
+      input({
+        type: 'spray',
+        sprayPest: 'כנימה',
+        sprayMaterial: 'קונפידור',
+        sprayQuantity: 3,
+        sprayQuantityUnit: 'kg',
+        sprayUnitPrice: 40,
+        workHours: 3,
+        workHourlyRate: 60,
+        cost: 300,
+      }),
+    );
+
+    const expenses = on('expenses', 'insert');
+    expect(expenses).toHaveLength(1);
+    expect(expenses[0]?.payload).toMatchObject({ amount: 300 });
+  });
+
+  // The plot allocation comes from the entry, and a null plot is a farm-level
+  // expense with no allocation at all -- how a general expense has always worked.
+  it('allocates the expense to the entry plot, and to none when there is no plot', async () => {
+    const withPlot = fakeSupabase();
+    await createLogEntry(withPlot.supabase, 'farm-1', input({ plotId: 'plot-7', cost: 50 }));
+    expect(withPlot.on('expense_allocations', 'insert')[0]?.payload).toMatchObject({
+      plot_id: 'plot-7',
+      amount: 50,
+    });
+
+    const withoutPlot = fakeSupabase();
+    await createLogEntry(withoutPlot.supabase, 'farm-1', input({ plotId: null, cost: 50 }));
+    expect(withoutPlot.on('expense_allocations', 'insert')).toHaveLength(0);
+  });
+
+  it('writes no expense at all when the entry carries no cost', async () => {
+    const { supabase, on } = fakeSupabase();
+    await createLogEntry(supabase, 'farm-1', input({ cost: null }));
+    expect(on('expenses', 'insert')).toHaveLength(0);
+    expect(on('log_entries', 'update')).toHaveLength(0);
+  });
+
+  // The expense name is what the farmer reads on the money screen. It is stored
+  // in `expenses.category`, which is the name column -- see expenses.ts.
+  it('names the expense after the material, or after the entry type', async () => {
+    const spray = fakeSupabase();
+    await createLogEntry(
+      spray.supabase,
+      'farm-1',
+      input({ type: 'spray', sprayPest: 'כנימה', sprayMaterial: 'קונפידור', cost: 120 }),
+    );
+    expect(spray.on('expenses', 'insert')[0]?.payload).toMatchObject({ category: 'קונפידור' });
+
+    const repair = fakeSupabase();
+    await createLogEntry(repair.supabase, 'farm-1', input({ type: 'repair', cost: 120 }));
+    // The existing Hebrew label for the type, not a new string invented here.
+    expect(repair.on('expenses', 'insert')[0]?.payload).toMatchObject({ category: 'תיקון' });
+  });
+
+  // Manual entry always wins, the standing rule of this product: no material, no
+  // quantity, no hours, no rate, just a number.
+  it('accepts a bare typed cost with no breakdown behind it', async () => {
+    const { supabase, on } = fakeSupabase();
+    await createLogEntry(supabase, 'farm-1', input({ type: 'other', cost: 250 }));
+    expect(on('expenses', 'insert')[0]?.payload).toMatchObject({ amount: 250 });
+  });
+});
+
+describe('updateLogEntry, the money it moves', () => {
+  it('updates the expense it already made instead of writing a second', async () => {
+    const { supabase, on } = fakeSupabase({ farm_id: 'farm-1', created_expense_id: 'expense-9' });
+    await updateLogEntry(supabase, 'log-1', input({ cost: 220 }));
+
+    expect(on('expenses', 'insert')).toHaveLength(0);
+    const updates = on('expenses', 'update');
+    expect(updates).toHaveLength(1);
+    expect(updates[0]?.payload).toMatchObject({ amount: 220 });
+    expect(updates[0]?.filters).toContainEqual(['id', 'expense-9']);
+  });
+
+  // Clearing the cost box means "this did not cost me that". Leaving the expense
+  // behind would keep the money on the books with nothing pointing at it.
+  it('soft-deletes the expense when the cost is taken off the entry', async () => {
+    const { supabase, on } = fakeSupabase({ farm_id: 'farm-1', created_expense_id: 'expense-9' });
+    await updateLogEntry(supabase, 'log-1', input({ cost: null }));
+
+    const deletes = on('expenses', 'update').filter((op) => 'deleted_at' in (op.payload ?? {}));
+    expect(deletes).toHaveLength(1);
+    expect(deletes[0]?.filters).toContainEqual(['id', 'expense-9']);
+    expect(on('expenses', 'insert')).toHaveLength(0);
+  });
+
+  it('creates the expense when a cost is added to an entry that had none', async () => {
+    const { supabase, on } = fakeSupabase({ farm_id: 'farm-1', created_expense_id: null });
+    await updateLogEntry(supabase, 'log-1', input({ cost: 90 }));
+
+    expect(on('expenses', 'insert')).toHaveLength(1);
+    expect(
+      on('log_entries', 'update').some(
+        (op) => (op.payload as { created_expense_id?: string })?.created_expense_id === 'expense-1',
+      ),
+    ).toBe(true);
+  });
+});
+
+// Deleting the entry takes its expense with it; deleting the expense leaves the
+// entry standing (see deleteExpense in expenses.ts, tested there). The asymmetry
+// is the founder's rule: the spray really happened.
+describe('deleteLogEntry', () => {
+  it('soft-deletes the entry and the expense it created', async () => {
+    const { supabase, on } = fakeSupabase({ farm_id: 'farm-1', created_expense_id: 'expense-9' });
+    const result = await deleteLogEntry(supabase, 'log-1');
+
+    expect(result).toEqual({ ok: true });
+    expect(on('log_entries', 'update')[0]?.payload).toHaveProperty('deleted_at');
+    const expenseDeletes = on('expenses', 'update');
+    expect(expenseDeletes).toHaveLength(1);
+    expect(expenseDeletes[0]?.payload).toHaveProperty('deleted_at');
+    expect(expenseDeletes[0]?.filters).toContainEqual(['id', 'expense-9']);
+  });
+
+  it('touches no expense when the entry never created one', async () => {
+    const { supabase, on } = fakeSupabase({ farm_id: 'farm-1', created_expense_id: null });
+    expect(await deleteLogEntry(supabase, 'log-1')).toEqual({ ok: true });
+    expect(on('expenses', 'update')).toHaveLength(0);
   });
 });

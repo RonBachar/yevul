@@ -135,7 +135,6 @@ export function RootTabs() {
         // לעובד הגיליון מציע רק משימה ויומן, שורת ההוצאה מושמטת לגמרי.
         kinds={shell.captureKinds}
         onJournalPress={openJournal}
-        onExpensePress={openExpense}
         onTaskPress={openTask}
       />
       <LogEntrySheet

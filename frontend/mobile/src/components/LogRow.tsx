@@ -55,12 +55,15 @@ export function LogRow({
       ? safeHarvestDate(entry.date, entry.sprayPhiDays)
       : null;
 
-  // Only on the spray log's detailed row, and only when a cost was recorded. The
+  // Only on the spray log's detailed row, and only when a cost was recorded.
+  // One line, one number: `cost` is the entry's whole cost -- material and
+  // labour together, off the single expense the entry created -- not a
+  // material-only figure any more. See the money header in logEntries.ts. The
   // raw number with no currency symbol: LogRow is not threaded a currency, and
   // an unadorned amount is the acceptable minimum here rather than plumbing one
   // through every caller.
-  const sprayCost =
-    sprayDetailed && entry.type === 'spray' && entry.sprayCost !== null ? entry.sprayCost : null;
+  const cost =
+    sprayDetailed && entry.type === 'spray' && entry.cost !== null ? entry.cost : null;
 
   return (
     <Pressable style={styles.row} onPress={onPress} accessibilityRole="button">
@@ -96,9 +99,9 @@ export function LogRow({
             {metaParts.join(' · ')}
           </Text>
         )}
-        {sprayCost !== null && (
+        {cost !== null && (
           <Text style={styles.meta} numberOfLines={1}>
-            {t('log.form.sprayCost')}: {sprayCost}
+            {t('log.form.cost')}: {cost}
           </Text>
         )}
         {safeHarvest && (

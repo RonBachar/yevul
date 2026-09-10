@@ -1,4 +1,8 @@
 import { logEntryTypeLabelKey, safeHarvestDate, t, type LogEntry } from '@yevul/shared';
+// entry.cost is labelled with the generic 'log.form.cost' ("עלות") on this row's
+// work-hours detail line, not 'work.cost' ("עלות העבודה" / "labour cost") --
+// since 2026-09-10 this figure is the entry's whole cost, material included, and
+// the generic label is the honest one. See workEntry.ts and logEntries.ts.
 import './LogRow.css';
 
 // אטום היומן בווב, מקביל ל-Log Row של design.md. בניגוד ל-Task Row,
@@ -43,11 +47,12 @@ export function LogRow({
           sprayDetailed && entry.sprayPhiDays != null
             ? `${entry.sprayPhiDays} ${t('sprayLog.phiDaysSuffix')}`
             : null,
-          // The spray's cost, on the detail line of the Spray Log Screen only,
-          // so the farmer sees what each spray cost him. Frozen on the row.
-          sprayDetailed && entry.sprayCost != null
-            ? `${t('log.form.sprayCost')}: ${entry.sprayCost}`
-            : null,
+          // The entry's whole cost, on the detail line of the Spray Log Screen
+          // only, so the farmer sees what each spray cost him. Since 2026-09-10
+          // there is one cost per entry (material and hours together, off the
+          // expense it created), not a spray-only figure -- see the money header
+          // in logEntries.ts.
+          sprayDetailed && entry.cost != null ? `${t('log.form.cost')}: ${entry.cost}` : null,
         ]
           .filter(Boolean)
           .join(' · ')
@@ -59,13 +64,16 @@ export function LogRow({
             ? t('log.row.sourceTask')
             : (entry.note ?? '');
 
-  // The hours and their cost, on the work-hours screen only. Appended rather
-  // than replacing `detail`, because an entry there is still a spray or a
-  // pruning and losing what it was would make the list unreadable.
+  // The hours and the entry's whole cost, on the work-hours screen only.
+  // Appended rather than replacing `detail`, because an entry there is still a
+  // spray or a pruning and losing what it was would make the list unreadable.
+  // **`entry.cost` here is the entry's whole cost, material included, and not a
+  // labour-only figure** -- since 2026-09-10 there is no separate work_cost
+  // column to read. See the money header in logEntries.ts and workLogTotals.
   const workDetail = workDetailed
     ? [
         entry.workHours != null ? `${entry.workHours} ${t('work.hoursSuffix')}` : null,
-        entry.workCost != null ? `${t('work.cost')}: ${entry.workCost}` : null,
+        entry.cost != null ? `${t('log.form.cost')}: ${entry.cost}` : null,
       ]
         .filter(Boolean)
         .join(' · ')

@@ -460,7 +460,7 @@ export function sprayStepTitleKey(step: SprayStep): string {
 const SPRAY_STEP_FIELD_KEYS: Record<SprayStep, string> = {
   pest: 'log.form.sprayPest',
   material: 'log.form.sprayMaterial',
-  cost: 'log.form.sprayCost',
+  cost: 'log.form.cost',
   dose: 'log.form.sprayDose',
   phiDays: 'log.form.sprayPhiDays',
   plot: 'plots.form.name',
@@ -543,13 +543,19 @@ export function sprayDraftFromEntry(entry: LogEntry): SprayDraft {
     quantity: entry.sprayQuantity,
     quantityUnit: entry.sprayQuantityUnit,
     unitPrice: entry.sprayUnitPrice,
-    cost: entry.sprayCost,
+    // **The entry's one cost, read off the expense it created** (see the money
+    // header in logEntries.ts). There is no `spray_cost` column any more, so what
+    // comes back here is everything this spray cost, hours included when it also
+    // carried some. That is deliberate: the walk writes one total and the money
+    // screen shows the same one, and re-saving from here cannot invent a second.
+    cost: entry.cost,
     // A saved cost that equals quantity x unit price was computed; anything else
-    // was typed by hand. Treating a typed cost as edited stops a later tweak to
-    // the quantity from silently overwriting the farmer's own number.
+    // was typed by hand -- or included hours the walk never asked about. Treating
+    // it as edited in both cases stops a later tweak to the quantity from silently
+    // overwriting a number the farmer did not get from this formula.
     costEdited:
-      entry.sprayCost !== null &&
-      entry.sprayCost !== computeSprayCost(entry.sprayQuantity, entry.sprayUnitPrice),
+      entry.cost !== null &&
+      entry.cost !== computeSprayCost(entry.sprayQuantity, entry.sprayUnitPrice),
     plotId: entry.plotId,
     date: entry.date,
     prefilled: [],
@@ -698,7 +704,9 @@ export function sprayEntryInput(draft: SprayDraft): LogEntryInput {
     sprayQuantity: draft.quantity,
     sprayQuantityUnit: draft.quantityUnit,
     sprayUnitPrice: draft.unitPrice,
-    sprayCost: draft.cost,
+    // The one cost of this entry, which becomes the amount of the one expense it
+    // writes. See the money header in logEntries.ts.
+    cost: draft.cost,
     // Not asked by this flow either. The walk is the six spray fields and
     // nothing else, and hours are entered on the journal sheet, which offers
     // them for every entry type. **On an edit the existing hours are carried
@@ -706,7 +714,6 @@ export function sprayEntryInput(draft: SprayDraft): LogEntryInput {
     // them here without that would erase hours written elsewhere on this record.
     workHours: null,
     workHourlyRate: null,
-    workCost: null,
     harvestQty: null,
     harvestUnit: null,
   };

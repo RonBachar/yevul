@@ -456,7 +456,6 @@ export function voiceJournalInput(
     sprayQuantity: null,
     sprayQuantityUnit: null,
     sprayUnitPrice: null,
-    sprayCost: null,
     // Work hours are not spoken either, and for the same reason: VoiceJournal
     // carries no such field, and adding one is a change to the JSON schema the
     // model is given rather than a line here. A voice record therefore saves
@@ -464,7 +463,11 @@ export function voiceJournalInput(
     // took him any. Safe to null unconditionally: this input only ever creates.
     workHours: null,
     workHourlyRate: null,
-    workCost: null,
+    // No cost, so no expense is written and nothing is linked. A spoken expense
+    // is its own flow (voiceExpenseInput), which writes to `expenses` directly --
+    // so a farmer who says both gets exactly the two records he described, and a
+    // farmer who says only the spray gets a journal entry with no money on it.
+    cost: null,
     // Not in any of the three voice schemas. A harvest quantity spoken aloud
     // ("קטפתי שלושה טון") is a real thing to want, but adding it is a schema
     // change to VoiceJournal and to the JSON schema the model is given, not a

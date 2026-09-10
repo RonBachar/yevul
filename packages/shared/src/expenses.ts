@@ -422,8 +422,8 @@ export async function updateExpense(
 // new mechanism: one soft delete, `deleted_at`, no DELETE anywhere (the schema
 // grants none — see core_schema.sql, "מחיקה היא תמיד UPDATE על deleted_at").
 //
-// **One row is touched, and the three things hanging off the expense are
-// deliberately left alone.**
+// **The expense row is the only thing erased, and the three things hanging off it
+// are deliberately left alone.**
 //
 // `expense_allocations`: not cleared, and the reason is that it never carries
 // the money. Its `amount` column is written by writeAllocation and read by
@@ -453,6 +453,20 @@ export async function updateExpense(
 // stage 8; deleteTask does not have one either, and both clients guard deletion
 // with a confirmation dialog before the write instead. Expenses match that
 // exactly rather than growing a one-off.
+// **The one thing that is cleared is the journal's back-link.** Since the founder's
+// decision of 2026-09-10 a journal entry with a cost writes its money here and
+// points at it through `log_entries.created_expense_id` (see the money header in
+// logEntries.ts). Deleting the expense must leave that entry standing without a
+// cost -- the spray really happened, and the regulator's export needs it -- so the
+// pointer is dropped while the record of the work is not touched at all.
+//
+// It is the reverse of the other direction on purpose: deleting the *entry* takes
+// its expense with it, because there is no longer any work for that money to be
+// the cost of. See deleteLogEntry.
+//
+// Best-effort and after the expense itself: a stale pointer at a soft-deleted
+// expense already reads back as "no cost" (mapLogEntry drops it), so clearing it
+// is tidiness, not correctness, and it must not be able to fail the deletion.
 export async function deleteExpense(
   supabase: SupabaseClient,
   expenseId: string,
@@ -462,5 +476,12 @@ export async function deleteExpense(
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', expenseId)
     .select('id');
-  return writeOutcome(write);
+  const outcome = writeOutcome(write);
+  if (!outcome.ok) return outcome;
+
+  await supabase
+    .from('log_entries')
+    .update({ created_expense_id: null })
+    .eq('created_expense_id', expenseId);
+  return outcome;
 }

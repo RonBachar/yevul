@@ -467,7 +467,18 @@ const strings: Record<string, string> = {
   'log.form.sprayMaterialPlaceholder': 'למשל, קונפידור',
   'log.form.sprayDose': 'מינון',
   'log.form.sprayPhiDays': 'ימי המתנה עד קטיף',
-  'log.form.sprayCost': 'עלות',
+  // The entry's cost, one number. Since the founder's decision of 2026-09-10 a
+  // journal entry no longer carries a separate spray cost and work cost; it
+  // carries one cost, written as an expense.
+  //
+  // **`log.form.sprayCost` was removed rather than kept for the spray flow.** It
+  // held the identical word and the argument for keeping it was that the spray
+  // summary step is unambiguously about a spray. That stopped being true in the
+  // same change: a spray that also took three hours now suggests material plus
+  // labour, so the number under that label is not a spray cost either. Two keys
+  // with one value and no distinction left to draw is exactly the duplication
+  // docs/open-items.md already tracks for `spray.stepOf` / `common.stepOf`.
+  'log.form.cost': 'עלות',
   'log.form.harvestQty': 'כמות',
   'log.form.harvestUnit': 'יחידה',
   'log.form.harvestUnitPlaceholder': 'למשל, ק"ג',
@@ -603,7 +614,10 @@ const strings: Record<string, string> = {
   'workLog.title': 'יומן שעות עבודה',
   'workLog.countSuffix': 'רישומים',
   'workLog.totalHours': 'סך השעות',
-  'workLog.totalCost': 'סך עלות העבודה',
+  // "סך העלות" ולא "סך עלות העבודה": מאז 2026-09-10 המספר הזה הוא העלות
+  // השלמה של הרשומה, חומר ושעות יחד (workLogTotals ב-workEntry.ts), ולא
+  // עמודת שכר-עבודה בפני עצמה. ראו את כותרת הכסף ב-logEntries.ts.
+  'workLog.totalCost': 'סך העלות',
   'workLog.allPlots': 'כל החלקות',
   'workLog.new': 'רישום עם שעות',
   'workLog.empty': 'עדיין לא רשמתם שעות עבודה. פתחו רישום ביומן והזינו כמה שעות לקחה העבודה.',
