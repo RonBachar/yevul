@@ -14,7 +14,6 @@ import {
   assignableMembers,
   avatarUrl,
   canManageMembers,
-  canManagePlotResponsible,
   currentMember,
   inviteMember,
   isValidInviteEmail,
@@ -313,15 +312,6 @@ describe('canManageMembers', () => {
     expect(canManageMembers('manager')).toBe(false);
     expect(canManageMembers('worker')).toBe(false);
     expect(canManageMembers(null)).toBe(false);
-  });
-});
-
-describe('canManagePlotResponsible', () => {
-  it('allows owner and manager, but not worker or a null role', () => {
-    expect(canManagePlotResponsible('owner')).toBe(true);
-    expect(canManagePlotResponsible('manager')).toBe(true);
-    expect(canManagePlotResponsible('worker')).toBe(false);
-    expect(canManagePlotResponsible(null)).toBe(false);
   });
 });
 

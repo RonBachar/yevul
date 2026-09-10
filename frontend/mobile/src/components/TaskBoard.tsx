@@ -10,7 +10,6 @@ import {
   membersByUserId,
   t,
   taskAssignee,
-  tasksOnPlots,
   useFarmSettings,
   useMembers,
   useTasks,
@@ -55,17 +54,11 @@ type TaskSection = {
 export function TaskBoard({
   supabase,
   plotId,
-  plotIds,
   showPlotName,
   alsoRefresh = [],
 }: {
   supabase: SupabaseClient;
   plotId?: string;
-  // The "mine" side of the home "My Plots" toggle (design.md, "My Plots"
-  // Toggle): when given, the board narrows to tasks on exactly these plots. A
-  // separate addition to the single-plot plotId path; left undefined in the
-  // "all" view and in plot detail, which means no filter at all.
-  plotIds?: string[];
   showPlotName: boolean;
   // Server data the host screen pins above the board and wants the same pull
   // to reload — the profit card on Home is the one case. The spinner waits for
@@ -131,7 +124,7 @@ export function TaskBoard({
   const sections: TaskSection[] =
     tasksState.loading || tasksState.failed
       ? []
-      : groupTasksByUrgency(tasksOnPlots(tasksState.tasks, plotIds)).map((group, index) => ({
+      : groupTasksByUrgency(tasksState.tasks).map((group, index) => ({
           key: group.key,
           labelKey: group.labelKey,
           first: index === 0,

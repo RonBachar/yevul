@@ -1,13 +1,27 @@
+/* Container, not a button, since 2026-09-10: the delete button sits beside the
+   body button rather than inside it, the same split ExpenseRow uses and for
+   the same reason (a button cannot nest a button). */
 .log-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   width: 100%;
-  gap: var(--spacing-12);
+  gap: var(--spacing-8);
   min-height: 64px;
   padding: var(--spacing-12) var(--spacing-16);
-  border: none;
   border-radius: var(--radius-card);
   background: var(--color-mist-100);
+}
+
+/* The tap area that opens the sheet. */
+.log-row__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-12);
+  padding: 0;
+  border: none;
+  background: transparent;
   text-align: right;
   cursor: pointer;
 }
@@ -22,7 +36,7 @@
   text-align: center;
 }
 
-.log-row__body {
+.log-row__content {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -102,4 +116,24 @@
   font-size: var(--text-caption);
   font-weight: var(--font-weight-bold);
   color: var(--color-field-700);
+}
+
+/* Identical to .expense-row__delete, the same button doing the same thing one
+   list over. */
+.log-row__delete {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-pill);
+  color: var(--color-paper);
+  background: var(--color-loss-600);
+  cursor: pointer;
+}
+
+.log-row__delete:hover {
+  opacity: 0.85;
 }

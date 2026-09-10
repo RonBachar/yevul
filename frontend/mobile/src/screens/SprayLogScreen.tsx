@@ -5,7 +5,7 @@ import { useState } from 'react';
 // Imported by sub-path and not through the barrel, like everywhere else in the
 // app: Metro does no tree shaking. See RootTabs.tsx.
 import Plus from 'lucide-react-native/icons/plus';
-import { t, useLogEntries, usePlots, type LogEntry } from '@yevul/shared';
+import { deleteLogEntry, t, useLogEntries, usePlots, type LogEntry } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
@@ -50,6 +50,11 @@ export function SprayLogScreen() {
   function openEdit(entryId: string) {
     setEditingEntryId(entryId);
     setSheetOpen(true);
+  }
+
+  async function handleDelete(entryId: string) {
+    await deleteLogEntry(supabase, entryId);
+    entriesState.refresh();
   }
 
   return (
@@ -136,6 +141,7 @@ export function SprayLogScreen() {
             }
             sprayDetailed
             onPress={() => openEdit(item.id)}
+            onDeleteCommit={() => handleDelete(item.id)}
           />
         )}
         // Wrapped in a View because FlatList clones this element to attach

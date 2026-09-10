@@ -9,8 +9,6 @@ import TrendingUp from 'lucide-react-native/icons/trending-up';
 import TrendingDown from 'lucide-react-native/icons/trending-down';
 import SprayCan from 'lucide-react-native/icons/spray-can';
 import {
-  assignableMembers,
-  canManagePlotResponsible,
   expectedPriceDisplay,
   expectedYieldDisplay,
   formatAmount,
@@ -19,12 +17,10 @@ import {
   plotSummaryLine,
   priceUnitLabel,
   profitTone,
-  setPlotResponsible,
   t,
   updateCropCycle,
   updateForecast,
   useFarmSettings,
-  useMembers,
   useMyRole,
   usePlotDetail,
   usePlotExpensesTotal,
@@ -306,15 +302,6 @@ export function PlotDetailScreen() {
             <SprayCan size={18} strokeWidth={2} color={colors.field700} />
             <Text style={styles.sprayLogButtonText}>{t('sprayLog.title')}</Text>
           </Pressable>
-
-          {/* אחראי החלקה, שלב 6, prd.md סעיף 11. מנהל את הנראות של
-              עצמו: נעלם אם אין חברים שאפשר להציב או שהמשתמש אינו
-              owner/manager, design.md, Sharing. */}
-          <ResponsibleMemberSection
-            plotId={plotId}
-            responsibleUserId={plot.responsibleUserId}
-            onSaved={detail.refresh}
-          />
         </ScrollView>
       )}
 
@@ -326,7 +313,12 @@ export function PlotDetailScreen() {
 
       {activeTab === 'journal' && (
         <View style={styles.tasksBody}>
-          <JournalList supabase={supabase} plotId={plotId} showPlotName={false} />
+          <JournalList
+            supabase={supabase}
+            plotId={plotId}
+            showPlotName={false}
+            onDeleted={plotExpenses.refresh}
+          />
         </View>
       )}
 
@@ -430,77 +422,6 @@ function KvRow({ label, value }: { label: string; value: string }) {
     <View style={styles.kvRow}>
       <Text style={styles.kvLabel}>{label}</Text>
       <Text style={styles.kvValue}>{value}</Text>
-    </View>
-  );
-}
-
-// בורר האחראי לחלקה, שלב 6, prd.md סעיף 11. שורת צ'יפים עם שמירה
-// מיידית בבחירה, כמו שאר בוררי הבחירה בנייד. **מנהל את הנראות של
-// עצמו**: נעלם כשאין חברים שאפשר להציב (משק של אדם אחד) או כשהמשתמש
-// אינו owner/manager, design.md, Sharing. RLS אוכף ממילא, זו הסתרת UI.
-function ResponsibleMemberSection({
-  plotId,
-  responsibleUserId,
-  onSaved,
-}: {
-  plotId: string;
-  responsibleUserId: string | null;
-  onSaved: () => void;
-}) {
-  const membersState = useMembers(supabase);
-  const assignable = assignableMembers(membersState.members);
-  const [failed, setFailed] = useState(false);
-
-  if (assignable.length === 0 || !canManagePlotResponsible(membersState.myRole)) {
-    return null;
-  }
-
-  async function choose(userId: string | null) {
-    setFailed(false);
-    const result = await setPlotResponsible(supabase, plotId, userId);
-    if (result.ok) {
-      onSaved();
-      return;
-    }
-    setFailed(true);
-  }
-
-  return (
-    <View style={styles.responsibleSection}>
-      <Text style={formStyles.label}>{t('plots.responsible.label')}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        <View style={formStyles.chips}>
-          <Pressable
-            style={[formStyles.chip, responsibleUserId === null && formStyles.chipActive]}
-            onPress={() => choose(null)}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: responsibleUserId === null }}
-          >
-            <Text
-              style={[formStyles.chipText, responsibleUserId === null && formStyles.chipTextActive]}
-            >
-              {t('plots.responsible.none')}
-            </Text>
-          </Pressable>
-          {assignable.map((member) => {
-            const active = responsibleUserId === member.userId;
-            return (
-              <Pressable
-                key={member.id}
-                style={[formStyles.chip, active && formStyles.chipActive]}
-                onPress={() => choose(member.userId)}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: active }}
-              >
-                <Text style={[formStyles.chipText, active && formStyles.chipTextActive]}>
-                  {member.email ?? member.userId}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </ScrollView>
-      {failed && <Text style={formStyles.bad}>{t('plots.responsible.saveError')}</Text>}
     </View>
   );
 }
@@ -928,11 +849,6 @@ const styles = StyleSheet.create({
   tasksBody: {
     flex: 1,
     padding: spacing.s24,
-  },
-  // בורר האחראי, שלב 6. יושב בתוך גוף טאב ההכנסה, מתחת לכפתור יומן
-  // הריסוס, עם רווח שמפריד אותו מהכרטיס שמעליו.
-  responsibleSection: {
-    gap: spacing.s8,
   },
   card: {
     borderRadius: radius.card,

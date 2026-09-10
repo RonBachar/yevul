@@ -202,17 +202,6 @@ const strings: Record<string, string> = {
   'plots.noCrop': 'עדיין אין גידול מוגדר',
   'plots.seasonPrefix': 'עונה',
 
-  // אחראי חלקה, שלב 6, שיתוף המשק. prd.md סעיף 11: "לכל חלקה אפשר
-  // להגדיר אחראי".
-  //
-  // **הבורר הוסר משני הלקוחות ב-2026-09-09**, אחרי מעבר של עידו והיזם
-  // על מסכי החלקה: חלקה היא שם, שטח וגידול, וזה הכל. המחרוזות נשארות
-  // כאן יחד עם setPlotResponsible ועם העמודה במסד, כדי שההחזרה תהיה
-  // שינוי UI בלבד ובלי מיגרציה. ראה ההערה מעל setPlotResponsible.
-  'plots.responsible.label': 'אחראי החלקה',
-  'plots.responsible.none': 'ללא אחראי',
-  'plots.responsible.saveError': 'לא הצלחנו לשמור את האחראי, נסו שוב',
-
   // מסך פרטי חלקה
   'plots.detail.back': 'חזרה',
   'plots.detail.edit': 'עריכת פרטי החלקה',
@@ -247,13 +236,6 @@ const strings: Record<string, string> = {
   // כותרת הבאנר במסך הבית, ברכה חמה במקום השם "בית" (סבב עיצוב אקוורל).
   'home.greeting': 'בוקר טוב',
   'home.greetingSub': 'היום במשק שלך',
-
-  // מתג "החלקות שלי", מסך הבית, design.md, "My Plots" Toggle. בקרה
-  // מגזרית שמופיעה רק במשק רב-חברים שבו שויכה לפחות חלקה אחת, ומסננת
-  // את התצוגה לחלקות שהמשתמש אחראי עליהן. prd.md סעיף 11: זו תצוגה
-  // ולא חסימה, ולכן "הכל" הוא ברירת המחדל שחוזרת בכל פתיחה.
-  'home.myPlots.all': 'הכל',
-  'home.myPlots.mine': 'שלי',
 
   // טאב רווחיות
   'plots.income.expected': 'הכנסה צפויה',
@@ -491,6 +473,14 @@ const strings: Record<string, string> = {
   'log.form.saveError': 'לא הצלחנו לשמור, נסו שוב',
   'log.save': 'שמירה',
   'log.saving': 'שומר',
+
+  // מחיקת רישום יומן, 2026-09-10. deleteLogEntry (packages/shared/src/
+  // logEntries.ts) מוחקת רכה גם את הרישום וגם, אם יש, את ההוצאה שהוא
+  // יצר. ה-note מוצג רק כש-entry.cost אינו null, כי לרישום בלי עלות
+  // אין הוצאה למחוק. תוויות האישור/ביטול הן expense.action.delete/cancel,
+  // אותן מילים בדיוק ("מחיקה"/"ביטול") בלי מפתח שני.
+  'log.deleteConfirmTitle': 'למחוק את הרישום?',
+  'log.deleteConfirmExpenseNote': 'ההוצאה שנוצרה מהרישום תימחק גם היא',
 
   // מסך יומן ריסוס, design.md "Spray Log Screen". prd.md סעיף 8: מסך
   // עצמאי, נגיש מהיומן הכללי, מפרטי חלקה, ומעוד/הגדרות. אותה כותרת

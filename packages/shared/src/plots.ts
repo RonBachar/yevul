@@ -10,7 +10,7 @@ import { forecastUnits } from './yieldUnits';
 // useCropSuggestions below; plotForm.ts imports only *types* back from here, so
 // there is no import cycle at run time.
 import { plotCropOptions } from './plotForm';
-import { writeOutcome, type WriteOutcome } from './postgrest';
+import { writeOutcome } from './postgrest';
 import { useLoadCount } from './refresh';
 import type { AreaUnit, Currency } from './settings';
 
@@ -30,10 +30,6 @@ export type Plot = {
   name: string;
   area: number | null;
   areaUnit: AreaUnit | null;
-  // האחראי על החלקה, שלב 6, שיתוף המשק. prd.md סעיף 11: "לכל חלקה
-  // אפשר להגדיר אחראי". מזהה משתמש או null כשלא הוגדר אחראי. נכתב רק
-  // דרך setPlotResponsible, ורק owner/manager מורשים (RLS).
-  responsibleUserId: string | null;
 };
 
 export type CropCycle = {
@@ -223,7 +219,16 @@ export function expectedPriceDisplay(cropCycle: CropCycle, currency: Currency): 
   return priceLabel ? `${amount} / ${priceLabel}` : amount;
 }
 
-const PLOT_COLUMNS = 'id, farm_id, name, area, area_unit, responsible_user_id';
+// **plots.responsible_user_id is not in this select, on purpose.** The
+// "אחראי חלקה" (plot responsible member) feature was removed from the product
+// entirely on 2026-09-10 -- not just its UI, the whole picker, the setter
+// below it used to call, and the role check that gated it -- and no code
+// anywhere reads the column any more. **The column itself was NOT dropped.**
+// Dropping it is a migration, and an irreversible one: the data it holds
+// would be gone for good, for a decision that cost nothing to leave
+// reversible. See docs/open-items.md for the record of this being an unread
+// column and not a bug.
+const PLOT_COLUMNS = 'id, farm_id, name, area, area_unit';
 const CROP_CYCLE_COLUMNS =
   'id, plot_id, name, season, yield_unit, price_unit, expected_yield_per_area, expected_price_per_unit, expected_harvest_date, forecast_updated_at, created_at';
 
@@ -233,7 +238,6 @@ type PlotRow = {
   name: string;
   area: number | null;
   area_unit: AreaUnit | null;
-  responsible_user_id: string | null;
 };
 
 type CropCycleRow = {
@@ -257,7 +261,6 @@ function mapPlot(row: PlotRow): Plot {
     name: row.name,
     area: row.area,
     areaUnit: row.area_unit,
-    responsibleUserId: row.responsible_user_id,
   };
 }
 
@@ -588,40 +591,6 @@ export async function updatePlot(
   const write = await supabase
     .from('plots')
     .update({ name, area: input.area, area_unit: input.areaUnit })
-    .eq('id', plotId)
-    .select('id');
-  return writeOutcome(write);
-}
-
-// ============================================================
-// הגדרת אחראי לחלקה, שלב 6, שיתוף המשק. prd.md סעיף 11. עדכון שדה
-// יחיד בנפרד משאר עריכת החלקה, בדיוק כמו updateForecast: האחראי נקבע
-// מבורר ייעודי במסך פרטי החלקה, לא בתוך טופס יצירת/עריכת החלקה.
-//
-// responsibleUserId מקבל null כשמנקים אחראי. RLS מתיר עדכון plots
-// ל-owner/manager בלבד (core_schema.sql, plots_update), והלקוח רק
-// מדווח על מה שהשרת החליט דרך writeOutcome, לא מחליט הרשאה מראש.
-//
-// **אין לזה יותר קורא בשום מסך, וזה בכוונה.** 2026-09-09, אחרי מעבר של
-// עידו והיזם על מסכי החלקה: בורר "אחראי החלקה" הוסר משני הלקוחות, כי
-// חלקה היא שם, שטח וגידול וזה הכל. **הוסרו רק נקודות הכניסה ב-UI**;
-// העמודה plots.responsible_user_id והפונקציה הזאת נשארו במקומן, כדי
-// שההחלטה תהיה הפיכה בלי מיגרציה.
-//
-// מה שכן ממשיך לקרוא את השדה עצמו: myPlots.ts, כלומר מתג "החלקות שלי"
-// במסך הבית. כל עוד אין UI שמציב אחראי, השדה נשאר null בכל החלקות,
-// myPlotsToggleVisible מחזיר false, והמתג פשוט לא מוצג. אין מסך שבור,
-// יש תכונה שממתינה לדרך להזין אותה.
-// ============================================================
-
-export async function setPlotResponsible(
-  supabase: SupabaseClient,
-  plotId: string,
-  responsibleUserId: string | null,
-): Promise<WriteOutcome> {
-  const write = await supabase
-    .from('plots')
-    .update({ responsible_user_id: responsibleUserId })
     .eq('id', plotId)
     .select('id');
   return writeOutcome(write);

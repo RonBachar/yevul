@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { t, useLogEntries, type LogEntry } from '@yevul/shared';
+import { deleteLogEntry, t, useLogEntries, type LogEntry } from '@yevul/shared';
 import { LogRow } from './LogRow';
 import { LogEntrySheet } from './LogEntrySheet';
 import './JournalList.css';
@@ -11,11 +11,19 @@ import './JournalList.css';
 // renderAside מקבל את המצב **שכבר נטען כאן** ומרנדר מעליו, מאותו
 // נימוק בדיוק כמו ב-ExpenseList: מסך היומן תולה עליו סרגל ייצוא בלי
 // לקרוא ל-useLogEntries בעצמו ולשכפל את השאילתה.
+//
+// onDeleted, added 2026-09-10 alongside the delete button on LogRow: fires
+// after a successful delete, in addition to this list's own refresh, so a
+// host screen holding separate money state can catch up too. PlotDetailScreen
+// is the one caller that needs it -- its profit header comes from
+// usePlotExpensesTotal, a query this list knows nothing about, and deleting a
+// journal entry with a cost also deletes the expense that header sums.
 export function JournalList({
   supabase,
   plotId,
   showPlotName,
   renderAside,
+  onDeleted,
 }: {
   supabase: SupabaseClient;
   plotId?: string;
@@ -25,6 +33,7 @@ export function JournalList({
     plotNames: Map<string, string>;
     loading: boolean;
   }) => ReactNode;
+  onDeleted?: () => void;
 }) {
   const entriesState = useLogEntries(supabase, plotId);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -38,6 +47,12 @@ export function JournalList({
   function openEdit(entry: LogEntry) {
     setEditingEntry(entry);
     setSheetOpen(true);
+  }
+
+  async function handleDelete(entryId: string) {
+    await deleteLogEntry(supabase, entryId);
+    entriesState.refresh();
+    onDeleted?.();
   }
 
   const list = (
@@ -66,6 +81,7 @@ export function JournalList({
                 showPlotName ? (entriesState.plotNames.get(entry.plotId ?? '') ?? null) : null
               }
               onEdit={() => openEdit(entry)}
+              onDeleteCommit={() => handleDelete(entry.id)}
             />
           ))}
         </div>

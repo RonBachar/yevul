@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import Plus from 'lucide-react-native/icons/plus';
-import { t, useLogEntries, type LogEntry } from '@yevul/shared';
+import { deleteLogEntry, t, useLogEntries, type LogEntry } from '@yevul/shared';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { ListStateNote } from './ListStateNote';
@@ -17,14 +17,21 @@ import { LogEntrySheet } from './LogEntrySheet';
 // **FlatList and not ScrollView.** This is the list that grows without limit
 // in a real season: every spray, every irrigation, every note. A ScrollView
 // mounted all of them at once.
+// onDeleted, added 2026-09-10 alongside the delete button on LogRow: fires
+// after a successful delete, in addition to this list's own refresh, so a
+// host screen holding separate money state can catch up too. PlotDetailScreen
+// is the one caller that needs it -- see the header of the web JournalList,
+// which carries the same prop for the same reason.
 export function JournalList({
   supabase,
   plotId,
   showPlotName,
+  onDeleted,
 }: {
   supabase: SupabaseClient;
   plotId?: string;
   showPlotName: boolean;
+  onDeleted?: () => void;
 }) {
   const entriesState = useLogEntries(supabase, plotId);
   const refreshControl = usePullToRefresh([entriesState]);
@@ -39,6 +46,12 @@ export function JournalList({
   function openEdit(entry: LogEntry) {
     setEditingEntry(entry);
     setSheetOpen(true);
+  }
+
+  async function handleDelete(entryId: string) {
+    await deleteLogEntry(supabase, entryId);
+    entriesState.refresh();
+    onDeleted?.();
   }
 
   return (
@@ -65,6 +78,7 @@ export function JournalList({
             entry={item}
             plotName={showPlotName ? (entriesState.plotNames.get(item.plotId ?? '') ?? null) : null}
             onPress={() => openEdit(item)}
+            onDeleteCommit={() => handleDelete(item.id)}
           />
         )}
         // Wrapped in a View because FlatList clones this element to attach

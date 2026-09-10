@@ -1,34 +1,3 @@
-/* מתג "החלקות שלי", מסך הבית, design.md, "My Plots" Toggle. אותה
-   בקרה מגזרית של טאבי פרטי החלקה (.tab-track), אבל מוגדרת כאן כדי לא
-   לצמד את מסך הבית לגיליון הסגנון של מסך אחר. בקרת תצוגה ולא מנעול,
-   ולכן היא נראית כטאבים רגילים ולא כמשהו נעול. */
-.my-plots {
-  display: inline-flex;
-  gap: var(--spacing-4);
-  padding: var(--spacing-4);
-  border-radius: var(--radius-pill);
-  background: var(--color-mist-200);
-}
-
-.my-plots__item {
-  min-height: calc(var(--touch-min) - 12px);
-  padding: 0 var(--spacing-20);
-  border: none;
-  border-radius: var(--radius-pill);
-  background: transparent;
-  color: var(--color-slate-600);
-  font-family: inherit;
-  font-size: var(--text-body-sm);
-  font-weight: var(--font-weight-regular);
-  cursor: pointer;
-}
-
-.my-plots__item--active {
-  background: var(--color-paper);
-  color: var(--color-field-700);
-  font-weight: var(--font-weight-bold);
-}
-
 /* ===========================================================
    באנר הגיבור, מסך הבית, סבב העיצוב האקוורלי (2026-09-06).
    נוף אקוורל בראש עם ברכה, כרטיס הרווח מרחף מעל שוליו התחתונים,

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { journalCsv, t, useCurrentFarm, useLogEntries, usePlots } from '@yevul/shared';
+import { deleteLogEntry, journalCsv, t, useCurrentFarm, useLogEntries, usePlots } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { LogRow } from '../components/LogRow';
 import { LogEntrySheet } from '../components/LogEntrySheet';
@@ -43,6 +43,11 @@ export function SprayLogScreen() {
   function openEdit(entryId: string) {
     setEditingEntryId(entryId);
     setSheetOpen(true);
+  }
+
+  async function handleDelete(entryId: string) {
+    await deleteLogEntry(supabase, entryId);
+    entriesState.refresh();
   }
 
   return (
@@ -147,6 +152,7 @@ export function SprayLogScreen() {
                   }
                   sprayDetailed
                   onEdit={() => openEdit(entry.id)}
+                  onDeleteCommit={() => handleDelete(entry.id)}
                 />
               ))}
             </div>

@@ -1,14 +1,14 @@
+import { useState } from 'react';
+import { Trash2 } from 'lucide-react';
 import { logEntryTypeLabelKey, safeHarvestDate, t, type LogEntry } from '@yevul/shared';
 // entry.cost is labelled with the generic 'log.form.cost' ("עלות") on this row's
 // work-hours detail line, not 'work.cost' ("עלות העבודה" / "labour cost") --
 // since 2026-09-10 this figure is the entry's whole cost, material included, and
 // the generic label is the honest one. See workEntry.ts and logEntries.ts.
+import { ConfirmDialog } from './ConfirmDialog';
 import './LogRow.css';
 
-// אטום היומן בווב, מקביל ל-Log Row של design.md. בניגוד ל-Task Row,
-// בלי שום כפתור פעולה: רשומת יומן היא תיעוד של משהו שכבר קרה, אין מה
-// להשלים או למחוק כאן. לחיצה על השורה פותחת את אותו Log Entry Sheet
-// לעריכה.
+// אטום היומן בווב, מקביל ל-Log Row של design.md.
 //
 // sprayDetailed מיועד אך ורק למסך יומן הריסוס (design.md, Spray Log
 // Screen: "each showing pest, material and PHI days on its detail
@@ -19,19 +19,32 @@ import './LogRow.css';
 // what they cost ARE the record, so they go on the detail line. Everywhere else
 // the row stays as it was, one component with a conditional expansion rather
 // than a third copy.
+//
+// **The delete button, added 2026-09-10, sits exactly where ExpenseRow's and
+// TaskRow's do**: same Trash2, same Loss-600 pill, confirmed through the same
+// ConfirmDialog before the write. `deleteLogEntry` (packages/shared/src/
+// logEntries.ts) already existed and had no caller in either client -- this is
+// that wiring, not a new deletion rule. The row does not decide what gets
+// deleted; it only tells the farmer, because deleting the entry also
+// soft-deletes the expense it created (founder's rule, see the header of
+// deleteLogEntry): the confirmation names that consequence, but only when
+// `entry.cost` is not null, since an entry with no cost never wrote an expense.
 export function LogRow({
   entry,
   plotName,
   onEdit,
+  onDeleteCommit,
   sprayDetailed = false,
   workDetailed = false,
 }: {
   entry: LogEntry;
   plotName: string | null;
   onEdit: () => void;
+  onDeleteCommit: () => void;
   sprayDetailed?: boolean;
   workDetailed?: boolean;
 }) {
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const tag =
     entry.type === 'spray'
       ? { className: 'log-row__tag--spray', label: t(logEntryTypeLabelKey('spray')) }
@@ -86,39 +99,78 @@ export function LogRow({
       ? safeHarvestDate(entry.date, entry.sprayPhiDays)
       : null;
 
+  const entryTitle = t(logEntryTypeLabelKey(entry.type));
+  const dateLabel = new Date(entry.date).toLocaleDateString('he-IL', {
+    day: '2-digit',
+    month: '2-digit',
+  });
+  // The consequence named, and named conditionally: an entry with no cost
+  // never wrote an expense, and claiming it did would be a lie in the
+  // confirmation the farmer is trusting before he presses the destructive
+  // button. See deleteLogEntry's header for the deletion rule itself.
+  const confirmMessage =
+    entry.cost != null
+      ? `${entryTitle} · ${dateLabel} · ${t('log.deleteConfirmExpenseNote')}`
+      : `${entryTitle} · ${dateLabel}`;
+
+  function confirmDelete() {
+    setConfirmingDelete(false);
+    onDeleteCommit();
+  }
+
   return (
-    <button type="button" className="log-row" onClick={onEdit}>
-      <span className="log-row__date">
-        {new Date(entry.date).toLocaleDateString('he-IL', { day: '2-digit', month: '2-digit' })}
-      </span>
-      <span className="log-row__body">
-        <span className="log-row__title-row">
-          <span className="log-row__title">{t(logEntryTypeLabelKey(entry.type))}</span>
-          {tag && <span className={`log-row__tag ${tag.className}`}>{tag.label}</span>}
+    <div className="log-row">
+      <button type="button" className="log-row__body" onClick={onEdit}>
+        <span className="log-row__date">{dateLabel}</span>
+        <span className="log-row__content">
+          <span className="log-row__title-row">
+            <span className="log-row__title">{entryTitle}</span>
+            {tag && <span className={`log-row__tag ${tag.className}`}>{tag.label}</span>}
+          </span>
+          {/* המודיפייר תלוי ב-sprayDetailed ולא במסך שמרנדר. הוא זה
+              שמוסיף את ימי ההמתנה למחרוזת כמה שורות מעל, ולכן הוא גם
+              התנאי המדויק שבו השורה מתארכת ואסור לה להיחתך. */}
+          {metaParts.length > 0 && (
+            <span
+              className={
+                sprayDetailed || workDetailed
+                  ? 'log-row__meta log-row__meta--wrap'
+                  : 'log-row__meta'
+              }
+            >
+              {metaParts.join(' · ')}
+            </span>
+          )}
+          {safeHarvest && (
+            <span className="log-row__safe-harvest">
+              {t('log.form.safeHarvestPrefix')}{' '}
+              {new Date(safeHarvest).toLocaleDateString('he-IL', {
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+              })}
+            </span>
+          )}
         </span>
-        {/* המודיפייר תלוי ב-sprayDetailed ולא במסך שמרנדר. הוא זה
-            שמוסיף את ימי ההמתנה למחרוזת כמה שורות מעל, ולכן הוא גם
-            התנאי המדויק שבו השורה מתארכת ואסור לה להיחתך. */}
-        {metaParts.length > 0 && (
-          <span
-            className={
-              sprayDetailed || workDetailed ? 'log-row__meta log-row__meta--wrap' : 'log-row__meta'
-            }
-          >
-            {metaParts.join(' · ')}
-          </span>
-        )}
-        {safeHarvest && (
-          <span className="log-row__safe-harvest">
-            {t('log.form.safeHarvestPrefix')}{' '}
-            {new Date(safeHarvest).toLocaleDateString('he-IL', {
-              day: '2-digit',
-              month: '2-digit',
-              year: 'numeric',
-            })}
-          </span>
-        )}
-      </span>
-    </button>
+      </button>
+      <button
+        type="button"
+        className="log-row__delete"
+        onClick={() => setConfirmingDelete(true)}
+        aria-label={t('expense.action.delete')}
+      >
+        <Trash2 size={18} strokeWidth={2.5} />
+      </button>
+      <ConfirmDialog
+        open={confirmingDelete}
+        title={t('log.deleteConfirmTitle')}
+        message={confirmMessage}
+        confirmLabel={t('expense.action.delete')}
+        cancelLabel={t('expense.action.cancel')}
+        destructive
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmingDelete(false)}
+      />
+    </div>
   );
 }

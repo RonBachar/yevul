@@ -80,7 +80,6 @@ export {
   isValidInviteEmail,
   memberRoleLabelKey,
   canManageMembers,
-  canManagePlotResponsible,
   memberInitials,
   avatarUrl,
   uploadAvatar,
@@ -183,11 +182,6 @@ export {
   type PlotProfitForecast,
   createPlot,
   updatePlot,
-  // No screen calls this any more -- the responsible-member picker was removed
-  // from both clients on 2026-09-09 -- and it is exported on purpose, together
-  // with the column it writes, so that restoring the picker is a UI change and
-  // not a migration. See the header above it in plots.ts.
-  setPlotResponsible,
   setPlotCrop,
   updateCropCycle,
   updateForecast,
@@ -463,11 +457,6 @@ export {
   type VoiceTaskEdits,
   type VoiceJournalEdits,
 } from './voiceConfirm';
-// The "My Plots" toggle on the home screen, stage 6. Pure policy only — when
-// the segmented control is shown, which plots are "mine", and how the task
-// board narrows to them — because neither client has a test runner. A view
-// filter and never a permission, never persisted. See the header of myPlots.ts.
-export { myPlotsToggleVisible, myPlotIds, tasksOnPlots } from './myPlots';
 export { profitabilityCsv, expensesCsv, journalCsv, type CsvReport } from './reports';
 export {
   useFarmProfit,

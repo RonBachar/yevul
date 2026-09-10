@@ -54,8 +54,10 @@ import './PlotDetailScreen.css';
 //
 // מה עוד ירד מהמסך באותה ישיבה, ולמה:
 //   - בורר "אחראי החלקה". חלקה היא שם, שטח וגידול, וזה הכל. הוסר ה-UI
-//     בלבד: העמודה ו-setPlotResponsible נשארו במקומם כדי שההחזרה תהיה
-//     הפיכה בלי מיגרציה. ראה ההערה מעל setPlotResponsible ב-plots.ts.
+//     תחילה (2026-09-09), ואז התכונה כולה (2026-09-10): הפונקציה שכתבה
+//     אותה, myPlots.ts והבדיקות שלהם. **העמודה במסד נשארה** כדי
+//     שההחזרה תהיה הפיכה בלי מיגרציה. ראה ההערה מעל PLOT_COLUMNS
+//     ב-plots.ts ו-docs/open-items.md.
 //   - הקישור ליומן הריסוס. הוא נשאר נגיש מהיומן, ולא היה לו מה לחפש
 //     בתוך טאב שמדבר על כסף.
 //
@@ -193,7 +195,12 @@ export function PlotDetailScreen() {
       )}
 
       {activeTab === 'journal' && (
-        <JournalList supabase={supabase} plotId={plot.id} showPlotName={false} />
+        <JournalList
+          supabase={supabase}
+          plotId={plot.id}
+          showPlotName={false}
+          onDeleted={plotExpenses.refresh}
+        />
       )}
 
       {activeTab === 'expenses' && (

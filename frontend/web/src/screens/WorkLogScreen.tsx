@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
+  deleteLogEntry,
   formatAmount,
   formatNumber,
   t,
@@ -59,6 +60,15 @@ export function WorkLogScreen() {
   function openEdit(entryId: string) {
     setEditingEntryId(entryId);
     setSheetOpen(true);
+  }
+
+  // totals is derived from entriesState.entries via useMemo above, so the
+  // refresh below is what makes the two summary lines drop the deleted
+  // entry's hours and cost -- no separate money query to refresh here, unlike
+  // PlotDetailScreen's profit header.
+  async function handleDelete(entryId: string) {
+    await deleteLogEntry(supabase, entryId);
+    entriesState.refresh();
   }
 
   return (
@@ -150,6 +160,7 @@ export function WorkLogScreen() {
               }
               workDetailed
               onEdit={() => openEdit(entry.id)}
+              onDeleteCommit={() => handleDelete(entry.id)}
             />
           ))}
         </div>

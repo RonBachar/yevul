@@ -9,8 +9,8 @@ import { useLoadCount } from './refresh';
 //   - קריאת הרוסטר (useMembers) דרך farm_members_view, שחושף גם אימייל
 //     בלי לפתוח את auth.users.
 //   - הזמנה, שינוי תפקיד, והסרה (בעלים בלבד, האכיפה ב-RLS).
-//   - עוזרים טהורים לשיוך: אחראי לחלקה, משויך למשימה, ואווטאר בשורת
-//     המשימה (ראשי תיבות מהאימייל).
+//   - עוזרים טהורים לשיוך: משויך למשימה, ואווטאר בשורת המשימה (ראשי
+//     תיבות מהאימייל).
 //   - התפקיד שלי (useMyRole) והחלטות מעטפת "מצב עובד" (workerModeShell).
 //
 // המסד עשה את רוב העבודה כבר בשלב 1: farm_members נושאת role/status/
@@ -36,18 +36,12 @@ export function memberRoleLabelKey(role: MemberRole): string {
   return `members.role.${role}`;
 }
 
-// הרשאות לפי תפקיד, מקור אחד לצד workerModeShell, במקום ספי owner/
-// manager מפוזרים כליטרלים בכל מסך. ניהול חברים (הזמנה, שינוי תפקיד,
-// הסרה) הוא של הבעלים בלבד, prd.md סעיף 11. הגדרת אחראי לחלקה מותרת ל-
-// owner/manager, כמו עריכת חלקות (plots_update). null (תפקיד עדיין
-// נטען או אין חברות) אינו מורשה. האכיפה עצמה ב-RLS, אלה רק מחליטים אם
-// להציג את הכלים.
+// הרשאות לפי תפקיד, מקור אחד לצד workerModeShell, במקום ספי owner
+// מפוזרים כליטרלים בכל מסך. ניהול חברים (הזמנה, שינוי תפקיד, הסרה)
+// הוא של הבעלים בלבד, prd.md סעיף 11. null (תפקיד עדיין נטען או אין
+// חברות) אינו מורשה. האכיפה עצמה ב-RLS, זה רק מחליט אם להציג את הכלים.
 export function canManageMembers(role: MemberRole | null): boolean {
   return role === 'owner';
-}
-
-export function canManagePlotResponsible(role: MemberRole | null): boolean {
-  return role === 'owner' || role === 'manager';
 }
 
 export type FarmMember = {
@@ -85,9 +79,9 @@ export function memberInitials(email: string | null | undefined): string {
   return cleaned.slice(0, 2).toUpperCase();
 }
 
-// רק חבר פעיל עם מזהה משתמש אמיתי ניתן להצבה כאחראי חלקה או כמשויך
-// למשימה. חבר שהוזמן ועדיין לא נכנס (user_id הוא null) אינו יכול
-// להיות הבעלים של שום דבר, וחבר שנמחק כבר לא במשק.
+// רק חבר פעיל עם מזהה משתמש אמיתי ניתן להצבה כמשויך למשימה. חבר
+// שהוזמן ועדיין לא נכנס (user_id הוא null) אינו יכול להיות הבעלים של
+// שום דבר, וחבר שנמחק כבר לא במשק.
 export function assignableMembers(members: Member[]): Member[] {
   return members.filter((member) => member.status === 'active' && member.userId != null);
 }
