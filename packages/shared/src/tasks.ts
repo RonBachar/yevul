@@ -339,27 +339,56 @@ export type TaskInput = {
   assignedTo: string | null;
 };
 
+// **The update half of TaskInput, where an absent field means "leave the column
+// alone".** The title stays required because a task without one is not a task and
+// updateTask refuses it anyway; everything else is optional, `undefined` says "I
+// do not have this" and an explicit `null` still says "clear it".
+//
+// It exists because both Task Sheets pass `estimatedCost: null` -- neither renders
+// the box, the cost is asked for at "done" and set by voice -- and updateTask used
+// to write the whole row, so opening a spoken task to fix its title erased the
+// cost the farmer had dictated. The same convention updateCropCycle and
+// updateForecast already use in plots.ts.
+//
+// `TaskInput` is assignable to this, so nothing that genuinely has the whole task
+// has to change.
+export type TaskUpdate = { title: string } & Partial<Omit<TaskInput, 'title'>>;
+
 export type TaskWriteResult =
   { ok: true } | { ok: false; reason: 'titleRequired' | 'forbidden' | 'error' };
 
+// One payload builder for both writes, so create and update cannot drift into two
+// different ideas of the same row. On an insert an absent field simply leaves the
+// column at its default, which is null for every one of them, so the same
+// conditional spread is correct in both directions.
+function taskPayload(title: string, input: TaskUpdate) {
+  return {
+    title,
+    ...(input.plotId !== undefined ? { plot_id: input.plotId } : {}),
+    ...(input.dueDate !== undefined ? { due_date: input.dueDate } : {}),
+    ...(input.estimatedCost !== undefined ? { estimated_cost: input.estimatedCost } : {}),
+    ...(input.assignedTo !== undefined ? { assigned_to: input.assignedTo } : {}),
+  };
+}
+
+// **createTask takes the same partial input as updateTask, and that is safe here
+// in a way it would not be on an update.** An absent column on an INSERT takes the
+// table's default, which is null for all four of them -- exactly what "the sheet
+// did not ask" means on a brand-new task. There is no stored value to lose. The
+// alternative was making the Task Sheets build one object for the update and a
+// second, fuller one for the create, which is two chances to get the same row
+// wrong. `TaskInput` (every field stated) stays the shape voiceConfirm.ts builds.
 export async function createTask(
   supabase: SupabaseClient,
   farmId: string,
-  input: TaskInput,
+  input: TaskUpdate,
 ): Promise<TaskWriteResult> {
   const title = input.title.trim();
   if (!title) return { ok: false, reason: 'titleRequired' };
 
   const write = await supabase
     .from('tasks')
-    .insert({
-      farm_id: farmId,
-      plot_id: input.plotId,
-      title,
-      due_date: input.dueDate,
-      estimated_cost: input.estimatedCost,
-      assigned_to: input.assignedTo,
-    })
+    .insert({ farm_id: farmId, ...taskPayload(title, input) })
     .select('id');
   const outcome = writeOutcome(write);
   if (outcome.ok && input.estimatedCost != null) {
@@ -368,24 +397,19 @@ export async function createTask(
   return outcome;
 }
 
+// A field this input does not carry is not written. See TaskUpdate.
 export async function updateTask(
   supabase: SupabaseClient,
   taskId: string,
   farmId: string,
-  input: TaskInput,
+  input: TaskUpdate,
 ): Promise<TaskWriteResult> {
   const title = input.title.trim();
   if (!title) return { ok: false, reason: 'titleRequired' };
 
   const write = await supabase
     .from('tasks')
-    .update({
-      plot_id: input.plotId,
-      title,
-      due_date: input.dueDate,
-      estimated_cost: input.estimatedCost,
-      assigned_to: input.assignedTo,
-    })
+    .update(taskPayload(title, input))
     .eq('id', taskId)
     .select('id');
   const outcome = writeOutcome(write);

@@ -109,9 +109,23 @@ export function TaskSheet({
       dueDate: computeDueDate(dueMode, customDate, new Date()),
       // עלות משוערת ירדה מהגיליון: היא שאלה ששייכת ל"בוצע", לא ליצירה.
       // ראה ההערה למעלה ליד TaskSheet.
-      estimatedCost: null,
-      // אם אין חברים שאפשר להציב, הבורר לא מוצג וזה נשאר null.
-      assignedTo: assignable.length > 0 ? assignedTo : null,
+      //
+      // **`estimatedCost` is not passed at all, and passing `null` here was a real
+      // bug.** This sheet has no cost box, but voice sets a cost (voiceConfirm.ts)
+      // and both clients show it (TaskRow), so a farmer could speak "לרסס את
+      // הכרם, מאתיים שקל", reopen the task to fix a typo in the title, and the two
+      // hundred was gone with nothing said. Leaving the field out means updateTask
+      // does not touch the column; see TaskUpdate in packages/shared/src/tasks.ts.
+      // On a create there is nothing to lose either way -- the column defaults to
+      // null, which is what this sheet means.
+      //
+      // **The roster guard is a `undefined` and not a `null` for the same reason,
+      // one step subtler.** `assignableMembers` returns [] while useMembers is
+      // still loading, not only when the farm really is a one-man operation, so the
+      // old `assignable.length > 0 ? assignedTo : null` unassigned a task whenever
+      // the farmer hit save before the member list came back. Now: no picker on
+      // screen, nothing written.
+      ...(assignable.length > 0 ? { assignedTo } : {}),
     };
     const result = task
       ? await updateTask(supabase, task.id, farmId, input)

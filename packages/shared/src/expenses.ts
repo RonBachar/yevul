@@ -252,21 +252,43 @@ export type ExpenseInput = {
   note: string | null;
 };
 
+// **The update half of ExpenseInput, where an absent field means "leave the
+// column alone".** Every field is optional and `undefined` is the only way to say
+// "I do not have this"; an explicit `null` still means "clear it".
+//
+// The distinction exists because updateExpense used to build the whole row out of
+// whatever the caller handed it, so a screen that does not render a field wrote a
+// null over it and erased what the farmer had typed somewhere else -- no error,
+// nothing on screen, found only by accident. The same convention updateCropCycle
+// and updateForecast already use in plots.ts, generalised rather than reinvented.
+//
+// `ExpenseInput` is assignable to this, so a caller that genuinely has the whole
+// row (the Expense Sheet, which renders all four boxes) keeps passing it and
+// nothing about that path changes.
+export type ExpenseUpdate = Partial<ExpenseInput>;
+
 export type ExpenseWriteResult =
   { ok: true; id: string } | { ok: false; reason: 'forbidden' | 'error' };
 
+// The plot and the amount are passed apart rather than as an ExpenseInput,
+// because on an update the two can arrive from different places: the plot is what
+// the caller asked for, the amount may be the one already stored (see
+// updateExpense). `expense_allocations` has a XOR check constraint over
+// (percent, amount), so exactly one of them must be non-null and the amount can
+// never simply be left out of the insert.
 async function writeAllocation(
   supabase: SupabaseClient,
   farmId: string,
   expenseId: string,
-  input: ExpenseInput,
+  plotId: string | null,
+  amount: number,
 ) {
-  if (!input.plotId) return;
+  if (!plotId) return;
   await supabase.from('expense_allocations').insert({
     farm_id: farmId,
     expense_id: expenseId,
-    plot_id: input.plotId,
-    amount: input.amount,
+    plot_id: plotId,
+    amount,
   });
 }
 
@@ -300,7 +322,7 @@ export async function createExpense(
   const expenseId = (write.data as { id: string }[] | null)?.[0]?.id;
   if (!expenseId) return { ok: false, reason: 'error' };
 
-  await writeAllocation(supabase, farmId, expenseId, input);
+  await writeAllocation(supabase, farmId, expenseId, input.plotId, input.amount);
   return { ok: true, id: expenseId };
 }
 
@@ -391,27 +413,85 @@ export async function attachReceipt(
   return { ok: !insertError };
 }
 
+// **Only the fields the caller actually passed are written.** See ExpenseUpdate
+// above for why; the mechanics are the conditional spread updateCropCycle and
+// updateForecast already use.
+//
+// **The plot is the delicate one, because it is not a column on this row.** It
+// lives on `expense_allocations`, and rewriting it is two writes -- soft-clear the
+// old rows, insert a new one -- so there are three cases and not two:
+//
+//   plotId absent   the allocations are not touched at all. This is what lets a
+//                   caller that has no idea which plot the money is booked
+//                   against (syncEntryExpense) update the amount without the
+//                   expense silently falling off the plot's totals.
+//   plotId null     the farmer moved this expense to the farm as a whole. The
+//                   allocations are cleared and none is written, which is exactly
+//                   how a general expense has always been stored.
+//   plotId a plot   cleared and rewritten against that plot.
+//
+// **The amount for a rewritten allocation is read back off the row that was just
+// written**, through `select('id, amount')` rather than a second query. A caller
+// may pass a plot without passing an amount, and the XOR constraint on
+// expense_allocations forbids an insert with no amount, so the stored amount is
+// the only honest thing to put there -- and the select is already being made for
+// the reason every write in this codebase makes one (PostgREST answers an
+// RLS-refused UPDATE with success and zero rows, see postgrest.ts).
+//
+// An allocation whose expense changed amount without changing plot is left
+// holding the old figure, and that is deliberate rather than overlooked: nothing
+// reads `expense_allocations.amount` -- every total the product shows is summed
+// from `expenses.amount` (profit.ts, reports.ts) and EXPENSE_COLUMNS embeds only
+// `plot_id` off that table. Rewriting it would mean clearing and re-inserting the
+// allocation on every amount edit, which is the very move that drops money off a
+// plot when it goes wrong. See the header of deleteExpense.
 export async function updateExpense(
   supabase: SupabaseClient,
   farmId: string,
   expenseId: string,
-  input: ExpenseInput,
+  input: ExpenseUpdate,
 ): Promise<ExpenseWriteResult> {
-  const write = await supabase
-    .from('expenses')
-    .update({
-      amount: input.amount,
-      category: input.name?.trim() ? input.name.trim() : null,
-      date: input.date,
-      note: input.note?.trim() ? input.note.trim() : null,
-    })
-    .eq('id', expenseId)
-    .select('id');
-  const outcome = writeOutcome(write);
-  if (!outcome.ok) return outcome;
+  const payload = {
+    ...(input.amount !== undefined ? { amount: input.amount } : {}),
+    ...(input.name !== undefined
+      ? { category: input.name?.trim() ? input.name.trim() : null }
+      : {}),
+    ...(input.date !== undefined ? { date: input.date } : {}),
+    ...(input.note !== undefined ? { note: input.note?.trim() ? input.note.trim() : null } : {}),
+  };
+
+  // An update with no columns in it is not a no-op at PostgREST, it is a 400, and
+  // the caller would be told his edit failed when there was nothing to fail. It
+  // is reachable: an ExpenseUpdate carrying nothing but a plot is a plot move.
+  let storedAmount: number | undefined;
+  if (Object.keys(payload).length > 0) {
+    const write = await supabase
+      .from('expenses')
+      .update(payload)
+      .eq('id', expenseId)
+      .select('id, amount');
+    const outcome = writeOutcome(write);
+    if (!outcome.ok) return outcome;
+    storedAmount = (write.data as { amount: number }[] | null)?.[0]?.amount;
+  }
+
+  if (input.plotId === undefined) return { ok: true, id: expenseId };
+
+  // A plot move with no other change never went through the update above, so
+  // there is no row in hand to read the amount off. One read, and only on that
+  // path: clearing the allocations and then failing to write the new one is how
+  // money silently leaves a plot, so this must not be allowed to end in "no
+  // amount, no allocation".
+  if (input.plotId !== null && storedAmount === undefined && input.amount === undefined) {
+    const read = await supabase.from('expenses').select('amount').eq('id', expenseId).maybeSingle();
+    storedAmount = (read.data as { amount: number } | null)?.amount;
+  }
 
   await clearAllocations(supabase, expenseId);
-  await writeAllocation(supabase, farmId, expenseId, input);
+  const allocationAmount = input.amount ?? storedAmount;
+  if (allocationAmount !== undefined) {
+    await writeAllocation(supabase, farmId, expenseId, input.plotId, allocationAmount);
+  }
   return { ok: true, id: expenseId };
 }
 

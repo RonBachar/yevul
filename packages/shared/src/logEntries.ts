@@ -530,10 +530,26 @@ export type LogEntryInput = {
   harvestUnit: string | null;
 };
 
+// **The update half of LogEntryInput, where an absent field means "leave the
+// column alone".** `undefined` says "I do not have this"; an explicit `null` still
+// says "clear it". Same convention as updateCropCycle and updateForecast in
+// plots.ts, and as ExpenseUpdate and TaskUpdate.
+//
+// The date and the type stay required, and not for symmetry: they are the two
+// facts every sheet that can edit an entry puts on screen, and the type is what
+// the spray and harvest gates in writePayload are decided from. An update that
+// did not state a type could not know whether the spray columns should be cleared.
+//
+// `LogEntryInput` is assignable to this, so the two sheets that build a whole
+// entry keep passing one and nothing about their path changes.
+export type LogEntryUpdate = { date: string; type: LogEntryType } & Partial<
+  Omit<LogEntryInput, 'date' | 'type'>
+>;
+
 export type LogEntryWriteResult =
   { ok: true } | { ok: false; reason: 'pestRequired' | 'materialRequired' | 'forbidden' | 'error' };
 
-function sprayValidationError(input: LogEntryInput): 'pestRequired' | 'materialRequired' | null {
+function sprayValidationError(input: LogEntryUpdate): 'pestRequired' | 'materialRequired' | null {
   if (input.type !== 'spray') return null;
   if (!input.sprayPest?.trim()) return 'pestRequired';
   if (!input.sprayMaterial?.trim()) return 'materialRequired';
@@ -543,21 +559,72 @@ function sprayValidationError(input: LogEntryInput): 'pestRequired' | 'materialR
 // שדות הסוג האחר תמיד null בכתיבה, גם אם הם כבר מלאים בעריכה של רשומה
 // שהחליפה סוג. בלעדי זה, מעבר מריסוס לדישון בעריכה היה משאיר מזיק
 // וחומר ישנים תקועים בשורה בלי שהם מוצגים בשום מקום בטופס.
-function writePayload(input: LogEntryInput) {
+//
+// ============================================================
+// **One builder for both writes, with one word of difference, and working out
+// why that is safe is the whole of this function.**
+//
+// A create legitimately writes the full row: the entry does not exist yet, so a
+// column nobody filled in has to end up empty. An update must not: a sheet that
+// does not render a field passes nothing for it, and writing that as a null is
+// what erased a spray's quantity and unit price, and then its kind of work, both
+// found by accident on 2026-09-10. So on an update an absent field is skipped.
+//
+// **The type gates survive that, unchanged, and they have to.** Look at what a
+// gate actually depends on: not on whether the caller passed `sprayPest`, but on
+// whether `type` is still 'spray'. The type is required on every write, create and
+// update alike (see LogEntryUpdate), so the gate can always be decided. That gives
+// three cases per gated column rather than two:
+//
+//   gate shut          the column is written as null, in BOTH modes and whatever
+//                      the caller passed. A record retyped from spray to fertilize
+//                      must lose its pest and material, and a caller that does not
+//                      render them must not be able to prevent that. This is the
+//                      one place where an absent field is still written.
+//   gate open, given   written.
+//   gate open, absent  create writes null (new row, nothing to lose); update skips
+//                      it (the stored value is the farmer's and stays).
+//
+// The rejected alternative was two payload builders, one per mode. It is shorter
+// to read and it is exactly how the pair drifts: the gates are the subtle part,
+// and the next person to add a spray column would have added it to one of them.
+// ============================================================
+type WriteMode = 'create' | 'update';
+
+function trimmedOrNull(value: string | null | undefined): string | null {
+  return value?.trim() ? value.trim() : null;
+}
+
+function writePayload(input: LogEntryUpdate, mode: WriteMode): Record<string, unknown> {
   const isSpray = input.type === 'spray';
   const isHarvest = input.type === 'harvest';
+
+  // An ungated column. `stored` is what the value becomes on the way into the
+  // column, so trimming stays in one place per field instead of being repeated in
+  // the skip test.
+  const set = (column: string, given: unknown, stored: unknown = given ?? null) =>
+    given === undefined && mode === 'update' ? {} : { [column]: stored };
+
+  // A gated column: null whenever the gate is shut, whatever the caller passed and
+  // whichever mode this is. See the header above.
+  const gated = (open: boolean, column: string, given: unknown, stored: unknown = given ?? null) =>
+    open ? set(column, given, stored) : { [column]: null };
+
   return {
-    plot_id: input.plotId,
+    ...set('plot_id', input.plotId),
     date: input.date,
     type: input.type,
-    note: input.note?.trim() ? input.note.trim() : null,
-    spray_pest: isSpray ? (input.sprayPest?.trim() ?? null) : null,
-    spray_material: isSpray ? (input.sprayMaterial?.trim() ?? null) : null,
-    spray_dose: isSpray ? (input.sprayDose?.trim() ? input.sprayDose.trim() : null) : null,
-    spray_phi_days: isSpray ? input.sprayPhiDays : null,
-    spray_quantity: isSpray ? input.sprayQuantity : null,
-    spray_quantity_unit: isSpray ? input.sprayQuantityUnit : null,
-    spray_unit_price: isSpray ? input.sprayUnitPrice : null,
+    ...set('note', input.note, trimmedOrNull(input.note)),
+    // `?? null` and not trimmedOrNull, deliberately: validation has already
+    // refused a spray with a blank pest or material, so these two never reach the
+    // column empty and the original spelling is kept rather than "improved".
+    ...gated(isSpray, 'spray_pest', input.sprayPest, input.sprayPest?.trim() ?? null),
+    ...gated(isSpray, 'spray_material', input.sprayMaterial, input.sprayMaterial?.trim() ?? null),
+    ...gated(isSpray, 'spray_dose', input.sprayDose, trimmedOrNull(input.sprayDose)),
+    ...gated(isSpray, 'spray_phi_days', input.sprayPhiDays),
+    ...gated(isSpray, 'spray_quantity', input.sprayQuantity),
+    ...gated(isSpray, 'spray_quantity_unit', input.sprayQuantityUnit),
+    ...gated(isSpray, 'spray_unit_price', input.sprayUnitPrice),
     // **Not gated on the type, and that is the point.** Every other field above
     // belongs to one kind of record and is nulled when the type moves away from
     // it. Hours belong to the work, not to the kind of work: Ido's example is a
@@ -568,8 +635,8 @@ function writePayload(input: LogEntryInput) {
     // only pre-filled the box; what is on the row is what this job was worked at,
     // and it stays that even after the farm raises its rate. **No cost column
     // sits next to them any more** -- the cost went to `expenses`, see the header.
-    work_hours: input.workHours,
-    work_hourly_rate: input.workHourlyRate,
+    ...set('work_hours', input.workHours),
+    ...set('work_hourly_rate', input.workHourlyRate),
     // **Ungated for the same reason, and it is the same sentence of Ido's.**
     // "שעות עבודה וסוג עבודה ביומן" is one request, so the kind of work follows
     // the hours exactly: a spray that was also a pruning keeps what the farmer
@@ -579,9 +646,9 @@ function writePayload(input: LogEntryInput) {
     // Trimmed here rather than in either client, and blank collapses to null, so
     // the two sheets cannot disagree about what an empty box means. Same
     // treatment `note` and `spray_dose` already get two lines up.
-    work_kind: input.workKind?.trim() ? input.workKind.trim() : null,
-    harvest_qty: isHarvest ? input.harvestQty : null,
-    harvest_unit: isHarvest ? (input.harvestUnit?.trim() ? input.harvestUnit.trim() : null) : null,
+    ...set('work_kind', input.workKind, trimmedOrNull(input.workKind)),
+    ...gated(isHarvest, 'harvest_qty', input.harvestQty),
+    ...gated(isHarvest, 'harvest_unit', input.harvestUnit, trimmedOrNull(input.harvestUnit)),
   };
 }
 
@@ -595,7 +662,7 @@ function writePayload(input: LogEntryInput) {
 // every type in LOG_ENTRY_TYPE_LABEL_KEY. **No new Hebrew string is invented
 // here**: an expense created from a repair is called "תיקון" because that is what
 // this product already calls a repair.
-function entryExpenseName(input: LogEntryInput): string {
+function entryExpenseName(input: LogEntryUpdate): string {
   const material = input.sprayMaterial?.trim();
   if (material) return material;
   return t(logEntryTypeLabelKey(input.type));
@@ -625,19 +692,70 @@ function expenseSourceFor(source: LogEntrySource): ExpenseSource {
 // Best-effort throughout, like writeAllocation and rememberSprayMaterialPrice: the
 // journal entry itself is already safely written, and a worker who is blocked from
 // the money table by RLS must still be able to record that he sprayed.
+//
+// ============================================================
+// **Once the farmer has edited the expense on the money screen, his edit is the
+// truth. Founder's decision, 2026-09-10.**
+//
+// This function used to hand updateExpense a complete input rebuilt from the
+// journal entry: the name recomputed by entryExpenseName, the note copied off the
+// entry, the plot taken from the entry. A farmer who renamed that expense on the
+// money screen -- "קונפידור" to "ריסוס כרם עליון", which is the whole reason the
+// name is editable -- or moved it to another plot, lost all of it the next time he
+// opened the journal entry to fix a one-character typo in the note. And on a
+// farm-level entry it was worse: the plot came through as null, the allocations
+// were cleared, none was written, and the money quietly fell off the plot's
+// totals with nothing on any screen to show it had.
+//
+// So an edit of an existing expense writes **the amount and nothing else**.
+//
+// The amount is the journal entry's business in a way the other four fields are
+// not: the cost box is on the journal sheet, prefilled from this very expense
+// (mapLogEntry reads `cost` back off it), so what the farmer sees there is already
+// his own latest figure and saving it writes back what he is looking at. The name,
+// the note, the date and the plot are not on that sheet as *the expense's* -- the
+// sheet's note is the record of the work, which is a different sentence from the
+// line on his books -- so the journal has no standing to overwrite them.
+//
+// **The plot deliberately does not follow the entry**, and it is the one place
+// this costs something: move a journal entry from plot A to plot B and its money
+// stays booked against A until he moves it on the money screen too. That is the
+// price of the rule, and it is the right way round. The alternative reintroduces
+// case 4 above -- a farm-level entry clearing its own allocation -- and overrides
+// a booking the farmer may have made on purpose, and both of those lose data
+// silently, while this one leaves a figure he can see and change.
+//
+// **The date does not follow either, for the same reason and with the same
+// trade-off.** An expense created from an entry is dated the day of the work; if
+// he later corrects the entry's date, his books keep the date his books have.
+//
+// A brand-new expense is still built whole from the entry -- there is nothing of
+// his to preserve yet, and the entry is all the information there is.
+// ============================================================
 async function syncEntryExpense(
   supabase: SupabaseClient,
   farmId: string,
   logEntryId: string,
-  input: LogEntryInput,
+  input: LogEntryUpdate,
   existingExpenseId: string | null,
   source: LogEntrySource,
 ): Promise<void> {
+  // undefined is a caller that did not ask about money at all, so the expense is
+  // left exactly as it stands -- not deleted, which is what an explicit null means.
+  if (input.cost === undefined) return;
+
   if (input.cost === null) {
     // deleteExpense clears the back-link itself, in one place, so that an expense
     // deleted from the money screen and a cost cleared from the journal sheet end
     // up in exactly the same state.
     if (existingExpenseId) await deleteExpense(supabase, existingExpenseId);
+    return;
+  }
+
+  if (existingExpenseId) {
+    // The amount alone. Everything else on that expense belongs to the money
+    // screen now. See the header above.
+    await updateExpense(supabase, farmId, existingExpenseId, { amount: input.cost });
     return;
   }
 
@@ -647,15 +765,10 @@ async function syncEntryExpense(
     // The plot comes from the entry, and a null plot is a farm-level expense with
     // no allocation at all -- which is how a general expense has always been
     // written (writeAllocation returns early on a null plot).
-    plotId: input.plotId,
+    plotId: input.plotId ?? null,
     date: input.date,
-    note: input.note,
+    note: input.note ?? null,
   };
-
-  if (existingExpenseId) {
-    await updateExpense(supabase, farmId, existingExpenseId, expenseInput);
-    return;
-  }
 
   const outcome = await createExpense(supabase, farmId, expenseInput, expenseSourceFor(source));
   if (!outcome.ok) return;
@@ -678,7 +791,7 @@ export async function createLogEntry(
 
   const write = await supabase
     .from('log_entries')
-    .insert({ farm_id: farmId, source, ...writePayload(input) })
+    .insert({ farm_id: farmId, source, ...writePayload(input, 'create') })
     .select('id');
   const outcome = writeOutcome(write);
   if (!outcome.ok) return outcome;
@@ -698,10 +811,12 @@ export async function createLogEntry(
 // in.** Both are facts about the saved entry, not about the form, and asking every
 // caller for the farm id would have been one more thing two clients could get
 // wrong on a screen that already knows the entry only by its id.
+// A field this input does not carry is not written, with the type gates as the
+// one exception. See LogEntryUpdate and writePayload.
 export async function updateLogEntry(
   supabase: SupabaseClient,
   logEntryId: string,
-  input: LogEntryInput,
+  input: LogEntryUpdate,
 ): Promise<LogEntryWriteResult> {
   const validationError = sprayValidationError(input);
   if (validationError) return { ok: false, reason: validationError };
@@ -718,7 +833,7 @@ export async function updateLogEntry(
 
   const write = await supabase
     .from('log_entries')
-    .update(writePayload(input))
+    .update(writePayload(input, 'update'))
     .eq('id', logEntryId)
     .select('id');
   const outcome = writeOutcome(write);

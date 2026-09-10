@@ -17,6 +17,7 @@ import {
   plotStepTitleKey,
   plotUpdateInput,
   previousPlotStep,
+  setPlotCrop,
   PLOT_BLOCKER_MESSAGE_KEYS,
   t,
   updatePlot,
@@ -157,11 +158,41 @@ export function PlotFormScreen() {
 
     if (isEdit && plotId) {
       const result = await updatePlot(supabase, plotId, plotUpdateInput(draft, farmAreaUnit));
-      if (result.ok) {
-        navigate(`/plots/${plotId}`);
+      if (!result.ok) {
+        setStatus(result.reason);
         return;
       }
-      setStatus(result.reason);
+
+      // **The crop name is a second write, because it is not a column on the
+      // plot.** It lives on the plot's current crop_cycle, and plotUpdateInput
+      // cannot carry it -- UpdatePlotInput is the shape of the `plots` row.
+      //
+      // Until now nothing wrote it at all: the edit walk asked for the crop,
+      // plotFormBlocker refused to save without it, and then the answer was
+      // dropped on the floor. A farmer who corrected "עגבניה" to "עגבניות
+      // שרי" was shown his correction on the review, saved, and came back to
+      // the old name -- the founder asked for crop-name editing explicitly and
+      // it had never once worked.
+      //
+      // After the plot, not before: `plots` is the row the screen is about, and
+      // a farm that somehow has no crop_cycle must not cost the farmer his
+      // renamed plot. setPlotCrop creates the cycle if there is none, exactly
+      // like createPlot does, so the missing-cycle case is handled there rather
+      // than here.
+      const cropResult = await setPlotCrop(
+        supabase,
+        // Only reachable with a farm loaded: this screen is behind the plot list,
+        // which does not render without one.
+        farm?.id ?? '',
+        plotId,
+        detail.cropCycle?.id ?? null,
+        draft.cropName,
+      );
+      if (!cropResult.ok) {
+        setStatus(cropResult.reason === 'nameRequired' ? 'cropNameRequired' : cropResult.reason);
+        return;
+      }
+      navigate(`/plots/${plotId}`);
       return;
     }
 
@@ -407,15 +438,20 @@ function reviewTiles(draft: PlotDraft, areaUnit: AreaUnit): TileOption[] {
     },
   ];
 
-  // An edit does not carry a crop: it belongs to the CropCycle, updatePlot does
-  // not touch it, and the old form hid its box on an edit for the same reason.
-  if (draft.mode === 'create') {
-    tiles.push({
-      value: 'crop',
-      label: draft.cropName.trim() || t('plots.form.notSet'),
-      caption: t(plotStepFieldKey('crop')),
-    });
-  }
+  // **The crop is on the review of an edit too, and hiding it was the other half
+  // of the bug.** The tile used to be pushed only on a create, on the grounds that
+  // the crop belongs to the crop_cycle and updatePlot does not touch it. That was
+  // true of the write and false of the product: "החלקה **היא** הגידול" is the
+  // founder's own sentence, the crop step is on both walks (plotVisibleSteps), and
+  // plotFormBlocker refuses to save an edit without a crop name. So the walk asked
+  // for the crop, the review hid the answer, and onSave dropped it -- an edited
+  // crop name was never written anywhere. It is written now, by setPlotCrop in
+  // onSave, so the tile is the way in to changing it.
+  tiles.push({
+    value: 'crop',
+    label: draft.cropName.trim() || t('plots.form.notSet'),
+    caption: t(plotStepFieldKey('crop')),
+  });
 
   return tiles;
 }

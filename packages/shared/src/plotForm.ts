@@ -247,9 +247,15 @@ export function previousPlotStep(current: PlotStep, draft: PlotDraft): PlotStep 
   return visible[index - 1] ?? null;
 }
 
-// One-based, for the caption over each question. An edit is shorter than a
-// create because the crop step is not on it, and saying so is better than a
-// progress bar that counts a screen nobody will see.
+// One-based, for the caption over each question. It counts what plotVisibleSteps
+// will actually put on screen and nothing else, so a step that is prefilled and
+// therefore never asked is not counted -- a progress bar that counts a screen
+// nobody will see is worse than no bar.
+//
+// (This used to say an edit is shorter than a create "because the crop step is
+// not on it". That stopped being true when the two edit buttons were merged and
+// the crop went back onto both walks; the sentence is corrected rather than
+// deleted because it was read as licence to drop the crop name from the save.)
 export function plotStepPosition(
   current: PlotStep,
   draft: PlotDraft,
