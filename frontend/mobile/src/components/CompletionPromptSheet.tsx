@@ -46,7 +46,7 @@ export function CompletionPromptSheet({
 }: {
   supabase: SupabaseClient;
   visible: boolean;
-  task: Pick<Task, 'id' | 'title' | 'plotId'> | null;
+  task: Pick<Task, 'id' | 'title' | 'plotIds'> | null;
   farmId: string | null;
   currency: Currency;
   journalEnabled: boolean;
@@ -78,7 +78,9 @@ export function CompletionPromptSheet({
     setJournalStatus('idle');
     setExpenseAnswered(false);
     setExpenseAmount('');
-    setExpensePlotId(task.plotId);
+    // One plot is a sensible default for the expense; several are not, so the
+    // farmer picks.
+    setExpensePlotId(task.plotIds.length === 1 ? (task.plotIds[0] ?? null) : null);
     setExpenseDate(today());
     setExpenseStatus('idle');
 

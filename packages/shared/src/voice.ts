@@ -52,7 +52,6 @@ export type VoiceTask = {
   title: string;
   plotName: string | null;
   dueDate: string | null;
-  estimatedCost: number | null;
   confidence: number;
 };
 
@@ -171,18 +170,12 @@ export function parseVoiceTask(raw: unknown): VoiceParseResult<VoiceTask> {
   const dueDate = optionalCalendarDate(data.dueDate);
   if (dueDate === undefined) return { ok: false, reason: 'dueDate must be YYYY-MM-DD or null' };
 
-  const estimatedCost = optionalFinitePositive(data.estimatedCost);
-  if (estimatedCost === undefined) {
-    return { ok: false, reason: 'estimatedCost must be a positive number or null' };
-  }
-
   return {
     ok: true,
     value: {
       title,
       plotName: optionalText(data.plotName),
       dueDate,
-      estimatedCost,
       confidence: clampConfidence(data.confidence),
     },
   };
@@ -365,12 +358,11 @@ export const VOICE_EXPENSE_JSON_SCHEMA = {
 export const VOICE_TASK_JSON_SCHEMA = {
   type: 'object',
   additionalProperties: false,
-  required: ['title', 'plotName', 'dueDate', 'estimatedCost', 'confidence'],
+  required: ['title', 'plotName', 'dueDate', 'confidence'],
   properties: {
     title: { type: 'string', description: 'מה צריך לעשות, משפט קצר' },
     plotName: PLOT_NAME_FIELD,
     dueDate: { type: ['string', 'null'], description: 'תאריך יעד YYYY-MM-DD, או null' },
-    estimatedCost: { type: ['number', 'null'], description: 'עלות משוערת, או null' },
     confidence: CONFIDENCE_FIELD,
   },
 } as const;

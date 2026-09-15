@@ -47,7 +47,6 @@ const taskValue: VoiceTask = {
   title: 'להחליף מסנן',
   plotName: null,
   dueDate: '2026-09-10',
-  estimatedCost: 420,
   confidence: 0.8,
 };
 
@@ -110,10 +109,7 @@ describe('voiceEditableFields', () => {
     expect(voiceEditableFields(expense)).toEqual(['amount', 'date']);
   });
 
-  // estimatedCost is a number, and it still does not get a box: the founder
-  // removed the estimated-cost field from the manual task form entirely, and a
-  // voice sheet that put it back would undo that decision.
-  it('edits the title and the due date of a task, and not its estimated cost', () => {
+  it('edits the title and the due date of a task', () => {
     expect(voiceEditableFields(task)).toEqual(['title', 'dueDate']);
   });
 
@@ -328,16 +324,20 @@ describe('a parsed record becoming the arguments of a create call', () => {
     expect(input.plotId).toBeNull();
   });
 
-  it('carries the extracted estimated cost into createTask without offering to edit it', () => {
+  it('carries the edited title and due date into createTask, with no plot when none was resolved', () => {
     expect(
       voiceTaskInput(taskValue, null, { title: 'להחליף מסנן', dueDate: '2026-09-10' }),
     ).toEqual({
       title: 'להחליף מסנן',
-      plotId: null,
+      plotIds: [],
       dueDate: '2026-09-10',
-      estimatedCost: 420,
       assignedTo: null,
     });
+  });
+
+  it('attaches a task to the one plot voice resolved', () => {
+    const input = voiceTaskInput(taskValue, 'p1', { title: 'x', dueDate: null });
+    expect(input.plotIds).toEqual(['p1']);
   });
 
   it('keeps a task with no due date as a task with no due date', () => {

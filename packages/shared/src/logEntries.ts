@@ -140,7 +140,7 @@ export type LogEntry = {
 // hide the journal entry itself, which is exactly what must not happen when an
 // expense is deleted (see deleteExpense).
 const LOG_ENTRY_COLUMNS =
-  'id, farm_id, plot_id, date, type, note, source, spray_pest, spray_material, spray_dose, spray_phi_days, spray_quantity, spray_quantity_unit, spray_unit_price, work_hours, work_hourly_rate, work_kind, created_expense_id, expenses(id, amount, deleted_at), harvest_qty, harvest_unit, created_at';
+  'id, farm_id, plot_id, date, type, note, source, spray_pest, spray_material, spray_dose, spray_phi_days, spray_quantity, spray_quantity_unit, spray_unit_price, work_hours, work_hourly_rate, work_kind, created_expense_id, expenses(id, amount, deleted_at), harvest_qty, harvest_unit, task_id, created_at';
 
 type LogEntryRow = {
   id: string;
@@ -169,6 +169,7 @@ type LogEntryRow = {
   expenses?: { id: string; amount: number; deleted_at: string | null } | null;
   harvest_qty: number | null;
   harvest_unit: string | null;
+  task_id: string | null;
   created_at: string;
 };
 
@@ -219,6 +220,11 @@ export type LogEntriesListState = {
   farmId: string | null;
   entries: LogEntry[];
   plotNames: Map<string, string>;
+  // Farm-wide lists only (no plotId): a task completed on several plots writes one
+  // entry per plot, and the list keeps the first of them. This maps that kept
+  // entry's id to every entry and plot of the completion, so the row can name all
+  // the plots and a delete can remove the whole completion. Empty on a plot list.
+  taskGroups: Map<string, TaskEntryGroup>;
   refresh: () => void;
   // Completed loads, for pull-to-refresh. See refresh.ts.
   loadCount: number;
@@ -230,6 +236,36 @@ export type LogEntriesListState = {
 // one thing that differs is a where clause the database should apply anyway. It
 // is deliberately not a `type` value either -- hours are not a kind of journal
 // entry, they are something any entry can carry.
+export type TaskEntryGroup = { entryIds: string[]; plotIds: string[] };
+
+// Collapses the per-plot entries one task completion wrote into a single entry,
+// the first in list order. Entries without a task id pass through untouched, and
+// a group of one is not recorded, so taskGroups only holds real merges.
+export function collapseTaskEntries(items: readonly { entry: LogEntry; taskId: string | null }[]): {
+  entries: LogEntry[];
+  taskGroups: Map<string, TaskEntryGroup>;
+} {
+  const entries: LogEntry[] = [];
+  const keptByTask = new Map<string, string>();
+  const groups = new Map<string, TaskEntryGroup>();
+  for (const { entry, taskId } of items) {
+    const keptId = taskId ? keptByTask.get(taskId) : undefined;
+    if (taskId && keptId) {
+      const group = groups.get(keptId)!;
+      group.entryIds.push(entry.id);
+      if (entry.plotId) group.plotIds.push(entry.plotId);
+      continue;
+    }
+    if (taskId) {
+      keptByTask.set(taskId, entry.id);
+      groups.set(entry.id, { entryIds: [entry.id], plotIds: entry.plotId ? [entry.plotId] : [] });
+    }
+    entries.push(entry);
+  }
+  const taskGroups = new Map([...groups].filter(([, group]) => group.entryIds.length > 1));
+  return { entries, taskGroups };
+}
+
 export function useLogEntries(
   supabase: SupabaseClient,
   plotId?: string,
@@ -241,6 +277,7 @@ export function useLogEntries(
   const [farmId, setFarmId] = useState<string | null>(null);
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [plotNames, setPlotNames] = useState<Map<string, string>>(new Map());
+  const [taskGroups, setTaskGroups] = useState<Map<string, TaskEntryGroup>>(new Map());
   const [tick, setTick] = useState(0);
   const { loadCount, settle } = useLoadCount();
 
@@ -303,7 +340,16 @@ export function useLogEntries(
       const rows = (entriesResult.data ?? []) as unknown as LogEntryRow[];
       const plotRows = (plotsResult.data ?? []) as { id: string; name: string }[];
       setPlotNames(new Map(plotRows.map((row) => [row.id, row.name])));
-      setEntries(rows.map(mapLogEntry));
+      if (plotId) {
+        setEntries(rows.map(mapLogEntry));
+        setTaskGroups(new Map());
+      } else {
+        const collapsed = collapseTaskEntries(
+          rows.map((row) => ({ entry: mapLogEntry(row), taskId: row.task_id ?? null })),
+        );
+        setEntries(collapsed.entries);
+        setTaskGroups(collapsed.taskGroups);
+      }
       // רק אחרי ש-entries באמת מחזיק את השורות של הסינון הזה. סימון
       // מוקדם יותר היה גורם ללחיצה חוזרת על אותה חלקה, אחרי כשלון,
       // להיחשב כאילו היא כבר מוצגת.
@@ -319,7 +365,7 @@ export function useLogEntries(
     };
   }, [supabase, plotId, type, workHoursOnly, tick, queryKey, settle]);
 
-  return { loading, failed, farmId, entries, plotNames, refresh, loadCount };
+  return { loading, failed, farmId, entries, plotNames, taskGroups, refresh, loadCount };
 }
 
 // ============================================================

@@ -5,10 +5,9 @@ function makeTask(overrides: Partial<Task>): Task {
   return {
     id: 'id',
     farmId: 'farm',
-    plotId: null,
+    plotIds: [],
     title: 'משימה',
     dueDate: null,
-    estimatedCost: null,
     assignedTo: null,
     completedAt: null,
     snoozedUntil: null,

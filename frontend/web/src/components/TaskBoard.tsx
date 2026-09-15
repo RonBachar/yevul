@@ -8,6 +8,7 @@ import {
   membersByUserId,
   t,
   taskAssignee,
+  joinPlotNames,
   useFarmSettings,
   useMembers,
   useTasks,
@@ -116,9 +117,8 @@ export function TaskBoard({
                     key={task.id}
                     task={task}
                     plotName={
-                      showPlotName ? (tasksState.plotNames.get(task.plotId ?? '') ?? null) : null
+                      showPlotName ? joinPlotNames(task.plotIds, tasksState.plotNames) : null
                     }
-                    currency={currency}
                     assignee={taskAssignee(task.assignedTo, membersState.currentUserId, byUserId)}
                     onEdit={() => openEdit(task)}
                     onCompleteCommit={() => handleComplete(task.id)}

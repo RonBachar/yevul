@@ -247,6 +247,8 @@ export {
   taskDueDisplay,
   groupTasksByUrgency,
   shouldAutoArchive,
+  joinPlotNames,
+  toggleTaskPlot,
   type Task,
   type TasksListState,
   type TaskInput,
@@ -553,6 +555,8 @@ export {
 } from './workEntry';
 export {
   useLogEntries,
+  collapseTaskEntries,
+  type TaskEntryGroup,
   useSpraySuggestions,
   useWorkKindSuggestions,
   useSprayPrices,

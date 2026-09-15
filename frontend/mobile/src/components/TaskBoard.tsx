@@ -10,6 +10,7 @@ import {
   membersByUserId,
   t,
   taskAssignee,
+  joinPlotNames,
   useFarmSettings,
   useMembers,
   useTasks,
@@ -154,8 +155,7 @@ export function TaskBoard({
         renderItem={({ item }) => (
           <TaskRow
             task={item}
-            plotName={showPlotName ? (tasksState.plotNames.get(item.plotId ?? '') ?? null) : null}
-            currency={currency}
+            plotName={showPlotName ? joinPlotNames(item.plotIds, tasksState.plotNames) : null}
             assignee={taskAssignee(item.assignedTo, membersState.currentUserId, byUserId)}
             onPress={() => openEdit(item)}
             onCompleteCommit={() => handleComplete(item.id)}

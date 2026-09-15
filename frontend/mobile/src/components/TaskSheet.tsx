@@ -6,6 +6,7 @@ import {
   createTask,
   formatLocalDateOnly,
   t,
+  toggleTaskPlot,
   updateTask,
   useMembers,
   usePlots,
@@ -86,7 +87,7 @@ export function TaskSheet({
   const assignable = assignableMembers(membersState.members);
 
   const [title, setTitle] = useState('');
-  const [plotId, setPlotId] = useState<string | null>(null);
+  const [plotIds, setPlotIds] = useState<string[]>([]);
   const [assignedTo, setAssignedTo] = useState<string | null>(null);
   const [dueMode, setDueMode] = useState<DueMode>('someday');
   const [dueDate, setDueDate] = useState<string | null>(null);
@@ -101,7 +102,7 @@ export function TaskSheet({
     if (!visible) return;
     if (task) {
       setTitle(task.title);
-      setPlotId(task.plotId);
+      setPlotIds(task.plotIds);
       setAssignedTo(task.assignedTo);
       if (task.dueDate) {
         setDueMode('date');
@@ -116,7 +117,7 @@ export function TaskSheet({
       }
     } else {
       setTitle('');
-      setPlotId(defaultPlotId);
+      setPlotIds(defaultPlotId ? [defaultPlotId] : []);
       setAssignedTo(null);
       setDueMode('someday');
       setDueDate(null);
@@ -129,22 +130,10 @@ export function TaskSheet({
     setStatus('saving');
     const input = {
       title,
-      plotId,
+      plotIds,
       dueDate: computeDueDate(dueMode, dueDate, new Date()),
-      // עלות משוערת ירדה מהגיליון: היא שאלה ששייכת ל"בוצע", לא ליצירה.
-      // ראה ההערה למעלה ליד TaskSheet.
-      //
-      // **`estimatedCost` is not passed at all, and passing `null` here was a real
-      // bug.** This sheet has no cost box, but voice sets a cost (voiceConfirm.ts,
-      // and voice is a phone-only feature so this client is where it happens) and
-      // both clients show it (TaskRow). Speak "לרסס את הכרם, מאתיים שקל", reopen
-      // the task to fix a typo in the title, and the two hundred was gone with
-      // nothing said. Leaving the field out means updateTask does not touch the
-      // column; see TaskUpdate in packages/shared/src/tasks.ts. On a create there
-      // is nothing to lose either way -- the column defaults to null.
-      //
-      // **The roster guard is an `undefined` and not a `null` for the same reason,
-      // one step subtler.** `assignableMembers` returns [] while useMembers is
+      // **The roster guard is an `undefined` and not a `null`.**
+      // `assignableMembers` returns [] while useMembers is
       // still loading, not only when the farm really is a one-man operation, so the
       // old `assignable.length > 0 ? assignedTo : null` unassigned a task whenever
       // the farmer hit save before the member list came back. Now: no picker on
@@ -186,8 +175,11 @@ export function TaskSheet({
             { value: NONE, label: t('tasks.plotGeneral') },
             ...plotsState.plots.map((plot) => ({ value: plot.id, label: plot.name })),
           ]}
-          selectedValue={plotId ?? NONE}
-          onSelect={(value) => setPlotId(value === NONE ? null : value)}
+          selectedValue={null}
+          selectedValues={plotIds.length > 0 ? plotIds : [NONE]}
+          onSelect={(value) =>
+            setPlotIds((current) => toggleTaskPlot(current, value === NONE ? null : value))
+          }
           disabled={busy}
         />
       </View>

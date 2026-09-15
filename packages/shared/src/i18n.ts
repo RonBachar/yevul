@@ -409,7 +409,6 @@ const strings: Record<string, string> = {
   'tasks.form.dueSomeday': 'מתישהו',
   'tasks.form.dueWeek': 'השבוע',
   'tasks.form.dueDate': 'עד תאריך',
-  'tasks.form.cost': 'עלות משוערת',
   'tasks.form.forbidden': 'אין לכם הרשאה ליצור או לערוך משימות',
   'tasks.form.saveError': 'לא הצלחנו לשמור, נסו שוב',
   'tasks.save': 'שמירה',

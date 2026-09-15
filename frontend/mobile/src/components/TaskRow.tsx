@@ -3,14 +3,7 @@ import { Animated, PanResponder, Pressable, StyleSheet, Text, View } from 'react
 import type { LayoutChangeEvent } from 'react-native';
 import Check from 'lucide-react-native/icons/check';
 import Trash2 from 'lucide-react-native/icons/trash-2';
-import {
-  formatAmount,
-  t,
-  taskDueDisplay,
-  type Currency,
-  type Task,
-  type TaskAssignee,
-} from '@yevul/shared';
+import { t, taskDueDisplay, type Task, type TaskAssignee } from '@yevul/shared';
 import { colors, fonts, fontSize, radius, spacing } from '../theme/tokens';
 import { ConfirmDialog } from './ConfirmDialog';
 
@@ -33,7 +26,6 @@ const ACTION_SIZE = 48;
 export function TaskRow({
   task,
   plotName,
-  currency,
   assignee = null,
   onPress,
   onCompleteCommit,
@@ -41,7 +33,6 @@ export function TaskRow({
 }: {
   task: Task;
   plotName: string | null;
-  currency: Currency;
   // אווטאר החבר, שלב 6, design.md, Member Avatar. מגיע מוכן מ-TaskBoard
   // (הרוסטר נטען פעם אחת ללוח), ו-null כשהמשימה לא משויכת או משויכת
   // למשתמש המחובר, שאז לא מוצג כלום.
@@ -130,11 +121,7 @@ export function TaskRow({
 
   const due = task.dueDate ? taskDueDisplay(task.dueDate) : null;
   const overdue = due?.tone === 'overdue';
-  const metaParts = [
-    plotName,
-    due?.text,
-    task.estimatedCost != null ? formatAmount(task.estimatedCost, currency) : null,
-  ].filter((part): part is string => Boolean(part));
+  const metaParts = [plotName, due?.text].filter((part): part is string => Boolean(part));
 
   return (
     <View style={styles.wrap} onLayout={onLayout}>

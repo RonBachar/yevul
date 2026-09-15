@@ -85,13 +85,6 @@ export function voiceEditableFields(parsed: VoiceParsed): readonly VoiceEditable
   //
   // dueDate, because it is the whole of the task board: it decides the urgency
   // group the row lands in, whether it renders overdue, and when he is reminded.
-  //
-  // estimatedCost does **not** get a box, and that is not an oversight. The
-  // founder removed the estimated-cost field from the manual task sheet
-  // entirely (docs/roadmap.md, stage 3): "a money question on a form that is
-  // supposed to take five seconds". Putting it back on the voice sheet would
-  // reintroduce exactly the field that was taken out. It is shown read-only
-  // when the model heard one, and written as extracted.
   if (parsed.kind === 'task') return ['title', 'dueDate'];
 
   // **Journal: date, and for a spray also the pre-harvest interval.**
@@ -406,17 +399,14 @@ export function voiceExpenseInput(
 }
 
 export function voiceTaskInput(
-  value: VoiceTask,
+  _value: VoiceTask,
   plotId: string | null,
   edits: VoiceTaskEdits,
 ): TaskInput {
   return {
     title: edits.title,
-    plotId,
+    plotIds: plotId ? [plotId] : [],
     dueDate: edits.dueDate,
-    // Written as extracted, shown read-only on the sheet. See voiceEditableFields
-    // for why this is not an edit box.
-    estimatedCost: value.estimatedCost,
     // Voice never assigns a member; the extraction schema has no such field.
     // Assignment is a deliberate choice made in the task sheet (stage 6).
     assignedTo: null,

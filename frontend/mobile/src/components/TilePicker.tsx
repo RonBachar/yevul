@@ -90,6 +90,7 @@ export function TilePicker({
   subtitle,
   options,
   selectedValue,
+  selectedValues,
   onSelect,
   actions,
   emptyHint,
@@ -101,6 +102,10 @@ export function TilePicker({
   options: readonly TileOption[];
   // null when nothing is picked yet. Every step of a fresh spray starts here.
   selectedValue: string | null;
+  // Multi-select: when given, every tile whose value is in the list is active and
+  // selectedValue is ignored. onSelect still reports the one tile pressed; the
+  // caller owns toggling it in or out of its set.
+  selectedValues?: readonly string[];
   onSelect: (value: string) => void;
   actions?: readonly TileAction[];
   emptyHint?: string;
@@ -133,7 +138,9 @@ export function TilePicker({
 
       <View style={styles.grid} onLayout={(event) => setGridWidth(event.nativeEvent.layout.width)}>
         {options.map((option) => {
-          const active = option.value === selectedValue;
+          const active = selectedValues
+            ? selectedValues.includes(option.value)
+            : option.value === selectedValue;
           return (
             <Pressable
               key={option.value}
@@ -145,7 +152,7 @@ export function TilePicker({
               ]}
               onPress={() => onSelect(option.value)}
               disabled={busy}
-              accessibilityRole="radio"
+              accessibilityRole={selectedValues ? 'checkbox' : 'radio'}
               accessibilityState={{ selected: active, disabled: busy }}
             >
               <Text style={[styles.tileText, active && styles.tileTextActive]} numberOfLines={2}>

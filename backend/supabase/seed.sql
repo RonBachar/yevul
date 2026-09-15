@@ -120,25 +120,52 @@ begin
 
   -- משימות, ארבע הדחיפויות שהלוח מקבץ לפיהן (groupTasksByUrgency) פרוסות
   -- על פני חלקות שונות, בלי לגעת בשלוש המשימות שכבר היו על חלקה צפונית.
-  insert into public.tasks (farm_id, plot_id, title, due_date, estimated_cost)
-    values (v_farm_id, v_plot_north, 'ריסוס נגד כנימה', current_date + 3, 420);
-  insert into public.tasks (farm_id, plot_id, title, due_date)
-    values (v_farm_id, v_plot_north, 'בדיקת מערכת השקיה', current_date + 7);
-  insert into public.tasks (farm_id, plot_id, title, completed_at, completed_by)
-    values (v_farm_id, v_plot_north, 'דישון יסוד', now(), '11111111-1111-1111-1111-111111111111');
+  with task as (
+    insert into public.tasks (farm_id, title, due_date)
+      values (v_farm_id, 'ריסוס נגד כנימה', current_date + 3) returning id
+  )
+  insert into public.task_plots (task_id, plot_id) select id, v_plot_north from task;
+  with task as (
+    insert into public.tasks (farm_id, title, due_date)
+      values (v_farm_id, 'בדיקת מערכת השקיה', current_date + 7) returning id
+  )
+  insert into public.task_plots (task_id, plot_id) select id, v_plot_north from task;
+  with task as (
+    insert into public.tasks (farm_id, title, completed_at, completed_by)
+      values (v_farm_id, 'דישון יסוד', now(), '11111111-1111-1111-1111-111111111111') returning id
+  )
+  insert into public.task_plots (task_id, plot_id) select id, v_plot_north from task;
 
-  insert into public.tasks (farm_id, plot_id, title, due_date)
-    values (v_farm_id, v_plot_south, 'לבדוק עלים צהובים', current_date - 4); -- באיחור
-  insert into public.tasks (farm_id, plot_id, title, due_date)
-    values (v_farm_id, v_plot_east, 'ריסוס נגד כנימת עץ', current_date); -- היום
-  insert into public.tasks (farm_id, plot_id, title, due_date)
-    values (v_farm_id, v_plot_east, 'דילול פרי', current_date + 2); -- השבוע
-  insert into public.tasks (farm_id, plot_id, title, completed_at, completed_by)
-    values (v_farm_id, v_plot_east, 'קטיף ניסיון', now() - interval '2 days', '11111111-1111-1111-1111-111111111111');
-  insert into public.tasks (farm_id, plot_id, title, due_date)
-    values (v_farm_id, v_plot_west, 'קציר חיטה', current_date + 25); -- בהמשך
-  insert into public.tasks (farm_id, plot_id, title)
-    values (v_farm_id, v_plot_citrus, 'לבדוק רשת הצללה'); -- ללא תאריך
+  with task as (
+    insert into public.tasks (farm_id, title, due_date)
+      values (v_farm_id, 'לבדוק עלים צהובים', current_date - 4) returning id
+  ) -- באיחור
+  insert into public.task_plots (task_id, plot_id) select id, v_plot_south from task;
+  with task as (
+    insert into public.tasks (farm_id, title, due_date)
+      values (v_farm_id, 'ריסוס נגד כנימת עץ', current_date) returning id
+  ) -- היום
+  insert into public.task_plots (task_id, plot_id) select id, v_plot_east from task;
+  with task as (
+    insert into public.tasks (farm_id, title, due_date)
+      values (v_farm_id, 'דילול פרי', current_date + 2) returning id
+  ) -- השבוע
+  insert into public.task_plots (task_id, plot_id) select id, v_plot_east from task;
+  with task as (
+    insert into public.tasks (farm_id, title, completed_at, completed_by)
+      values (v_farm_id, 'קטיף ניסיון', now() - interval '2 days', '11111111-1111-1111-1111-111111111111') returning id
+  )
+  insert into public.task_plots (task_id, plot_id) select id, v_plot_east from task;
+  with task as (
+    insert into public.tasks (farm_id, title, due_date)
+      values (v_farm_id, 'קציר חיטה', current_date + 25) returning id
+  ) -- בהמשך
+  insert into public.task_plots (task_id, plot_id) select id, v_plot_west from task;
+  with task as (
+    insert into public.tasks (farm_id, title)
+      values (v_farm_id, 'לבדוק רשת הצללה') returning id
+  ) -- ללא תאריך
+  insert into public.task_plots (task_id, plot_id) select id, v_plot_citrus from task;
 
   -- רשומות יומן, סוגים שונים על חלקות שונות, כולל רשומה כללית בלי
   -- חלקה (plot_id null) וסוג מהעשרה שהתווספו במיגרציית הרחבת ה-domain.

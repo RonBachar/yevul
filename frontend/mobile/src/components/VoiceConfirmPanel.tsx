@@ -464,10 +464,6 @@ export function VoiceConfirmPanel({
           waiting period are the two boxes on this screen. */}
       <SafeHarvestLine parsed={parsed} date={date} phiDays={phiDays} />
 
-      {parsed.kind === 'task' && parsed.value.estimatedCost !== null && (
-        <ReadRow label={t('tasks.form.cost')} value={String(parsed.value.estimatedCost)} />
-      )}
-
       <PlotSection
         loading={plotsState.loading}
         step={plotStep}

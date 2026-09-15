@@ -1,13 +1,6 @@
 import { useRef, useState } from 'react';
 import { Check, Trash2 } from 'lucide-react';
-import {
-  formatAmount,
-  t,
-  taskDueDisplay,
-  type Currency,
-  type Task,
-  type TaskAssignee,
-} from '@yevul/shared';
+import { t, taskDueDisplay, type Task, type TaskAssignee } from '@yevul/shared';
 import { ConfirmDialog } from './ConfirmDialog';
 import './TaskRow.css';
 
@@ -23,7 +16,6 @@ const UNDO_MS = 5000;
 export function TaskRow({
   task,
   plotName,
-  currency,
   assignee = null,
   onEdit,
   onCompleteCommit,
@@ -31,7 +23,6 @@ export function TaskRow({
 }: {
   task: Task;
   plotName: string | null;
-  currency: Currency;
   // אווטאר החבר, שלב 6, design.md, Member Avatar. מגיע מוכן מ-TaskBoard
   // (הרוסטר נטען פעם אחת ללוח), ו-null כשהמשימה לא משויכת או משויכת
   // למשתמש המחובר, שאז לא מוצג כלום.
@@ -73,11 +64,7 @@ export function TaskRow({
 
   const due = task.dueDate ? taskDueDisplay(task.dueDate) : null;
   const overdue = due?.tone === 'overdue';
-  const metaParts = [
-    plotName,
-    due?.text,
-    task.estimatedCost != null ? formatAmount(task.estimatedCost, currency) : null,
-  ].filter((part): part is string => Boolean(part));
+  const metaParts = [plotName, due?.text].filter((part): part is string => Boolean(part));
 
   return (
     <div className={overdue ? 'task-row task-row--overdue' : 'task-row'}>

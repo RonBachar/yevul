@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  collapseTaskEntries,
   createLogEntry,
   deleteLogEntry,
   initialLogEntryType,
@@ -641,5 +642,35 @@ describe('deleteLogEntry', () => {
     const { supabase, on } = fakeSupabase({ farm_id: 'farm-1', created_expense_id: null });
     expect(await deleteLogEntry(supabase, 'log-1')).toEqual({ ok: true });
     expect(on('expenses', 'update')).toHaveLength(0);
+  });
+});
+
+// ============================================================
+// collapseTaskEntries: a task completed on several plots writes one entry per
+// plot, and the farm-wide journal shows that completion once.
+// ============================================================
+
+describe('collapseTaskEntries', () => {
+  it('keeps the first entry of a completion and records every plot and entry of it', () => {
+    const result = collapseTaskEntries([
+      { entry: entry({ id: 'a', plotId: 'plot-1' }), taskId: 'task-1' },
+      { entry: entry({ id: 'm', plotId: 'plot-9' }), taskId: null },
+      { entry: entry({ id: 'b', plotId: 'plot-2' }), taskId: 'task-1' },
+    ]);
+
+    expect(result.entries.map((e) => e.id)).toEqual(['a', 'm']);
+    expect(result.taskGroups.get('a')).toEqual({
+      entryIds: ['a', 'b'],
+      plotIds: ['plot-1', 'plot-2'],
+    });
+  });
+
+  it('records no group for a completion that wrote a single entry', () => {
+    const result = collapseTaskEntries([
+      { entry: entry({ id: 'a', plotId: null }), taskId: 'task-1' },
+    ]);
+
+    expect(result.entries).toHaveLength(1);
+    expect(result.taskGroups.size).toBe(0);
   });
 });

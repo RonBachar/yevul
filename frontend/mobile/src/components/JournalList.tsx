@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import Plus from 'lucide-react-native/icons/plus';
-import { deleteLogEntry, t, useLogEntries, type LogEntry } from '@yevul/shared';
+import { deleteLogEntry, joinPlotNames, t, useLogEntries, type LogEntry } from '@yevul/shared';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { ListStateNote } from './ListStateNote';
@@ -48,10 +48,21 @@ export function JournalList({
     setSheetOpen(true);
   }
 
+  // On the farm-wide list one row can stand for a task completed on several plots
+  // (see taskGroups in useLogEntries). Deleting that row deletes the completion,
+  // every plot's entry of it, rather than revealing the next one underneath.
   async function handleDelete(entryId: string) {
-    await deleteLogEntry(supabase, entryId);
+    const entryIds = entriesState.taskGroups.get(entryId)?.entryIds ?? [entryId];
+    await Promise.all(entryIds.map((id) => deleteLogEntry(supabase, id)));
     entriesState.refresh();
     onDeleted?.();
+  }
+
+  function plotLabel(entry: LogEntry): string | null {
+    if (!showPlotName) return null;
+    const group = entriesState.taskGroups.get(entry.id);
+    if (group) return joinPlotNames(group.plotIds, entriesState.plotNames);
+    return entriesState.plotNames.get(entry.plotId ?? '') ?? null;
   }
 
   return (
@@ -76,7 +87,7 @@ export function JournalList({
         renderItem={({ item }) => (
           <LogRow
             entry={item}
-            plotName={showPlotName ? (entriesState.plotNames.get(item.plotId ?? '') ?? null) : null}
+            plotName={plotLabel(item)}
             onPress={() => openEdit(item)}
             onDeleteCommit={() => handleDelete(item.id)}
           />

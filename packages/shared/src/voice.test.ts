@@ -93,7 +93,6 @@ describe('parseVoiceTask', () => {
     title: 'לדלל את המטע',
     plotName: null,
     dueDate: null,
-    estimatedCost: null,
     confidence: 0.8,
   };
 
@@ -113,13 +112,12 @@ describe('parseVoiceTask', () => {
     expect(parseVoiceTask({ ...validTask, dueDate: 'מחר' }).ok).toBe(false);
   });
 
-  // **עלות פסולה נדחית ולא נמחקת בשקט.** הגרסה הראשונה של העוזר
-  // החזירה null על ערך פסול, ולכן עלות שהגיעה כמחרוזת הייתה נעלמת
-  // והמשימה נשמרת בלי עלות בלי שאיש ידע.
-  it('rejects a malformed cost instead of silently dropping it', () => {
-    expect(parseVoiceTask({ ...validTask, estimatedCost: '420' }).ok).toBe(false);
-    expect(parseVoiceTask({ ...validTask, estimatedCost: -5 }).ok).toBe(false);
-    expect(parseVoiceTask({ ...validTask, estimatedCost: null }).ok).toBe(true);
+  // Tasks carry no cost. A model that still sends one is not an error; the key is
+  // simply not part of the parsed task.
+  it('ignores a cost the model sends anyway', () => {
+    const parsed = parseVoiceTask({ ...validTask, estimatedCost: 420 });
+    expect(parsed.ok).toBe(true);
+    expect(parsed.ok && 'estimatedCost' in parsed.value).toBe(false);
   });
 });
 
@@ -379,7 +377,6 @@ describe('voiceWireJsonSchema', () => {
       title: 'לדלל את המטע',
       plotName: null,
       dueDate: null,
-      estimatedCost: null,
       confidence: 0.8,
       transcript: spoken,
     });

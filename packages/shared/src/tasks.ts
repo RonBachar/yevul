@@ -16,10 +16,11 @@ import { formatLocalDateOnly } from './safeHarvestDate';
 export type Task = {
   id: string;
   farmId: string;
-  plotId: string | null;
+  // Every plot the task is attached to. Empty for a farm-level task. Read from
+  // the task_plots join table, see 20260915120000_task_plots.sql.
+  plotIds: string[];
   title: string;
   dueDate: string | null;
-  estimatedCost: number | null;
   // המשתמש שהמשימה משויכת אליו, שלב 6, שיתוף המשק. prd.md סעיף 11:
   // "לכל משימה למי היא מיועדת". null כשלא משויכת. tasks_view חושף את
   // העמודה, ו-RLS מתיר עדכון לכל חבר פעיל.
@@ -32,15 +33,13 @@ export type Task = {
 };
 
 const TASK_COLUMNS =
-  'id, farm_id, plot_id, title, due_date, estimated_cost, assigned_to, completed_at, snoozed_until, snooze_count, archived_at, created_at';
+  'id, farm_id, title, due_date, assigned_to, completed_at, snoozed_until, snooze_count, archived_at, created_at';
 
 type TaskRow = {
   id: string;
   farm_id: string;
-  plot_id: string | null;
   title: string;
   due_date: string | null;
-  estimated_cost: number | null;
   assigned_to: string | null;
   completed_at: string | null;
   snoozed_until: string | null;
@@ -49,14 +48,13 @@ type TaskRow = {
   created_at: string;
 };
 
-function mapTask(row: TaskRow): Task {
+function mapTask(row: TaskRow, plotIds: string[]): Task {
   return {
     id: row.id,
     farmId: row.farm_id,
-    plotId: row.plot_id,
+    plotIds,
     title: row.title,
     dueDate: row.due_date,
-    estimatedCost: row.estimated_cost,
     assignedTo: row.assigned_to,
     completedAt: row.completed_at,
     snoozedUntil: row.snoozed_until,
@@ -64,6 +62,28 @@ function mapTask(row: TaskRow): Task {
     archivedAt: row.archived_at,
     createdAt: row.created_at,
   };
+}
+
+// One tap on the Task Sheet's plot grid. A plot tile toggles that plot in or out
+// of the set; the "general" tile (null) clears it, because a farm-level task is
+// one with no plots. Both clients call this so the grid behaves the same.
+export function toggleTaskPlot(plotIds: readonly string[], plotId: string | null): string[] {
+  if (plotId === null) return [];
+  return plotIds.includes(plotId) ? plotIds.filter((id) => id !== plotId) : [...plotIds, plotId];
+}
+
+// The plot label a task row shows: the names of its plots joined. Shared with the
+// journal, whose farm-wide list shows one row per completed task. null when no
+// plot is named, and plots that are
+// no longer in the list (soft-deleted) are skipped rather than shown as blanks.
+export function joinPlotNames(
+  plotIds: readonly string[],
+  plotNames: Map<string, string>,
+): string | null {
+  const names = plotIds
+    .map((id) => plotNames.get(id))
+    .filter((name): name is string => name !== undefined);
+  return names.length > 0 ? names.join(', ') : null;
 }
 
 // ============================================================
@@ -166,9 +186,8 @@ export function groupTasksByUrgency(tasks: Task[], now: Date = new Date()): Urge
 // רשימת משימות פתוחות. plotId מוגבל למשימות של חלקה אחת, לטאב משימות
 // בפרטי חלקה. בלעדיו, כל המשימות הפתוחות של המשק, ללוח בבית.
 //
-// שתי שאילתות ולא הטמעה, אותה סיבה בדיוק כמו ב-plots.ts: tasks_view
-// הוא view שממסך estimated_cost לפי תפקיד, ו-PostgREST לא גוזר ממנו
-// קשר זר. שם החלקה מצטרף בקוד.
+// Separate queries rather than embeds: tasks_view is a view, and PostgREST does
+// not derive foreign keys from it. Plot links and plot names are joined in code.
 // ============================================================
 
 export type TasksListState = {
@@ -208,13 +227,31 @@ export function useTasks(supabase: SupabaseClient, plotId?: string): TasksListSt
       }
       setFarmId(farm.id);
 
+      // A plot's tasks are the ones with a join row for it, so the join table is
+      // asked first and the task query is narrowed to those ids.
+      let plotTaskIds: string[] | null = null;
+      if (plotId) {
+        const { data: linkRows, error: linkError } = await supabase
+          .from('task_plots')
+          .select('task_id')
+          .eq('plot_id', plotId);
+        if (!active) return;
+        if (linkError) {
+          setFailed(true);
+          setLoading(false);
+          settle();
+          return;
+        }
+        plotTaskIds = ((linkRows ?? []) as { task_id: string }[]).map((row) => row.task_id);
+      }
+
       let query = supabase
         .from('tasks_view')
         .select(TASK_COLUMNS)
         .eq('farm_id', farm.id)
         .is('completed_at', null)
         .is('archived_at', null);
-      if (plotId) query = query.eq('plot_id', plotId);
+      if (plotTaskIds) query = query.in('id', plotTaskIds);
 
       const [tasksResult, plotsResult] = await Promise.all([
         query.order('due_date', { ascending: true, nullsFirst: false }),
@@ -230,7 +267,29 @@ export function useTasks(supabase: SupabaseClient, plotId?: string): TasksListSt
       }
 
       const rows = (tasksResult.data ?? []) as TaskRow[];
-      const loaded = rows.map(mapTask);
+      const plotIdsByTask = new Map<string, string[]>();
+      if (rows.length > 0) {
+        const { data: linkRows, error: linkError } = await supabase
+          .from('task_plots')
+          .select('task_id, plot_id')
+          .in(
+            'task_id',
+            rows.map((row) => row.id),
+          );
+        if (!active) return;
+        if (linkError) {
+          setFailed(true);
+          setLoading(false);
+          settle();
+          return;
+        }
+        for (const link of (linkRows ?? []) as { task_id: string; plot_id: string }[]) {
+          const list = plotIdsByTask.get(link.task_id) ?? [];
+          list.push(link.plot_id);
+          plotIdsByTask.set(link.task_id, list);
+        }
+      }
+      const loaded = rows.map((row) => mapTask(row, plotIdsByTask.get(row.id) ?? []));
 
       // ארכוב אוטומטי, שקט ו-best-effort. הבדיקה קורית בכל טעינה, לא
       // ב-cron וב-worker נפרד, כי אין עדיין תשתית תור כתיבה (הבולט
@@ -297,13 +356,12 @@ export async function taskCostMemory(
   return (data as { last_cost: number } | null)?.last_cost ?? null;
 }
 
-// Best-effort, לא חוסם ולא מדווח כשלון. זיכרון עלות הוא נוחות, לא חלק
-// מהאמת של המשימה, ואם הכתיבה הזו נכשלת (למשל worker, שלא אמור להגיע
-// לכאן כי הוא לא יכול לכתוב estimated_cost לא-ריק מלכתחילה) המשימה
-// עצמה כבר נשמרה בהצלחה ואין מה להציג כשגיאה למשתמש.
+// Best-effort: it neither blocks nor reports failure. Cost memory is a convenience, not part
+// of the task's truth; if this write fails the expense itself is already saved
+// and there is nothing to show the farmer as an error.
 //
-// מיוצא, לא רק פנימי ל-createTask/updateTask: Completion Prompts זוכר
-// עלות בזמן האישור בסיום, לא ביצירה, ראה completionPrompts.ts.
+// Called only from Completion Prompts, when the farmer confirms an expense at
+// "done" -- a task itself carries no cost. See completionPrompts.ts.
 export async function rememberTaskCost(
   supabase: SupabaseClient,
   farmId: string,
@@ -325,30 +383,26 @@ export async function rememberTaskCost(
 }
 
 // ============================================================
-// יצירה ועריכה. שני שדות התאריך והעלות אופציונליים לגמרי, prd.md
-// סעיף 7: "משימה היא כותרת, ואופציונלית גם חלקה, תאריך יעד ועלות
-// משוערת".
+// Create and edit. Every field but the title is optional (prd.md section 7).
+// A task has no estimated cost; see 20260915120000_task_plots.sql.
 // ============================================================
 
 export type TaskInput = {
   title: string;
-  plotId: string | null;
+  // The plots the task is attached to. [] is a farm-level task.
+  plotIds: string[];
   dueDate: string | null;
-  estimatedCost: number | null;
-  // המשויך למשימה, שלב 6. null כשלא משויכת (ברירת המחדל בגיליון).
+  // The member the task is assigned to, stage 6. null when unassigned.
   assignedTo: string | null;
 };
 
-// **The update half of TaskInput, where an absent field means "leave the column
-// alone".** The title stays required because a task without one is not a task and
-// updateTask refuses it anyway; everything else is optional, `undefined` says "I
-// do not have this" and an explicit `null` still says "clear it".
-//
-// It exists because both Task Sheets pass `estimatedCost: null` -- neither renders
-// the box, the cost is asked for at "done" and set by voice -- and updateTask used
-// to write the whole row, so opening a spoken task to fix its title erased the
-// cost the farmer had dictated. The same convention updateCropCycle and
-// updateForecast already use in plots.ts.
+// **The update half of TaskInput, where an absent field means "leave it alone".**
+// The title stays required because a task without one is not a task and updateTask
+// refuses it anyway; everything else is optional, `undefined` says "I do not have
+// this" and an explicit `null` still says "clear it". For `plotIds` an array is the
+// whole new set -- [] detaches every plot -- and `undefined` does not touch the
+// join rows at all. The same convention updateCropCycle and updateForecast use in
+// plots.ts.
 //
 // `TaskInput` is assignable to this, so nothing that genuinely has the whole task
 // has to change.
@@ -360,24 +414,61 @@ export type TaskWriteResult =
 // One payload builder for both writes, so create and update cannot drift into two
 // different ideas of the same row. On an insert an absent field simply leaves the
 // column at its default, which is null for every one of them, so the same
-// conditional spread is correct in both directions.
+// conditional spread is correct in both directions. The plot set is not a column
+// of tasks and is written by writeTaskPlots.
 function taskPayload(title: string, input: TaskUpdate) {
   return {
     title,
-    ...(input.plotId !== undefined ? { plot_id: input.plotId } : {}),
     ...(input.dueDate !== undefined ? { due_date: input.dueDate } : {}),
-    ...(input.estimatedCost !== undefined ? { estimated_cost: input.estimatedCost } : {}),
     ...(input.assignedTo !== undefined ? { assigned_to: input.assignedTo } : {}),
   };
 }
 
+// Makes a task's plot set exactly `plotIds`. Only the difference is written: rows
+// no longer in the set are deleted and missing ones inserted, so saving a task
+// whose plots did not change costs one read and no writes.
+async function writeTaskPlots(
+  supabase: SupabaseClient,
+  taskId: string,
+  plotIds: string[],
+): Promise<TaskWriteResult> {
+  const current = await supabase.from('task_plots').select('plot_id').eq('task_id', taskId);
+  if (current.error) return { ok: false, reason: 'error' };
+  const existing = new Set(
+    ((current.data ?? []) as { plot_id: string }[]).map((row) => row.plot_id),
+  );
+  const wanted = new Set(plotIds);
+  const toRemove = [...existing].filter((id) => !wanted.has(id));
+  const toAdd = [...wanted].filter((id) => !existing.has(id));
+
+  if (toRemove.length > 0) {
+    const removed = writeOutcome(
+      await supabase
+        .from('task_plots')
+        .delete()
+        .eq('task_id', taskId)
+        .in('plot_id', toRemove)
+        .select('plot_id'),
+    );
+    if (!removed.ok) return removed;
+  }
+  if (toAdd.length > 0) {
+    const added = writeOutcome(
+      await supabase
+        .from('task_plots')
+        .insert(toAdd.map((plotId) => ({ task_id: taskId, plot_id: plotId })))
+        .select('plot_id'),
+    );
+    if (!added.ok) return added;
+  }
+  return { ok: true };
+}
+
 // **createTask takes the same partial input as updateTask, and that is safe here
 // in a way it would not be on an update.** An absent column on an INSERT takes the
-// table's default, which is null for all four of them -- exactly what "the sheet
-// did not ask" means on a brand-new task. There is no stored value to lose. The
-// alternative was making the Task Sheets build one object for the update and a
-// second, fuller one for the create, which is two chances to get the same row
-// wrong. `TaskInput` (every field stated) stays the shape voiceConfirm.ts builds.
+// table's default, which is null for all of them, and an absent plot set means no
+// join rows -- exactly what "the sheet did not ask" means on a brand-new task.
+// `TaskInput` (every field stated) stays the shape voiceConfirm.ts builds.
 export async function createTask(
   supabase: SupabaseClient,
   farmId: string,
@@ -391,8 +482,10 @@ export async function createTask(
     .insert({ farm_id: farmId, ...taskPayload(title, input) })
     .select('id');
   const outcome = writeOutcome(write);
-  if (outcome.ok && input.estimatedCost != null) {
-    void rememberTaskCost(supabase, farmId, title, input.estimatedCost);
+  if (!outcome.ok) return outcome;
+  const taskId = (write.data as { id: string }[] | null)?.[0]?.id;
+  if (taskId && input.plotIds !== undefined && input.plotIds.length > 0) {
+    return writeTaskPlots(supabase, taskId, input.plotIds);
   }
   return outcome;
 }
@@ -401,20 +494,18 @@ export async function createTask(
 export async function updateTask(
   supabase: SupabaseClient,
   taskId: string,
-  farmId: string,
+  _farmId: string,
   input: TaskUpdate,
 ): Promise<TaskWriteResult> {
   const title = input.title.trim();
   if (!title) return { ok: false, reason: 'titleRequired' };
 
-  const write = await supabase
-    .from('tasks')
-    .update(taskPayload(title, input))
-    .eq('id', taskId)
-    .select('id');
-  const outcome = writeOutcome(write);
-  if (outcome.ok && input.estimatedCost != null) {
-    void rememberTaskCost(supabase, farmId, title, input.estimatedCost);
+  const outcome = writeOutcome(
+    await supabase.from('tasks').update(taskPayload(title, input)).eq('id', taskId).select('id'),
+  );
+  if (!outcome.ok) return outcome;
+  if (input.plotIds !== undefined) {
+    return writeTaskPlots(supabase, taskId, input.plotIds);
   }
   return outcome;
 }

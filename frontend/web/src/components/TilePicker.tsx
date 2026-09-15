@@ -40,6 +40,7 @@ export function TilePicker({
   subtitle,
   options,
   selectedValue,
+  selectedValues,
   onSelect,
   actions,
   emptyHint,
@@ -55,6 +56,10 @@ export function TilePicker({
   options: readonly TileOption[];
   // null when nothing is picked yet. Every step of a fresh walk starts here.
   selectedValue: string | null;
+  // Multi-select: when given, every tile whose value is in the list is active and
+  // selectedValue is ignored. onSelect still reports the one tile pressed; the
+  // caller owns toggling it in or out of its set.
+  selectedValues?: readonly string[];
   onSelect: (value: string) => void;
   actions?: readonly TileAction[];
   emptyHint?: string;
@@ -78,7 +83,9 @@ export function TilePicker({
 
       <div className="tile-picker__grid" role="group" aria-labelledby={id}>
         {options.map((option) => {
-          const active = option.value === selectedValue;
+          const active = selectedValues
+            ? selectedValues.includes(option.value)
+            : option.value === selectedValue;
           return (
             <button
               key={option.value}

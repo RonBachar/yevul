@@ -10,7 +10,7 @@ create extension if not exists pgtap;
 
 begin;
 
-select plan(75);
+select plan(80);
 
 -- ====================================================================
 -- הכנה, חמישה משתמשי בדיקה, שני משקים נפרדים
@@ -167,40 +167,83 @@ select throws_ok(
 );
 
 -- ====================================================================
--- קבוצה 5, tasks_view, אותו עיקרון על estimated_cost, וגם על כתיבה
+-- Group 5, tasks and task_plots. Every active member creates tasks, workers
+-- included, and attaches them to plots through task_plots (tasks.plot_id and
+-- tasks.estimated_cost were dropped in 20260915120000). The join table is
+-- scoped through its task's farm, and the plot must be on that same farm.
 -- ====================================================================
 
 select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
 select lives_ok(
-  $$ insert into public.tasks (farm_id, plot_id, title, estimated_cost)
-     values ((select value from fixture where key = 'farm_a'), (select value from fixture where key = 'plot_a'), 'ריסוס', 300) $$,
-  'owner_a can create a task with a cost estimate'
+  $$ insert into public.tasks (farm_id, title)
+     values ((select value from fixture where key = 'farm_a'), 'ריסוס') $$,
+  'owner_a can create a task'
+);
+select lives_ok(
+  $$ insert into public.task_plots (task_id, plot_id)
+     values (
+       (select id from public.tasks_view where farm_id = (select value from fixture where key = 'farm_a') and title = 'ריסוס'),
+       (select value from fixture where key = 'plot_a')
+     ) $$,
+  'owner_a can attach his task to a plot of his farm'
 );
 
 select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000003', 'role', 'authenticated')::text, true);
-select throws_ok(
-  $$ insert into public.tasks (farm_id, plot_id, title, estimated_cost)
-     values ((select value from fixture where key = 'farm_a'), (select value from fixture where key = 'plot_a'), 'ריסוס עובד', 100) $$,
-  '42501',
-  null,
-  'worker_a cannot write a non-null estimated_cost, not just read one'
-);
 select lives_ok(
-  $$ insert into public.tasks (farm_id, plot_id, title)
-     values ((select value from fixture where key = 'farm_a'), (select value from fixture where key = 'plot_a'), 'ריסוס עובד בלי עלות') $$,
-  'worker_a can still create a task as long as estimated_cost stays null'
+  $$ insert into public.tasks (farm_id, title)
+     values ((select value from fixture where key = 'farm_a'), 'ריסוס עובד בלי עלות') $$,
+  'worker_a can create a task too'
 );
 select is(
-  (select estimated_cost from public.tasks_view where farm_id = (select value from fixture where key = 'farm_a') and title = 'ריסוס' limit 1),
-  null::numeric,
-  'worker_a sees a masked (null) estimated_cost on a task owner_a priced'
+  (select count(*)::int from public.task_plots
+   where task_id = (select id from public.tasks_view where farm_id = (select value from fixture where key = 'farm_a') and title = 'ריסוס')),
+  1,
+  'worker_a sees the plot link of a task on his farm'
+);
+
+select set_config('request.jwt.claims', json_build_object('sub', 'bbbbbbbb-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
+select is(
+  (select count(*)::int from public.task_plots
+   where plot_id = (select value from fixture where key = 'plot_a')),
+  0,
+  'owner_b sees zero task_plots rows from farm A'
+);
+select lives_ok(
+  $$ insert into public.tasks (farm_id, title)
+     values ((select value from fixture where key = 'farm_b'), 'משימה במשק ב') $$,
+  'owner_b can create a task on his own farm'
+);
+-- The fixture plot id is readable here only because fixture is a plain temp
+-- table; owner_b could never have looked it up through the API.
+select throws_ok(
+  $$ insert into public.task_plots (task_id, plot_id)
+     values (
+       (select id from public.tasks_view where farm_id = (select value from fixture where key = 'farm_b') and title = 'משימה במשק ב'),
+       (select value from fixture where key = 'plot_a')
+     ) $$,
+  '42501',
+  null,
+  'owner_b cannot hang a farm A plot on his own task'
+);
+select lives_ok(
+  $$ delete from public.task_plots where plot_id = (select value from fixture where key = 'plot_a') $$,
+  'a delete by owner_b against farm A links runs, and RLS scopes it to nothing'
 );
 
 select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-0000-0000-000000000001', 'role', 'authenticated')::text, true);
 select is(
-  (select estimated_cost from public.tasks_view where farm_id = (select value from fixture where key = 'farm_a') and title = 'ריסוס' limit 1),
-  300::numeric,
-  'owner_a sees the real estimated_cost'
+  (select count(*)::int from public.task_plots where plot_id = (select value from fixture where key = 'plot_a')),
+  1,
+  'owner_b''s delete left the farm A link in place'
+);
+select lives_ok(
+  $$ delete from public.task_plots where plot_id = (select value from fixture where key = 'plot_a') $$,
+  'owner_a can detach a plot from his task, a real delete on the join table'
+);
+select is(
+  (select count(*)::int from public.task_plots where plot_id = (select value from fixture where key = 'plot_a')),
+  0,
+  'the detach actually persisted'
 );
 
 -- ====================================================================
@@ -373,14 +416,7 @@ select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-0000-
 select lives_ok(
   $$ update public.tasks set completed_at = now(), completed_by = 'aaaaaaaa-0000-0000-0000-000000000003'
      where farm_id = (select value from fixture where key = 'farm_a') and title = 'ריסוס עובד בלי עלות' $$,
-  'worker_a can complete a task too, tasks are not role-gated at the row level, only estimated_cost is'
-);
-
-select throws_ok(
-  $$ update public.tasks set estimated_cost = 999 where farm_id = (select value from fixture where key = 'farm_a') and title = 'ריסוס' $$,
-  '42501',
-  null,
-  'worker_a still cannot write a non-null estimated_cost via UPDATE, same as INSERT'
+  'worker_a can complete a task too, tasks are not role-gated at the row level'
 );
 
 -- deleteTask, בקשת חקלאי: מחיקה אמיתית (soft), לא סתם השלמה. אותו UPDATE

@@ -18,23 +18,35 @@ import { writeOutcome, type WriteOutcome } from './postgrest';
 // כותב את רשומת היומן ומקשר את המשימה אליה, prd.md נספח א.3:
 // tasks.created_log_id הוא קישור אופציונלי בכיוון הזה בלבד. הקישור
 // הוא best-effort, לא חוסם: הרשומה עצמה כבר נכתבה בהצלחה.
+//
+// **One entry per plot.** A task attached to several plots belongs in each of
+// their journals, so each gets its own row; a farm-level task (no plots) still
+// writes a single row with no plot. Every row carries task_id, which is how the
+// farm-wide journal shows the completion once instead of once per plot (see
+// collapseTaskEntries in logEntries.ts). created_log_id keeps pointing at the
+// first row, the link has always been one-to-one.
 export async function confirmJournalFromTask(
   supabase: SupabaseClient,
   farmId: string,
-  task: Pick<Task, 'id' | 'title' | 'plotId'>,
+  task: Pick<Task, 'id' | 'title' | 'plotIds'>,
 ): Promise<WriteOutcome> {
+  // The farmer's own calendar day, not the UTC one: he ticks the task off at
+  // 22:00 and the entry belongs to the day he did the work.
+  const date = formatLocalDateOnly(new Date());
+  const plotIds: (string | null)[] = task.plotIds.length > 0 ? task.plotIds : [null];
   const write = await supabase
     .from('log_entries')
-    .insert({
-      farm_id: farmId,
-      plot_id: task.plotId,
-      // The farmer's own calendar day, not the UTC one: he ticks the task off
-      // at 22:00 and the entry belongs to the day he did the work.
-      date: formatLocalDateOnly(new Date()),
-      type: 'other',
-      source: 'task',
-      note: task.title,
-    })
+    .insert(
+      plotIds.map((plotId) => ({
+        farm_id: farmId,
+        plot_id: plotId,
+        task_id: task.id,
+        date,
+        type: 'other',
+        source: 'task',
+        note: task.title,
+      })),
+    )
     .select('id');
   const outcome = writeOutcome(write);
   const logEntryId = (write.data as { id: string }[] | null)?.[0]?.id;

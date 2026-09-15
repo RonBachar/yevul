@@ -15,10 +15,10 @@
 //                                   his spray's cost was reached.
 //   workKind                        the spray walk passed null; the same erasure,
 //                                   one field later.
-//   estimatedCost / assignedTo      neither Task Sheet renders a cost, and the
-//                                   member roster is empty while it loads; a
-//                                   spoken cost and an assignment both vanished
-//                                   on an unrelated edit.
+//   assignedTo                      the member roster is empty while it loads;
+//                                   an assignment vanished on an unrelated edit.
+//                                   (A spoken estimatedCost did too, before the
+//                                   column was dropped in 20260915120000.)
 //
 // Every one of them was silent. No error, no toast, nothing on screen -- the
 // farmer's data was simply gone the next time he looked. That is why the fix is a
@@ -51,7 +51,7 @@ import { createTask, updateTask } from './tasks';
 
 type Op = {
   table: string;
-  kind: 'select' | 'insert' | 'update';
+  kind: 'select' | 'insert' | 'update' | 'delete';
   payload?: Record<string, unknown>;
   filters: [string, unknown][];
   columns?: string;
@@ -63,12 +63,18 @@ type Stored = {
   // What an expense row says its amount is, for the read updateExpense makes when
   // it is asked to move a plot and given no amount to allocate.
   expenseAmount?: number;
+  // The plot ids a task already has in task_plots, for the read updateTask makes
+  // before it replaces the set.
+  taskPlotIds?: string[];
 };
 
 function fakeSupabase(stored: Stored = {}) {
   const ops: Op[] = [];
 
   function result(op: Op) {
+    if (op.table === 'task_plots' && op.kind === 'select') {
+      return { data: (stored.taskPlotIds ?? []).map((id) => ({ plot_id: id })), error: null };
+    }
     if (op.table === 'log_entries' && op.kind === 'select') {
       return { data: stored.entry ?? null, error: null };
     }
@@ -93,6 +99,11 @@ function fakeSupabase(stored: Stored = {}) {
         insert(payload: Record<string, unknown>) {
           op.kind = 'insert';
           op.payload = payload;
+          ops.push(op);
+          return builder;
+        },
+        delete() {
+          op.kind = 'delete';
           ops.push(op);
           return builder;
         },
@@ -122,6 +133,10 @@ function fakeSupabase(stored: Stored = {}) {
           op.filters.push([column, value]);
           return builder;
         },
+        in(column: string, value: unknown) {
+          op.filters.push([column, value]);
+          return builder;
+        },
         maybeSingle() {
           return Promise.resolve(result(op));
         },
@@ -148,22 +163,57 @@ function fakeSupabase(stored: Stored = {}) {
 // ============================================================
 
 describe('updateTask, the columns it writes', () => {
-  // The live bug: both Task Sheets edit a task without ever showing its estimated
-  // cost, while voice sets one and both clients display it.
-  it('leaves estimated_cost alone when the caller does not pass a cost', async () => {
-    const { supabase, keysOf } = fakeSupabase();
+  // The plot set lives in task_plots, not in a column, so "leave it alone" means
+  // not a single query against the join table.
+  it('leaves the plot set alone when the caller does not pass plotIds', async () => {
+    const { supabase, ops } = fakeSupabase({ taskPlotIds: ['plot-1'] });
 
     await updateTask(supabase, 'task-1', 'farm-1', { title: 'לרסס' });
 
-    expect(keysOf('tasks', 'update')).not.toContain('estimated_cost');
+    expect(ops.filter((op) => op.table === 'task_plots')).toEqual([]);
   });
 
-  it('clears estimated_cost when the caller passes an explicit null', async () => {
-    const { supabase, payloadOf } = fakeSupabase();
+  it('replaces the plot set with exactly the array passed, writing only the difference', async () => {
+    const { supabase, on } = fakeSupabase({ taskPlotIds: ['plot-1', 'plot-2'] });
 
-    await updateTask(supabase, 'task-1', 'farm-1', { title: 'לרסס', estimatedCost: null });
+    await updateTask(supabase, 'task-1', 'farm-1', {
+      title: 'לרסס',
+      plotIds: ['plot-2', 'plot-3'],
+    });
 
-    expect(payloadOf('tasks', 'update')).toMatchObject({ estimated_cost: null });
+    expect(on('task_plots', 'delete')).toHaveLength(1);
+    expect(on('task_plots', 'delete')[0]?.filters).toEqual([
+      ['task_id', 'task-1'],
+      ['plot_id', ['plot-1']],
+    ]);
+    expect(on('task_plots', 'insert').map((op) => op.payload)).toEqual([
+      [{ task_id: 'task-1', plot_id: 'plot-3' }],
+    ]);
+  });
+
+  it('detaches every plot on an empty array, because a farm-level task is a real thing', async () => {
+    const { supabase, on } = fakeSupabase({ taskPlotIds: ['plot-1', 'plot-2'] });
+
+    await updateTask(supabase, 'task-1', 'farm-1', { title: 'לרסס', plotIds: [] });
+
+    expect(on('task_plots', 'delete')[0]?.filters).toContainEqual([
+      'plot_id',
+      ['plot-1', 'plot-2'],
+    ]);
+    expect(on('task_plots', 'insert')).toEqual([]);
+  });
+
+  it('attaches the plots of a new task after the task row exists', async () => {
+    const { supabase, on } = fakeSupabase();
+
+    await createTask(supabase, 'farm-1', { title: 'לגזום', plotIds: ['plot-1', 'plot-2'] });
+
+    expect(on('task_plots', 'insert').map((op) => op.payload)).toEqual([
+      [
+        { task_id: 'row-1', plot_id: 'plot-1' },
+        { task_id: 'row-1', plot_id: 'plot-2' },
+      ],
+    ]);
   });
 
   // The second live bug, and the subtler one: assignableMembers returns [] while
@@ -208,19 +258,13 @@ describe('updateTask, the columns it writes', () => {
 
     await updateTask(supabase, 'task-1', 'farm-1', {
       title: 'לגזום',
-      plotId: 'plot-1',
+      plotIds: ['plot-1'],
       dueDate: '2026-09-20',
-      estimatedCost: 200,
       assignedTo: 'user-1',
     });
 
-    expect(keysOf('tasks', 'update')).toEqual([
-      'assigned_to',
-      'due_date',
-      'estimated_cost',
-      'plot_id',
-      'title',
-    ]);
+    // The plot set is never a column of tasks; it goes to task_plots.
+    expect(keysOf('tasks', 'update')).toEqual(['assigned_to', 'due_date', 'title']);
   });
 
   // An absent column on an INSERT takes the table default, which is null for all

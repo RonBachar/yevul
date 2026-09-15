@@ -12,7 +12,7 @@
       "message": {
         "role": "assistant",
         "refusal": null,
-        "content": "{\"transcript\":\"צריך לגזום את החלקה הצפונית עד סוף החודש, בערך אלף שקל\",\"title\":\"גיזום החלקה הצפונית\",\"plotName\":\"הצפונית\",\"dueDate\":\"2026-09-30\",\"estimatedCost\":1000,\"confidence\":0.78}"
+        "content": "{\"transcript\":\"צריך לגזום את החלקה הצפונית עד סוף החודש, בערך אלף שקל\",\"title\":\"גיזום החלקה הצפונית\",\"plotName\":\"הצפונית\",\"dueDate\":\"2026-09-30\",\"confidence\":0.78}"
       }
     }
   ],
