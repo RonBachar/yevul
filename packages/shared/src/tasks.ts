@@ -133,65 +133,12 @@ export function taskDueDisplay(dueDate: string | null, now: Date = new Date()): 
   };
 }
 
-// ============================================================
-// קיבוץ הלוח לפי דחיפות. design.md, Task Board: באיחור → היום → השבוע
-// → בהמשך → מתישהו, קבוצות ריקות לא מוצגות. "בהמשך" נוסף בתיקון באג:
-// בלעדיו כל תאריך מעבר לשבוע נפל תחת "השבוע" ומטעה.
-// ============================================================
-
-export type UrgencyGroupKey = 'overdue' | 'today' | 'week' | 'later' | 'someday';
-export type UrgencyGroup = { key: UrgencyGroupKey; labelKey: string; tasks: Task[] };
-
-export function groupTasksByUrgency(tasks: Task[], now: Date = new Date()): UrgencyGroup[] {
-  const buckets: Record<UrgencyGroupKey, Task[]> = {
-    overdue: [],
-    today: [],
-    week: [],
-    later: [],
-    someday: [],
-  };
-
-  for (const task of tasks) {
-    const due = taskDueDisplay(task.dueDate, now);
-    if (!due) {
-      buckets.someday.push(task);
-    } else if (due.tone === 'overdue') {
-      buckets.overdue.push(task);
-    } else if (due.tone === 'today' || due.tone === 'tomorrow') {
-      buckets.today.push(task);
-    } else if (due.tone === 'soon') {
-      buckets.week.push(task);
-    } else {
-      // due.tone === 'later', יותר משבוע קדימה. בלי הקבוצה הזו כל תאריך
-      // עתידי, גם עוד חצי שנה, נופל תחת "השבוע" ומטעה לגמרי. taskDueDisplay
-      // כבר מציג עבורו תאריך מפורש בשורה עצמה, לא "עוד X ימים".
-      buckets.later.push(task);
-    }
-  }
-
-  const order: { key: UrgencyGroupKey; labelKey: string }[] = [
-    { key: 'overdue', labelKey: 'tasks.group.overdue' },
-    { key: 'today', labelKey: 'tasks.group.today' },
-    { key: 'week', labelKey: 'tasks.group.week' },
-    { key: 'later', labelKey: 'tasks.group.later' },
-    { key: 'someday', labelKey: 'tasks.group.someday' },
-  ];
-
-  return order
-    .map(({ key, labelKey }) => ({ key, labelKey, tasks: buckets[key] }))
-    .filter((group) => group.tasks.length > 0);
-}
-
-// **אותו סדר, בלי הכותרות.** בבקשת היזם 2026-09-25 הלוח מוצג כרשימה
-// אחת רצופה: "בהמשך" ו"ללא תאריך" חתכו רשימה קצרה לארבע פיסות וגנבו
-// יותר גובה ממה שהסבירו. הדחיפות עדיין קובעת את הסדר, והתאריך עצמו
-// כבר מופיע על כל שורה לצד שם החלקה, ולכן שום מידע לא הלך לאיבוד.
-//
-// בנוי מעל `groupTasksByUrgency` ולא משכפל את הדליים, כדי שסדר הדחיפות
-// יישאר הגדרה אחת שנבדקת במקום אחד.
-export function sortTasksByUrgency(tasks: Task[], now: Date = new Date()): Task[] {
-  return groupTasksByUrgency(tasks, now).flatMap((group) => group.tasks);
-}
+// **קיבוץ הלוח לפי דחיפות נמחק ב-2026-09-25.** כאן ישבו
+// `groupTasksByUrgency` ו-`sortTasksByUrgency`, שסידרו את הלוח לחמש
+// קבוצות, באיחור והיום והשבוע ובהמשך וללא תאריך. הכותרות ירדו מהמסך
+// בבקשת היזם, ואז גם המיון עצמו: רשימה אחת ממוינת מהחדשה לישנה, והמיון
+// קורה ב-`useTasks` במסד. `taskDueDisplay` למעלה נשארה, כי השורה עדיין
+// מציגה את התאריך שלה ועדיין מסמנת איחור.
 
 // ============================================================
 // רשימת משימות פתוחות. plotId מוגבל למשימות של חלקה אחת, לטאב משימות
@@ -265,7 +212,13 @@ export function useTasks(supabase: SupabaseClient, plotId?: string): TasksListSt
       if (plotTaskIds) query = query.in('id', plotTaskIds);
 
       const [tasksResult, plotsResult] = await Promise.all([
-        query.order('due_date', { ascending: true, nullsFirst: false }),
+        // **מהחדשה לישנה, בבקשת היזם 2026-09-25.** קודם המיון היה לפי
+        // תאריך יעד עולה, והלוח סידר את התוצאה לקבוצות דחיפות. הקבוצות
+        // ירדו, ואיתן הסיבה למיין לפי יעד: רשימה שטוחה שממוינת לפי יעד
+        // קוברת משימה שנרשמה הרגע בתחתית, מתחת לכל מה שכבר יש לו תאריך.
+        //
+        // המיון במסד ולא בקליינט, כדי שלא יהיה עותק שני שלו בכל לוח.
+        query.order('created_at', { ascending: false }),
         supabase.from('plots').select('id, name').eq('farm_id', farm.id).is('deleted_at', null),
       ]);
 

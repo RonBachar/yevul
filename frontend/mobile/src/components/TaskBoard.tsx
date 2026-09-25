@@ -6,7 +6,6 @@ import {
   completeTask,
   completionPromptVisibility,
   deleteTask,
-  sortTasksByUrgency,
   membersByUserId,
   t,
   taskAssignee,
@@ -39,10 +38,10 @@ import { TaskSheet } from './TaskSheet';
 //
 // **FlatList and not SectionList, since 2026-09-25.** This was a SectionList
 // while the urgency groups had headers on screen. The founder took the headers
-// off — "בהמשך" and "ללא תאריך" cut a five-task list into four pieces — so
-// there are no sections left to render and a flat list is what the board now
-// means. Urgency survives as order alone, through sortTasksByUrgency, and each
-// row already carries its own date next to its plot.
+// off, "בהמשך" and "ללא תאריך" cut a five-task list into four pieces, so there
+// are no sections left to render and a flat list is what the board now means.
+// The urgency ordering went with them: the list is newest first, sorted in the
+// query, and each row still carries its own date next to its plot.
 
 export function TaskBoard({
   supabase,
@@ -113,8 +112,8 @@ export function TaskBoard({
   // keeps the tasks it had, and showing them under an error message would claim
   // they are current. An empty array here means an empty board, which is what
   // makes ListEmptyComponent the right place for all three notes.
-  const tasks: Task[] =
-    tasksState.loading || tasksState.failed ? [] : sortTasksByUrgency(tasksState.tasks);
+  // **כבר ממוין מהחדשה לישנה במסד**, ולכן אין כאן מיון שיכול להתפצל ממנו.
+  const tasks: Task[] = tasksState.loading || tasksState.failed ? [] : tasksState.tasks;
 
   return (
     <View style={styles.wrap}>

@@ -1,22 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupTasksByUrgency, normalizeTaskTitle, sortTasksByUrgency, type Task } from './tasks';
-
-function makeTask(overrides: Partial<Task>): Task {
-  return {
-    id: 'id',
-    farmId: 'farm',
-    plotIds: [],
-    title: 'משימה',
-    dueDate: null,
-    assignedTo: null,
-    completedAt: null,
-    snoozedUntil: null,
-    snoozeCount: 0,
-    archivedAt: null,
-    createdAt: '2026-01-01T00:00:00.000Z',
-    ...overrides,
-  };
-}
+import { normalizeTaskTitle, taskDueDisplay } from './tasks';
 
 // TaskCostMemory מתאים משימות לפי כותרת מנורמלת. prd.md: "בפעם הבאה
 // שהוא פותח משימה עם אותה כותרת השדה כבר מלא". "אותה כותרת" בעיני
@@ -44,68 +27,37 @@ describe('normalizeTaskTitle', () => {
   });
 });
 
-// באג שנתפס בבדיקה בפועל: כל תאריך עתידי שהוא לא "מחר" נפל תחת "השבוע",
-// גם משימה עם עד-תאריך בעוד חודשים. "later" היא קבוצה נפרדת לכל דבר
-// שמעבר לשבוע קדימה.
-describe('groupTasksByUrgency', () => {
+// **האות היחיד שנשאר.** עד 2026-09-25 הדחיפות הופיעה גם ככותרות קבוצה
+// על הלוח, ולקבוצות היו בדיקות משלהן. הכותרות והקיבוץ נמחקו, הלוח הוא
+// רשימה אחת מהחדשה לישנה, ומה שמספר לחקלאי שמשימה בוערת הוא הטקסט הזה
+// והגוון הזה על השורה עצמה. אם הם יישברו, שום דבר אחר במסך לא יסגיר זאת.
+describe('taskDueDisplay', () => {
   const now = new Date('2026-08-25T12:00:00.000Z');
 
-  it('puts a due date more than a week out under "later", not "week"', () => {
-    const task = makeTask({ id: 'far', dueDate: '2026-10-17' });
-    const groups = groupTasksByUrgency([task], now);
-    const later = groups.find((group) => group.key === 'later');
-    const week = groups.find((group) => group.key === 'week');
-    expect(later?.tasks.map((t) => t.id)).toEqual(['far']);
-    expect(week).toBeUndefined();
+  it('has nothing to show for a task with no due date', () => {
+    expect(taskDueDisplay(null, now)).toBeNull();
   });
 
-  it('keeps a due date within the next week under "week"', () => {
-    const task = makeTask({ id: 'soon', dueDate: '2026-08-30' });
-    const groups = groupTasksByUrgency([task], now);
-    const week = groups.find((group) => group.key === 'week');
-    expect(week?.tasks.map((t) => t.id)).toEqual(['soon']);
+  it('marks a past date overdue and counts the days', () => {
+    const due = taskDueDisplay('2026-08-20', now);
+    expect(due?.tone).toBe('overdue');
+    expect(due?.text).toContain('5');
   });
 
-  it('omits empty groups', () => {
-    const task = makeTask({ id: 'today', dueDate: '2026-08-25' });
-    const groups = groupTasksByUrgency([task], now);
-    expect(groups.map((group) => group.key)).toEqual(['today']);
-  });
-});
-
-// הלוח מציג רשימה אחת בלי כותרות מאז 2026-09-25, ולכן הסדר הוא כל מה
-// שנשאר מהדחיפות. אם הוא יישבר, משימה באיחור תשב מתחת לאחת של "מתישהו"
-// ולא תהיה שום כותרת שתסגיר את זה.
-describe('sortTasksByUrgency', () => {
-  const now = new Date('2026-08-25T12:00:00.000Z');
-
-  it('orders overdue, then today, then week, then later, then no date', () => {
-    const tasks = [
-      makeTask({ id: 'someday', dueDate: null }),
-      makeTask({ id: 'later', dueDate: '2026-10-17' }),
-      makeTask({ id: 'overdue', dueDate: '2026-08-20' }),
-      makeTask({ id: 'week', dueDate: '2026-08-30' }),
-      makeTask({ id: 'today', dueDate: '2026-08-25' }),
-    ];
-    expect(sortTasksByUrgency(tasks, now).map((task) => task.id)).toEqual([
-      'overdue',
-      'today',
-      'week',
-      'later',
-      'someday',
-    ]);
+  it('reads today and tomorrow as words, not dates', () => {
+    expect(taskDueDisplay('2026-08-25', now)?.tone).toBe('today');
+    expect(taskDueDisplay('2026-08-26', now)?.tone).toBe('tomorrow');
   });
 
-  it('keeps every task, dropping none of them', () => {
-    const tasks = [
-      makeTask({ id: 'a', dueDate: null }),
-      makeTask({ id: 'b', dueDate: '2026-08-25' }),
-      makeTask({ id: 'c', dueDate: null }),
-    ];
-    expect(sortTasksByUrgency(tasks, now)).toHaveLength(3);
+  it('counts the days for a date inside the coming week', () => {
+    expect(taskDueDisplay('2026-08-30', now)?.tone).toBe('soon');
   });
 
-  it('returns an empty list for an empty board', () => {
-    expect(sortTasksByUrgency([], now)).toEqual([]);
+  // הבאג שהצדיק בזמנו את קבוצת "בהמשך": בלי הענף הזה כל תאריך עתידי,
+  // גם בעוד חודשיים, נקרא כאילו הוא בשבוע הקרוב. הקבוצה נמחקה, הענף לא.
+  it('shows an explicit date more than a week out, not a countdown', () => {
+    const far = taskDueDisplay('2026-10-17', now);
+    expect(far?.tone).toBe('later');
+    expect(far?.text).toContain('17');
   });
 });

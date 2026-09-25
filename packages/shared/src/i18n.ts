@@ -373,13 +373,9 @@ const strings: Record<string, string> = {
   'tasks.empty': 'אין משימות פתוחות',
   'tasks.loadError': 'לא הצלחנו לטעון את המשימות, נסו שוב',
   'tasks.plotGeneral': 'כללי',
-  'tasks.group.overdue': 'באיחור',
-  'tasks.group.today': 'היום',
-  'tasks.group.week': 'השבוע',
-  'tasks.group.later': 'בהמשך',
-  // "ללא תאריך" ולא "מתישהו": ככותרת קבוצה על משימות שכבר קיימות
-  // "מתישהו" נשמע לא רציני.
-  'tasks.group.someday': 'ללא תאריך',
+  // כותרות קבוצות הדחיפות (באיחור, היום, השבוע, בהמשך, ללא תאריך) נמחקו
+  // ב-2026-09-25 יחד עם הקיבוץ עצמו. הלוח הוא רשימה אחת מהחדשה לישנה.
+  // `tasks.due.*` שלמטה נשארו, הן מה שמופיע על השורה עצמה.
   'tasks.due.today': 'היום',
   'tasks.due.tomorrow': 'מחר',
   'tasks.due.overduePrefix': 'באיחור',

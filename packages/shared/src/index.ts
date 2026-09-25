@@ -245,8 +245,6 @@ export {
   rememberTaskCost,
   normalizeTaskTitle,
   taskDueDisplay,
-  groupTasksByUrgency,
-  sortTasksByUrgency,
   shouldAutoArchive,
   joinPlotNames,
   toggleTaskPlot,
@@ -257,8 +255,6 @@ export {
   type TaskWriteResult,
   type DueTone,
   type DueDisplay,
-  type UrgencyGroupKey,
-  type UrgencyGroup,
 } from './tasks';
 export {
   useExpenses,

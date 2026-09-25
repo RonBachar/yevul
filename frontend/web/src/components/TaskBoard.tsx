@@ -4,7 +4,6 @@ import {
   completeTask,
   completionPromptVisibility,
   deleteTask,
-  sortTasksByUrgency,
   membersByUserId,
   t,
   taskAssignee,
@@ -85,7 +84,10 @@ export function TaskBoard({
     tasksState.refresh();
   }
 
-  const tasks = sortTasksByUrgency(tasksState.tasks);
+  // **כבר ממוין, ולכן אין כאן מיון.** useTasks מבקש created_at יורד
+  // מהמסד, והחדשה ביותר מגיעה ראשונה. מיון נוסף כאן היה עותק שני שיכול
+  // להתפצל מהראשון.
+  const tasks = tasksState.tasks;
 
   return (
     <div className="task-board">
@@ -103,11 +105,12 @@ export function TaskBoard({
         <p className="screen__note">{t('tasks.empty')}</p>
       )}
 
-      {/* **רשימה אחת רצופה, בעמודה אחת.** לפני כן היו כותרות קבוצה
-          ("בהמשך", "ללא תאריך") ושתי עמודות מ-1024, ושתיהן ירדו בבקשת
-          היזם: הכותרות חתכו רשימה קצרה לארבע פיסות, ושתי עמודות מכריחות
-          את העין לקפוץ. הדחיפות עדיין קובעת את הסדר דרך
-          sortTasksByUrgency, והתאריך מופיע על השורה עצמה לצד החלקה. */}
+      {/* **רשימה אחת רצופה, בעמודה אחת, מהחדשה לישנה.** לפני כן היו
+          כותרות קבוצה ("בהמשך", "ללא תאריך") ושתי עמודות מ-1024, וגם
+          מיון לפי דחיפות. שלושתם ירדו בבקשת היזם: הכותרות חתכו רשימה
+          קצרה לארבע פיסות, שתי עמודות מכריחות את העין לקפוץ, ומיון לפי
+          יעד קבר משימה שנרשמה הרגע בתחתית. התאריך מופיע על השורה עצמה
+          לצד החלקה, ושורה באיחור עדיין מסומנת. */}
       {!tasksState.loading && !tasksState.failed && (
         <div className="task-board__rows">
           {tasks.map((task) => (
