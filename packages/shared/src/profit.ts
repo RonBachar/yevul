@@ -17,11 +17,23 @@ import {
 // ומגיש אותם לשלושת המקומות שמציגים מספר רווח: כרטיס הבית, כרטיס
 // החלקה ברשימה, וכותרת פרטי החלקה.
 //
-// **החלטת מוצר, החלטת היזם 2026-08-29: המספר של המשק סופר את כל
-// הוצאות המשק, גם כאלה שלא שויכו לאף חלקה** (ארנונה, ביטוח, משכורת).
-// זו השורה התחתונה האמיתית של המשק. המחיר הוא ש-Hero אינו בהכרח סכום
-// כרטיסי החלקות שמתחתיו, ולכן generalExpenses נחשף בנפרד כאן, כדי
-// שהתצוגה תוכל להסביר את הפער במקום להיראות כמו באג.
+// **החלטת מוצר, 2026-09-25, מחליפה את זו של 2026-08-29:
+// צפי הרווח נגזר מהחלקות בלבד.** קודם הוא ספר גם הוצאות שלא שויכו לאף
+// חלקה, ארנונה וביטוח ומשכורת, בהחלטה מפורשת של היזם, ו-Hero לא היה
+// סכום כרטיסי החלקות שמתחתיו.
+//
+// מה שהשתנה הוא לא ההעדפה אלא ההבנה מה הוצאה בכלל אומרת. **קנייה איננה
+// צריכה:** חומר ריסוס בעשרת אלפים שקל יצא מהכיס אבל יושב במחסן, ויכול
+// לשבת שם גם לעונה הבאה, ואף חלקה לא חויבה. החלקה מחויבת רק כשהחומר
+// נצרך עליה, בכמות. ראה docs/spec-money-and-tasks.md סעיף 1.
+//
+// ולכן שני מספרים, ורק אחד מהם מחשב. `plotExpenses` הוא צריכה בפועל
+// ונכנס לרווח. `farmExpenses` הוא כל השאר, מוצג לחקלאי כאומדן ולא נוגע
+// בשום חישוב. **שני הספרים אינם אמורים להסתדר זה מול זה, וזו לא תקלה,**
+// והניסיון לגשר ביניהם הוא מה שהפיל את התכנון שבועות.
+//
+// התוצאה הנלווית היא ש-Hero כן שווה עכשיו לסכום כרטיסי החלקות, ולכן
+// שורת ההסבר שהצדיקה את הפער נמחקה ולא הוחלפה.
 //
 // **צפי רווח = הכנסה פחות הוצאות. שורת עלות אחת, מ-2026-09-10.** קודם היו כאן
 // שלוש: ההוצאות, ועוד sprayCosts ו-workCosts שנקראו ישירות מעמודות קפואות על
@@ -35,14 +47,20 @@ import {
 
 export type FarmProfitForecast = {
   expectedIncome: number;
-  expenses: number;
+  // צריכה בפועל על חלקות, והדבר היחיד שיורד מההכנסה.
+  plotExpenses: number;
   profit: number;
-  // האם נרשמה בכלל הוצאה אחת במשק. אותה הבחנה בדיוק שקיימת
+  // האם נרשמה בכלל הוצאת חלקה אחת. אותה הבחנה בדיוק שקיימת
   // ב-PlotProfitForecast: "לא נרשמו הוצאות" הוא חוסר ידיעה, "אפס
   // הוצאות" הוא עובדה, ורק הראשון מצדיק את חיווי ה-Wheat.
-  expensesTracked: boolean;
-  // הוצאות שלא שויכו לאף חלקה. נכנסות ל-expenses אבל לא לאף כרטיס.
-  generalExpenses: number;
+  //
+  // **נמדד על הוצאות חלקה ולא על כל הוצאה במשק.** חקלאי שרשם רק קניות
+  // משק לא הזין שום דבר שנכנס למספר הזה, ולהגיד לו שההוצאות במעקב היה
+  // מבטיח שהמספר מלא כשהוא ריק.
+  plotExpensesTracked: boolean;
+  // כל מה שאינו צריכה על חלקה: קניית מלאי, ארנונה, ביטוח, משכורת.
+  // **מוצג בלבד, ואינו נכנס ל-profit ולא לאף כרטיס חלקה.**
+  farmExpenses: number;
   plotsWithForecast: number;
   plotsWithoutForecast: number;
 };
@@ -62,16 +80,18 @@ export type PlotProfitRow = PlotWithCropCycle & {
 
 export function farmProfitForecast(
   plots: { expectedIncome: number | null; expenses: number }[],
-  generalExpenses: number,
-  expensesTracked: boolean,
+  farmExpenses: number,
+  plotExpensesTracked: boolean,
 ): FarmProfitForecast {
   let expectedIncome = 0;
-  let expenses = generalExpenses;
+  // **מתחיל באפס ולא ב-farmExpenses.** זו השורה היחידה שמבדילה בין
+  // הכלל הזה לקודמו, ולכן היא גם השורה שתספר אם מישהו החזיר אותו.
+  let plotExpenses = 0;
   let plotsWithForecast = 0;
   let plotsWithoutForecast = 0;
 
   for (const plot of plots) {
-    expenses += plot.expenses;
+    plotExpenses += plot.expenses;
     if (plot.expectedIncome == null) {
       plotsWithoutForecast += 1;
       continue;
@@ -82,10 +102,10 @@ export function farmProfitForecast(
 
   return {
     expectedIncome,
-    expenses,
-    profit: expectedIncome - expenses,
-    expensesTracked,
-    generalExpenses,
+    plotExpenses,
+    profit: expectedIncome - plotExpenses,
+    plotExpensesTracked,
+    farmExpenses,
     plotsWithForecast,
     plotsWithoutForecast,
   };
@@ -195,15 +215,17 @@ export function useFarmProfit(supabase: SupabaseClient): FarmProfitState {
 
   return useMemo(() => {
     const expensesByPlot = new Map<string, number>();
-    let generalExpenses = 0;
+    let farmExpenses = 0;
+    let plotExpenseCount = 0;
     for (const expense of expenses) {
       if (expense.plotId) {
+        plotExpenseCount += 1;
         expensesByPlot.set(
           expense.plotId,
           (expensesByPlot.get(expense.plotId) ?? 0) + expense.amount,
         );
       } else {
-        generalExpenses += expense.amount;
+        farmExpenses += expense.amount;
       }
     }
 
@@ -221,11 +243,11 @@ export function useFarmProfit(supabase: SupabaseClient): FarmProfitState {
         expectedIncome: plot.forecast?.expectedIncome ?? null,
         expenses: plot.expenses,
       })),
-      // הוצאות שלא שויכו לאף חלקה נספרות גם הן, אף שאינן מופיעות על אף כרטיס,
-      // אותו כלל שקבע היזם ב-2026-08-29. עכשיו נכנסות לכאן גם רשומות יומן ברמת
-      // המשק (plot_id null) שנשאו עלות, כי הן הוצאות ככל הוצאה אחרת.
-      generalExpenses,
-      expenses.length > 0,
+      // עוברות הלאה כדי שהתצוגה תוכל להציג אותן, ולא כדי שייכנסו לרווח.
+      farmExpenses,
+      // ספירת הוצאות החלקה ולא `expenses.length`: משק שרשם רק קניות משק
+      // עדיין לא הזין כלום שנכנס למספר.
+      plotExpenseCount > 0,
     );
 
     return {

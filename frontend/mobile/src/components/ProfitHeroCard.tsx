@@ -8,6 +8,7 @@ import {
   profitTone,
   scaledAmountFontSize,
   t,
+  useFarmEntitlement,
   useFarmSettings,
   type Currency,
   type FarmProfitState,
@@ -41,8 +42,9 @@ export function ProfitHeroCard({
   farmName: string | null;
   state: FarmProfitState;
 }) {
-  const { loading, failed, forecast, renderable } = state;
+  const { loading, failed, forecast, renderable, farmId } = state;
   const settings = useFarmSettings(supabase);
+  const { entitled } = useFarmEntitlement(supabase, farmId);
 
   if (loading || failed || !renderable) return null;
 
@@ -51,9 +53,12 @@ export function ProfitHeroCard({
       farmName={farmName}
       profit={forecast.profit}
       expectedIncome={forecast.expectedIncome}
-      expenses={forecast.expenses}
-      expensesTracked={forecast.expensesTracked}
-      hasGeneralExpenses={forecast.generalExpenses > 0}
+      plotExpenses={forecast.plotExpenses}
+      plotExpensesTracked={forecast.plotExpensesTracked}
+      // **`false` ולא falsy.** entitled הוא null כשעוד לא יודעים, ו-null
+      // נקרא כ"מותר": להסתיר בלוק ממי ששילם בגלל שאילתה שטרם חזרה גרוע
+      // מלהראות אותו רגע למי שלא. ראה entitlement.ts.
+      farmExpenses={entitled === false ? 0 : forecast.farmExpenses}
       hasPlotsWithoutForecast={forecast.plotsWithoutForecast > 0}
       isEmptyFarm={forecast.plotsWithForecast === 0}
       currency={settings.form?.currency ?? 'ILS'}
@@ -67,9 +72,9 @@ function HeroCardView({
   farmName,
   profit,
   expectedIncome,
-  expenses,
-  expensesTracked,
-  hasGeneralExpenses,
+  plotExpenses,
+  plotExpensesTracked,
+  farmExpenses,
   hasPlotsWithoutForecast,
   isEmptyFarm,
   currency,
@@ -77,9 +82,11 @@ function HeroCardView({
   farmName: string | null;
   profit: number;
   expectedIncome: number;
-  expenses: number;
-  expensesTracked: boolean;
-  hasGeneralExpenses: boolean;
+  plotExpenses: number;
+  plotExpensesTracked: boolean;
+  // כבר מאופס לאפס על ידי הקורא כשאין זכאות, כדי שהתצוגה לא תחזיק
+  // גם היא עותק של כלל הזכאות.
+  farmExpenses: number;
   hasPlotsWithoutForecast: boolean;
   isEmptyFarm: boolean;
   currency: Currency;
@@ -140,23 +147,31 @@ function HeroCardView({
         <>
           <Text style={styles.breakdown}>
             {t('plots.profit.income')} {formatAmount(expectedIncome, currency)} ·{' '}
-            {t('plots.profit.expenses')} {formatAmount(expenses, currency)}
+            {t('home.profit.plotExpenses')} {formatAmount(plotExpenses, currency)}
           </Text>
 
           {/* Wheat ולא Loss-600, לפי אותו כלל שכבר חל בפרטי חלקה:
               המסר הוא "עוד לא מוצג לך הכל", לא "אתה מפסיד כסף". */}
-          {!expensesTracked && (
+          {!plotExpensesTracked && (
             <Text style={styles.caveatWheat}>{t('plots.profit.noExpensesYet')}</Text>
           )}
           {hasPlotsWithoutForecast && (
             <Text style={styles.caveatWheat}>{t('home.profit.someWithoutForecast')}</Text>
           )}
-          {/* בלי השורה הזו ההפרש בין המספר הגדול לסכום כרטיסי החלקות
-              שמתחתיו נראה כמו שגיאת חישוב. */}
-          {hasGeneralExpenses && (
-            <Text style={styles.caveat}>{t('home.profit.includesGeneral')}</Text>
-          )}
         </>
+      )}
+
+      {/* הוצאות המשק, 2026-09-25. **מעל קו מפריד ולא עוד שורת caveat.**
+          הן אינן הסתייגות על המספר הגדול, הן מספר אחר שלא נכנס אליו,
+          ושני מספרים באותו כרטיס בלי גבול ביניהם נקראים כאותו חשבון. */}
+      {farmExpenses > 0 && (
+        <View style={styles.farmBlock}>
+          <View style={styles.farmRow}>
+            <Text style={styles.farmLabel}>{t('home.farmExpenses.title')}</Text>
+            <Text style={styles.farmValue}>{formatAmount(farmExpenses, currency)}</Text>
+          </View>
+          <Text style={styles.caveat}>{t('home.farmExpenses.note')}</Text>
+        </View>
       )}
     </View>
   );
@@ -195,6 +210,32 @@ const styles = StyleSheet.create({
     fontSize: fontSize.bodySm,
     color: colors.slate600,
     writingDirection: 'rtl',
+  },
+  // הוצאות המשק. הקו העליון הוא ההפרדה בין מספר שמחשב למספר שלא.
+  farmBlock: {
+    marginTop: spacing.s12,
+    paddingTop: spacing.s12,
+    borderTopWidth: 1,
+    borderTopColor: colors.border200,
+  },
+  farmRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: spacing.s16,
+  },
+  farmLabel: {
+    fontFamily: fonts.regular,
+    fontSize: fontSize.bodySm,
+    color: colors.slate600,
+    writingDirection: 'rtl',
+  },
+  // Slate ולא Ink: משקל חזותי נמוך מהמספרים שכן מחשבים.
+  farmValue: {
+    fontFamily: fonts.bold,
+    fontSize: fontSize.bodyLg,
+    color: colors.slate600,
+    writingDirection: 'ltr',
   },
   caveat: {
     fontFamily: fonts.regular,

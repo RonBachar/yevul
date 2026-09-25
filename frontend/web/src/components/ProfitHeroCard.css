@@ -134,6 +134,45 @@
   color: var(--color-wheat-800);
 }
 
+/* הוצאות המשק, 2026-09-25. **קו מפריד ולא רק מרווח.** המספר הזה לא
+   נכנס לחשבון שמעליו, ושני מספרים שיושבים באותו כרטיס בלי גבול ביניהם
+   נקראים כשורות של אותו חשבון. הקו הוא ההפרדה, והמשפט מתחת מאשר
+   אותה במילים. */
+.profit-hero__farm {
+  flex-basis: 100%;
+  width: 100%;
+  margin-top: var(--spacing-16);
+  padding-top: var(--spacing-16);
+  border-top: 1px solid var(--color-mist-200);
+}
+
+.profit-hero__farm-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-16);
+}
+
+.profit-hero__farm-label {
+  font-size: var(--text-body-sm);
+  color: var(--color-slate-600);
+}
+
+/* Slate ולא Ink: משקל חזותי נמוך מהמספרים שכן מחשבים. */
+.profit-hero__farm-value {
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-slate-600);
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.profit-hero__farm-note {
+  margin: var(--spacing-4) 0 0;
+  font-size: var(--text-caption);
+  color: var(--color-slate-600);
+}
+
 /* מסך צר: חוזר לערמה ממורכזת, קרוב לתצוגת הנייד המקורית. */
 @media (max-width: 700px) {
   .profit-hero {

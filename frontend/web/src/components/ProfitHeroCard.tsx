@@ -6,6 +6,7 @@ import {
   profitTone,
   t,
   useCurrentFarm,
+  useFarmEntitlement,
   useFarmProfit,
   useFarmSettings,
 } from '@yevul/shared';
@@ -19,14 +20,25 @@ import './ProfitHeroCard.css';
 // המילה "צפי" בתווית אינה קישוט: המספר הוא הכנסה משוערת שהחקלאי הקליד
 // פחות הוצאות אמיתיות, ו-design.md מנמק למה אסור שייקרא כרווח שכבר קרה.
 //
+// **שני מספרי הוצאות על המסך, ורק אחד נכנס לחישוב** (2026-09-25,
+// docs/spec-money-and-tasks.md). הוצאות החלקות יושבות בפירוק שמתחת
+// למספר הגדול, כי הן מה שגרע ממנו. הוצאות המשק יושבות בבלוק נפרד
+// מתחת לכרטיס, עם משפט שאומר במפורש שהן לא נכנסות, כי כל מספר שיושב
+// ליד מספר אחר נקרא כחלק מאותו חשבון אלא אם כתוב אחרת.
+//
 // **אינו מרונדר לעובד, בלי בדיקת תפקיד בקליינט**, כי שדות התחזית
 // ממוסכים ל-null במסד ואז renderable יוצא false. משק חדש בלי חלקות הוא
 // מצב אחר, ושם design.md דורש להציג ₪0 ב-Ink-900.
 export function ProfitHeroCard() {
-  const { loading, failed, forecast, renderable } = useFarmProfit(supabase);
+  const { loading, failed, forecast, renderable, farmId } = useFarmProfit(supabase);
   const { farm } = useCurrentFarm(supabase);
   const settings = useFarmSettings(supabase);
   const currency = settings.form?.currency ?? 'ILS';
+  // **`false` ולא falsy.** entitled הוא null כשעוד לא יודעים, ו-null חייב
+  // להיקרא כ"מותר": להסתיר בלוק ממי ששילם בגלל שאילתה שטרם חזרה גרוע
+  // מלהראות אותו רגע למי שלא. ראה entitlement.ts.
+  const { entitled } = useFarmEntitlement(supabase, farmId);
+  const showFarmExpenses = entitled !== false && forecast.farmExpenses > 0;
 
   const profit = forecast.profit;
   const previous = useRef(profit);
@@ -81,15 +93,15 @@ export function ProfitHeroCard() {
             </div>
             <span className="profit-hero__col-sep" aria-hidden="true" />
             <div className="profit-hero__col">
-              <span className="profit-hero__col-label">{t('plots.profit.expenses')}</span>
+              <span className="profit-hero__col-label">{t('home.profit.plotExpenses')}</span>
               <span className="profit-hero__col-value">
-                {formatAmount(forecast.expenses, currency)}
+                {formatAmount(forecast.plotExpenses, currency)}
               </span>
             </div>
           </div>
 
           {/* Wheat ולא Loss-600: "עוד לא מוצג לך הכל", לא "אתה מפסיד". */}
-          {!forecast.expensesTracked && (
+          {!forecast.plotExpensesTracked && (
             <p className="profit-hero__caveat profit-hero__caveat--wheat">
               {t('plots.profit.noExpensesYet')}
             </p>
@@ -99,12 +111,21 @@ export function ProfitHeroCard() {
               {t('home.profit.someWithoutForecast')}
             </p>
           )}
-          {/* בלי השורה הזו ההפרש בין המספר הגדול לסכום כרטיסי החלקות
-              נראה כמו שגיאת חישוב. */}
-          {forecast.generalExpenses > 0 && (
-            <p className="profit-hero__caveat">{t('home.profit.includesGeneral')}</p>
-          )}
         </>
+      )}
+
+      {/* הוצאות המשק, מופרדות בקו מהחשבון שמעליהן ולא עוד שורת caveat
+          בתוכו. הן אינן הסתייגות על המספר הגדול, הן מספר אחר. */}
+      {showFarmExpenses && (
+        <div className="profit-hero__farm">
+          <div className="profit-hero__farm-row">
+            <span className="profit-hero__farm-label">{t('home.farmExpenses.title')}</span>
+            <span className="profit-hero__farm-value">
+              {formatAmount(forecast.farmExpenses, currency)}
+            </span>
+          </div>
+          <p className="profit-hero__farm-note">{t('home.farmExpenses.note')}</p>
+        </div>
       )}
     </section>
   );
