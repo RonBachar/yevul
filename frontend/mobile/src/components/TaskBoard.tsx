@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react';
-import { Pressable, SectionList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import Plus from 'lucide-react-native/icons/plus';
 import {
   completeTask,
   completionPromptVisibility,
   deleteTask,
-  groupTasksByUrgency,
+  sortTasksByUrgency,
   membersByUserId,
   t,
   taskAssignee,
@@ -17,7 +17,6 @@ import {
   workerModeShell,
   type RefreshSource,
   type Task,
-  type UrgencyGroupKey,
 } from '@yevul/shared';
 import { colors, fonts, fontSize, radius, spacing, touchTarget } from '../theme/tokens';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
@@ -38,19 +37,12 @@ import { TaskSheet } from './TaskSheet';
 // useFarmSettings משלו בכלל, ו-PlotDetailScreen ממשיך לקרוא לו בעצמו
 // כי הוא זקוק לו גם לסיכום הרווח.
 //
-// **SectionList and not ScrollView.** The urgency groups are real sections
-// with real headers, so this is the list component that already means what the
-// board means; flattening the groups into one array to use a FlatList would
-// have thrown that away. Headers are explicitly not sticky, because they were
-// not sticky before.
-type TaskSection = {
-  key: UrgencyGroupKey;
-  labelKey: string;
-  // Only the first section skips the gap that separates one group from the
-  // next; SectionList has no notion of "first", so it is carried here.
-  first: boolean;
-  data: Task[];
-};
+// **FlatList and not SectionList, since 2026-09-25.** This was a SectionList
+// while the urgency groups had headers on screen. The founder took the headers
+// off — "בהמשך" and "ללא תאריך" cut a five-task list into four pieces — so
+// there are no sections left to render and a flat list is what the board now
+// means. Urgency survives as order alone, through sortTasksByUrgency, and each
+// row already carries its own date next to its plot.
 
 export function TaskBoard({
   supabase,
@@ -117,20 +109,12 @@ export function TaskBoard({
     tasksState.refresh();
   }
 
-  // Exactly the condition the groups were rendered under before the
-  // conversion: a failed load keeps the tasks it had, and showing them under
-  // an error message would claim they are current. groupTasksByUrgency drops
-  // empty groups, so an empty array here means an empty board — which is what
+  // Exactly the condition the groups were rendered under before: a failed load
+  // keeps the tasks it had, and showing them under an error message would claim
+  // they are current. An empty array here means an empty board, which is what
   // makes ListEmptyComponent the right place for all three notes.
-  const sections: TaskSection[] =
-    tasksState.loading || tasksState.failed
-      ? []
-      : groupTasksByUrgency(tasksState.tasks).map((group, index) => ({
-          key: group.key,
-          labelKey: group.labelKey,
-          first: index === 0,
-          data: group.tasks,
-        }));
+  const tasks: Task[] =
+    tasksState.loading || tasksState.failed ? [] : sortTasksByUrgency(tasksState.tasks);
 
   return (
     <View style={styles.wrap}>
@@ -139,19 +123,13 @@ export function TaskBoard({
         <Text style={styles.newButtonText}>{t('tasks.new')}</Text>
       </Pressable>
 
-      <SectionList<Task, TaskSection>
-        sections={sections}
+      <FlatList<Task>
+        data={tasks}
         keyExtractor={(item) => item.id}
         style={styles.scroll}
         contentContainerStyle={styles.groups}
         refreshControl={refreshControl}
-        stickySectionHeadersEnabled={false}
         ItemSeparatorComponent={RowGap}
-        renderSectionHeader={({ section }) => (
-          <Text style={[styles.sectionHeader, !section.first && styles.sectionHeaderGap]}>
-            {t(section.labelKey)}
-          </Text>
-        )}
         renderItem={({ item }) => (
           <TaskRow
             task={item}
@@ -241,18 +219,6 @@ const styles = StyleSheet.create({
   groups: {
     flexGrow: 1,
     paddingBottom: spacing.s24,
-  },
-  sectionHeader: {
-    fontFamily: fonts.bold,
-    fontSize: fontSize.caption,
-    color: colors.slate600,
-    writingDirection: 'rtl',
-    // The 8 that used to sit between a group's header and its first row.
-    paddingBottom: spacing.s8,
-  },
-  // And the 24 that used to sit between one group and the next.
-  sectionHeaderGap: {
-    marginTop: spacing.s24,
   },
   rowGap: {
     height: spacing.s8,

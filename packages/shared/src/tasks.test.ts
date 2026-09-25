@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { groupTasksByUrgency, normalizeTaskTitle, type Task } from './tasks';
+import { groupTasksByUrgency, normalizeTaskTitle, sortTasksByUrgency, type Task } from './tasks';
 
 function makeTask(overrides: Partial<Task>): Task {
   return {
@@ -70,5 +70,42 @@ describe('groupTasksByUrgency', () => {
     const task = makeTask({ id: 'today', dueDate: '2026-08-25' });
     const groups = groupTasksByUrgency([task], now);
     expect(groups.map((group) => group.key)).toEqual(['today']);
+  });
+});
+
+// הלוח מציג רשימה אחת בלי כותרות מאז 2026-09-25, ולכן הסדר הוא כל מה
+// שנשאר מהדחיפות. אם הוא יישבר, משימה באיחור תשב מתחת לאחת של "מתישהו"
+// ולא תהיה שום כותרת שתסגיר את זה.
+describe('sortTasksByUrgency', () => {
+  const now = new Date('2026-08-25T12:00:00.000Z');
+
+  it('orders overdue, then today, then week, then later, then no date', () => {
+    const tasks = [
+      makeTask({ id: 'someday', dueDate: null }),
+      makeTask({ id: 'later', dueDate: '2026-10-17' }),
+      makeTask({ id: 'overdue', dueDate: '2026-08-20' }),
+      makeTask({ id: 'week', dueDate: '2026-08-30' }),
+      makeTask({ id: 'today', dueDate: '2026-08-25' }),
+    ];
+    expect(sortTasksByUrgency(tasks, now).map((task) => task.id)).toEqual([
+      'overdue',
+      'today',
+      'week',
+      'later',
+      'someday',
+    ]);
+  });
+
+  it('keeps every task, dropping none of them', () => {
+    const tasks = [
+      makeTask({ id: 'a', dueDate: null }),
+      makeTask({ id: 'b', dueDate: '2026-08-25' }),
+      makeTask({ id: 'c', dueDate: null }),
+    ];
+    expect(sortTasksByUrgency(tasks, now)).toHaveLength(3);
+  });
+
+  it('returns an empty list for an empty board', () => {
+    expect(sortTasksByUrgency([], now)).toEqual([]);
   });
 });

@@ -246,6 +246,7 @@ export {
   normalizeTaskTitle,
   taskDueDisplay,
   groupTasksByUrgency,
+  sortTasksByUrgency,
   shouldAutoArchive,
   joinPlotNames,
   toggleTaskPlot,

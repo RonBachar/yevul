@@ -1,47 +1,18 @@
-/* **התקרה הקבועה של 640 הוסרה 2026-08-31.** על מסך 1536 היא השאירה
-   43 אחוז מהעמודה ריקים, נמדד בפועל.
+/* **עמודה אחת, רשימה אחת, בבקשת היזם 2026-09-25.**
 
-   הלוח מקובץ ממילא (באיחור, השבוע, בהמשך, ללא תאריך), ולכן ברוחב
-   גדול הוא זורם לשתי עמודות של קבוצות שלמות במקום למתוח כל שורה
-   לרוחב המסך. שורה ארוכה מדי מרחיקה את שם המשימה מהתאריך שלה. */
+   מה שהיה כאן קודם: כותרות קבוצה (באיחור, היום, השבוע, בהמשך, ללא
+   תאריך) והזרמה לשתי עמודות מ-1024. שתיהן ירדו. הכותרות חתכו רשימה של
+   חמש משימות לארבע פיסות וגנבו יותר גובה ממה שהסבירו, ושתי עמודות
+   מכריחות את העין לקפוץ בחזרה למעלה באמצע רשימה. הדחיפות לא אבדה, היא
+   עברה לסדר בלבד (sortTasksByUrgency), והתאריך מופיע על השורה עצמה. */
 .task-board {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-24);
 }
 
-/* columns ולא grid: הקבוצות באורך משתנה, ו-columns ממלא אותן לפי
-   גובה בפועל במקום להשאיר חורים בעמודה הקצרה. break-inside שומר
-   קבוצה שלמה יחד. */
-@media (min-width: 1024px) {
-  .task-board__groups {
-    columns: 2;
-    column-gap: var(--spacing-32);
-  }
-
-  .task-board__group {
-    break-inside: avoid;
-    margin-bottom: var(--spacing-24);
-  }
-}
-
 .task-board__new {
   align-self: flex-start;
-}
-
-.task-board__group {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-8);
-}
-
-/* כותרת קבוצה, סבב העיצוב האקוורלי: ירוק עמוק ובולט במקום אפור זעיר,
-   אותה שפה של כותרות המקטעים במסך הבית. */
-.task-board__section-header {
-  margin: 0 0 var(--spacing-4);
-  font-size: var(--text-body-lg);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-field-700);
 }
 
 .task-board__rows {

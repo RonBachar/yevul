@@ -4,7 +4,7 @@ import {
   completeTask,
   completionPromptVisibility,
   deleteTask,
-  groupTasksByUrgency,
+  sortTasksByUrgency,
   membersByUserId,
   t,
   taskAssignee,
@@ -85,7 +85,7 @@ export function TaskBoard({
     tasksState.refresh();
   }
 
-  const groups = groupTasksByUrgency(tasksState.tasks);
+  const tasks = sortTasksByUrgency(tasksState.tasks);
 
   return (
     <div className="task-board">
@@ -99,34 +99,27 @@ export function TaskBoard({
           {t('tasks.loadError')}
         </p>
       )}
-      {!tasksState.loading && !tasksState.failed && groups.length === 0 && (
+      {!tasksState.loading && !tasksState.failed && tasks.length === 0 && (
         <p className="screen__note">{t('tasks.empty')}</p>
       )}
 
-      {/* עוטף אחד לכל הקבוצות, כדי שהן תוכלנה לזרום לשתי עמודות
-          ברוחב גדול. בלעדיו כל קבוצה היא ילד ישיר של flex column
-          ואין למה להחיל את ה-columns. ראה TaskBoard.css. */}
+      {/* **רשימה אחת רצופה, בעמודה אחת.** לפני כן היו כותרות קבוצה
+          ("בהמשך", "ללא תאריך") ושתי עמודות מ-1024, ושתיהן ירדו בבקשת
+          היזם: הכותרות חתכו רשימה קצרה לארבע פיסות, ושתי עמודות מכריחות
+          את העין לקפוץ. הדחיפות עדיין קובעת את הסדר דרך
+          sortTasksByUrgency, והתאריך מופיע על השורה עצמה לצד החלקה. */}
       {!tasksState.loading && !tasksState.failed && (
-        <div className="task-board__groups">
-          {groups.map((group) => (
-            <div key={group.key} className="task-board__group">
-              <p className="task-board__section-header">{t(group.labelKey)}</p>
-              <div className="task-board__rows">
-                {group.tasks.map((task) => (
-                  <TaskRow
-                    key={task.id}
-                    task={task}
-                    plotName={
-                      showPlotName ? joinPlotNames(task.plotIds, tasksState.plotNames) : null
-                    }
-                    assignee={taskAssignee(task.assignedTo, membersState.currentUserId, byUserId)}
-                    onEdit={() => openEdit(task)}
-                    onCompleteCommit={() => handleComplete(task.id)}
-                    onDeleteCommit={() => handleDelete(task.id)}
-                  />
-                ))}
-              </div>
-            </div>
+        <div className="task-board__rows">
+          {tasks.map((task) => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              plotName={showPlotName ? joinPlotNames(task.plotIds, tasksState.plotNames) : null}
+              assignee={taskAssignee(task.assignedTo, membersState.currentUserId, byUserId)}
+              onEdit={() => openEdit(task)}
+              onCompleteCommit={() => handleComplete(task.id)}
+              onDeleteCommit={() => handleDelete(task.id)}
+            />
           ))}
         </div>
       )}
