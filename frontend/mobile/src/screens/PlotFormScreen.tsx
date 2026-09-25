@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
@@ -7,91 +7,60 @@ import ChevronRight from 'lucide-react-native/icons/chevron-right';
 import {
   areaUnitLabelKey,
   createPlot,
-  formatArea,
   newPlotDraft,
-  nextPlotStep,
   parsePlotAreaInput,
   plotAreaInputText,
   plotAreaUnit,
   plotCreateInput,
   plotDraftFromPlot,
+  plotForecastChanged,
   plotFormBlocker,
-  plotStepFieldKey,
-  plotStepPosition,
-  plotStepTitleKey,
   plotUpdateInput,
-  previousPlotStep,
   setPlotCrop,
   PLOT_BLOCKER_MESSAGE_KEYS,
   t,
+  updateForecast,
   updatePlot,
-  useCropSuggestions,
   useCurrentFarm,
   useFarmSettings,
   usePlotDetail,
-  type AreaUnit,
   type PlotDraft,
-  type PlotStep,
 } from '@yevul/shared';
 import { supabase } from '../lib/supabase';
 import { colors, fonts, fontSize, spacing } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { FormScreen } from '../components/FormScreen';
-import { TilePicker, type TileAction, type TileOption } from '../components/TilePicker';
+import { DateField } from '../components/DateField';
 import type { PlotsStackParamList } from '../navigation/PlotsStack';
 
-// Adding and editing a plot, one question per screen, every answer a square.
+// Adding and editing a plot, one screen, every field visible at once. The
+// mobile half of frontend/web/src/screens/PlotFormScreen.tsx.
 //
-// **The second screen on the tile pattern, and a rollout rather than a
-// redesign.** SprayEntrySheet was built as a template and approved on a device;
-// this is the same walk applied to the plot form. Which field became a tile and
-// which stayed a keyboard, and why the answer differs per field, is written out
-// in packages/shared/src/plotForm.ts. The short version: the crop became a grid
-// fed by the farm's own crop_cycles, the area unit became a grid that is never
-// asked because it is a farm setting, and the name and the area stayed typed on
-// purpose.
+// **This replaced a five-step tile walk.** Spec item 4 of
+// docs/spec-money-and-tasks.md section 4: "טופס החלקה הופך למסך פרופיל אחד",
+// stepper gone, no "בדקו ושמרו" review screen. Create and edit share this one
+// screen, exactly as the walk did, but there is no longer a walk to share.
 //
-// ---- The taps, counted, because "too many clicks" is a standing complaint ----
+// The crop field is free text -- spec item 4 refuses a tile grid or a closed
+// list outright -- and the three forecast fields (יבול צפוי, מחיר משוער,
+// מועד קטיף משוער) are new here, previously reachable only from the "עדכון
+// צפי" tab on the plot detail screen. See plotForm.ts for what a draft holds
+// and what the save writes.
 //
-// **Before**, adding a plot from the plots tab: press "new plot", tap the name
-// box and type it, tap the area box and type it, tap the crop box and type it,
-// press save. **Five taps and three keyboard fields**, on a form where the crop
-// box was the one that used to disappear under the keyboard.
-//
-// **After**, on a farm that has grown this crop before: press "new plot", type
-// the name into a box that is already focused and press continue, type the area
-// and press continue, tap the crop, press save. **Five taps and two keyboard
-// fields**, plus a review screen that did not exist. The walk is not longer; the
-// third keyboard turned into one square.
-//
-// **After, on the very first plot of a brand new farm**: the crop grid has
-// nothing in it, so it shows a sentence saying it will fill up and a dashed
-// "new crop" square, which opens one box. **Six taps and three keyboard
-// fields** -- one tap more than before, once, and from the second plot onwards
-// it is the five above. That is the trade this pattern makes everywhere: the
-// grid pays for itself out of the farm's own history.
-//
-// **Editing** opens straight on the review, because the review already is the
-// summary of every field with a way into each one. Changing a name costs one
-// tap more than the old form did (tile, edit, continue, save instead of box,
-// edit, save) and that extra tap is the screen that shows what is about to be
-// written.
-//
-// ---- The keyboard ----
-//
-// docs/open-items.md: every full-screen form on mobile must go through
-// FormScreen, because that is where the KeyboardAvoidingView, the flexed
-// ScrollView and keyboardShouldPersistTaps live, and a screen that skips it
-// brings back the bug where the bottom field was cut off. **This screen still
-// goes through it**, unchanged. It matters more here than it looks: two of the
-// five steps put a text box and a "continue" button under a question, and
-// keyboardShouldPersistTaps="handled" is what stops the first press on that
-// button from being swallowed just to dismiss the keyboard.
+// Still goes through FormScreen, unchanged: docs/open-items.md's rule that
+// every full-screen form needs the KeyboardAvoidingView/ScrollView pairing
+// applies here just as much with six fields as it did with three steps.
 
 type Nav = NativeStackNavigationProp<PlotsStackParamList, 'PlotForm'>;
 type Route = RouteProp<PlotsStackParamList, 'PlotForm'>;
 
-type Status = 'idle' | 'saving' | 'nameRequired' | 'cropNameRequired' | 'forbidden' | 'error';
+type Status =
+  | 'idle'
+  | 'saving'
+  | 'nameRequired'
+  | 'cropNameRequired'
+  | 'forbidden'
+  | 'error';
 
 export function PlotFormScreen() {
   const navigation = useNavigation<Nav>();
@@ -102,37 +71,29 @@ export function PlotFormScreen() {
   const { farm } = useCurrentFarm(supabase);
   const detail = usePlotDetail(supabase, plotId ?? null);
   const settings = useFarmSettings(supabase);
-  // The crop grid, out of this farm's own crop_cycles. Empty on a new account,
-  // which is a real state and is answered below with a sentence and an add tile.
-  const crops = useCropSuggestions(supabase, farm?.id ?? null);
 
   const [draft, setDraft] = useState<PlotDraft>(() => newPlotDraft());
-  // An existing plot opens on the review: it already has every answer, and the
-  // review is the only screen that shows them all at once.
-  const [step, setStep] = useState<PlotStep>(isEdit ? 'review' : 'name');
-  // Set when a tile on the review was tapped, so that answering the step it
-  // jumped to comes straight back rather than walking the rest of the flow
-  // again. Checking one value should cost two taps, not four.
-  const [returnToReview, setReturnToReview] = useState(false);
-  // The area is a number on the draft and a string in the box. They are
-  // separate because "40," and "" are both states a box can be in and neither
-  // is a number.
   const [areaText, setAreaText] = useState('');
   const [areaInvalid, setAreaInvalid] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [addText, setAddText] = useState('');
+  const [yieldText, setYieldText] = useState('');
+  const [yieldInvalid, setYieldInvalid] = useState(false);
+  const [priceText, setPriceText] = useState('');
+  const [priceInvalid, setPriceInvalid] = useState(false);
   const [status, setStatus] = useState<Status>('idle');
   const [prefilled, setPrefilled] = useState(false);
 
   // Loads the existing plot's values once, when the edit mode is ready. Without
   // the prefilled latch any refresh would overwrite what the farmer has already
-  // typed -- the same guard the form has carried since it was one page.
+  // typed.
   useEffect(() => {
     if (!isEdit || prefilled || !detail.plot) return;
-    // שם הגידול מגיע ממחזור הגידול ולא מהחלקה, כי הגידול נכנס לטופס
-    // החלקה אחרי שמסך "עריכת גידול" הנפרד בוטל.
-    setDraft(plotDraftFromPlot(detail.plot, detail.cropCycle?.name ?? null));
+    // שם הגידול והתחזית מגיעים ממחזור הגידול ולא מהחלקה, כי שניהם
+    // נכתבים על crop_cycles ולא על plots.
+    const next = plotDraftFromPlot(detail.plot, detail.cropCycle?.name ?? null, detail.cropCycle);
+    setDraft(next);
     setAreaText(plotAreaInputText(detail.plot.area));
+    setYieldText(plotAreaInputText(next.expectedYieldPerArea));
+    setPriceText(plotAreaInputText(next.expectedPricePerUnit));
     setPrefilled(true);
   }, [isEdit, prefilled, detail.plot, detail.cropCycle]);
 
@@ -143,107 +104,46 @@ export function PlotFormScreen() {
   const farmAreaUnit = settings.form?.areaUnit ?? null;
   const areaUnit = plotAreaUnit(draft, farmAreaUnit);
 
-  // One place decides where a tap lands, so the skip rule and the
-  // came-from-review rule cannot disagree with each other.
-  function answered(current: PlotStep, next: PlotDraft) {
-    setDraft(next);
-    setAdding(false);
-    setAddText('');
-    setAreaInvalid(false);
-    setStatus('idle');
-    setStep(returnToReview ? 'review' : nextPlotStep(current, next));
-    setReturnToReview(false);
-  }
-
-  function jumpFromReview(target: PlotStep) {
-    setReturnToReview(true);
-    setAdding(false);
-    setAddText('');
-    setStatus('idle');
-    setStep(target);
-  }
-
-  // **One back control, not two.** The chevron walks the flow backwards and
-  // leaves the screen only when there is nothing left to walk back to. A screen
-  // header with a "back" that leaves and a second "back" that steps is two
-  // identical-looking exits with different meanings.
-  function goBack() {
-    if (adding) {
-      setAdding(false);
-      return;
-    }
-    if (returnToReview) {
-      setReturnToReview(false);
-      setStep('review');
-      return;
-    }
-    const previous = previousPlotStep(step, draft);
-    if (previous) {
-      setStep(previous);
-      return;
-    }
-    navigation.goBack();
-  }
-
-  const position = plotStepPosition(step, draft);
-  // **The counter is only shown while he is actually walking.** Coming back to
-  // one value from the review is not step two of four, and saying so would be
-  // telling him he is somewhere he is not.
-  const subtitle = returnToReview
-    ? undefined
-    : `${position.index} ${t('common.stepOf')} ${position.total}`;
-
-  function commitName() {
-    if (!draft.name.trim()) {
-      setStatus('nameRequired');
-      return;
-    }
-    answered('name', draft);
-  }
-
-  function commitArea() {
-    const area = parsePlotAreaInput(areaText);
-    // undefined is "what is in the box is not a number", which must not quietly
-    // become a plot with no area. See parsePlotAreaInput.
-    if (area === undefined) {
-      setAreaInvalid(true);
-      return;
-    }
-    answered('area', { ...draft, area });
-  }
-
   async function onSave() {
-    const blocker = plotFormBlocker(draft);
+    const area = parsePlotAreaInput(areaText);
+    const expectedYieldPerArea = parsePlotAreaInput(yieldText);
+    const expectedPricePerUnit = parsePlotAreaInput(priceText);
+    // undefined is "what is in the box is not a number", for any of the three --
+    // see parsePlotAreaInput. All three are flagged before the guard below, so
+    // a farmer who mistyped two fields sees both at once rather than one at a
+    // time across two submits; the guard itself checks the same three
+    // variables so TypeScript narrows all of them past this point.
+    setAreaInvalid(area === undefined);
+    setYieldInvalid(expectedYieldPerArea === undefined);
+    setPriceInvalid(expectedPricePerUnit === undefined);
+    if (area === undefined || expectedYieldPerArea === undefined || expectedPricePerUnit === undefined) {
+      return;
+    }
+
+    const nextDraft: PlotDraft = { ...draft, area, expectedYieldPerArea, expectedPricePerUnit };
+
+    const blocker = plotFormBlocker(nextDraft);
     if (blocker) {
       setStatus(blocker);
       return;
     }
 
+    setDraft(nextDraft);
     setStatus('saving');
 
     if (isEdit && plotId) {
-      const result = await updatePlot(supabase, plotId, plotUpdateInput(draft, farmAreaUnit));
+      const updateInput = plotUpdateInput(nextDraft, farmAreaUnit);
+      const result = await updatePlot(supabase, plotId, updateInput);
       if (!result.ok) {
         setStatus(result.reason);
         return;
       }
 
       // **The crop name is a second write, because it is not a column on the
-      // plot.** It lives on the plot's current crop_cycle, and plotUpdateInput
-      // cannot carry it -- UpdatePlotInput is the shape of the `plots` row.
-      //
-      // Until now nothing wrote it at all: the edit walk asked for the crop,
-      // plotFormBlocker refused to save without it, and then the answer was
-      // dropped on the floor. A farmer who corrected "עגבניה" to "עגבניות
-      // שרי" was shown his correction on the review, saved, and came back to
-      // the old name -- the founder asked for crop-name editing explicitly and
-      // it had never once worked.
-      //
-      // After the plot, not before: `plots` is the row the screen is about, and
-      // a plot that somehow has no crop_cycle must not cost the farmer his
-      // renamed plot. setPlotCrop creates the cycle if there is none, exactly
-      // like createPlot does, so the missing-cycle case is handled there rather
-      // than here.
+      // plot.** It lives on the plot's current crop_cycle, and updateInput
+      // cannot carry it there -- UpdatePlotInput is the shape of the `plots`
+      // row. setPlotCrop creates the cycle if there is none, exactly like
+      // createPlot does.
       const cropResult = await setPlotCrop(
         supabase,
         // Only reachable with a farm loaded: this screen is behind the plot list,
@@ -251,12 +151,33 @@ export function PlotFormScreen() {
         farm?.id ?? '',
         plotId,
         detail.cropCycle?.id ?? null,
-        draft.cropName,
+        nextDraft.cropName,
       );
       if (!cropResult.ok) {
         setStatus(cropResult.reason === 'nameRequired' ? 'cropNameRequired' : cropResult.reason);
         return;
       }
+
+      // **The forecast is a third write, and only when a forecast value
+      // actually moved.** A plot with no crop_cycle at all is the same edge
+      // case the detail screen's own forecast tab already lives with -- it is
+      // only reachable once a cycle exists. The equality check is not an
+      // optimisation: updateForecast resets forecast_updated_at, which is the
+      // staleness clock behind the "still right?" nudge, and firing it on
+      // every rename would retire that nudge for good. See plotForecastChanged.
+      const cropCycle = detail.cropCycle;
+      if (cropCycle && plotForecastChanged(cropCycle, updateInput)) {
+        const forecastResult = await updateForecast(supabase, cropCycle.id, {
+          expectedYieldPerArea: updateInput.expectedYieldPerArea,
+          expectedPricePerUnit: updateInput.expectedPricePerUnit,
+          expectedHarvestDate: updateInput.expectedHarvestDate,
+        });
+        if (!forecastResult.ok) {
+          setStatus(forecastResult.reason);
+          return;
+        }
+      }
+
       navigation.goBack();
       return;
     }
@@ -265,7 +186,7 @@ export function PlotFormScreen() {
       setStatus('error');
       return;
     }
-    const result = await createPlot(supabase, farm.id, plotCreateInput(draft, farmAreaUnit));
+    const result = await createPlot(supabase, farm.id, plotCreateInput(nextDraft, farmAreaUnit));
     if (result.ok) {
       navigation.goBack();
       return;
@@ -285,21 +206,12 @@ export function PlotFormScreen() {
     );
   }
 
-  const skipArea: TileAction = {
-    key: 'skip',
-    label: t('plots.form.skipArea'),
-    onPress: () => {
-      setAreaText('');
-      answered('area', { ...draft, area: null });
-    },
-  };
-
   return (
     <FormScreen
       header={
         <View style={styles.header}>
           <Pressable
-            onPress={goBack}
+            onPress={() => navigation.goBack()}
             accessibilityRole="button"
             accessibilityLabel={t('plots.detail.back')}
             hitSlop={12}
@@ -312,229 +224,118 @@ export function PlotFormScreen() {
         </View>
       }
     >
-      {step === 'name' ? (
-        <TypedStep title={t(plotStepTitleKey('name'))} subtitle={subtitle} disabled={busy}>
-          <TextInput
-            style={formStyles.input}
-            value={draft.name}
-            onChangeText={(name) => setDraft({ ...draft, name })}
-            editable={!busy}
-            placeholder={t('plots.form.namePlaceholder')}
-            placeholderTextColor={colors.slate600}
-            textAlign="right"
-            autoFocus
-          />
-          <ConfirmButton label={t('common.continue')} onPress={commitName} disabled={busy} />
-        </TypedStep>
-      ) : null}
-
-      {step === 'area' ? (
-        <TypedStep
-          title={t(plotStepTitleKey('area'))}
-          subtitle={subtitle}
-          disabled={busy}
-          // plots.area is nullable and always was. Without this square, a farmer
-          // who does not know the size of a plot has an empty box and no way
-          // past it that does not look like a mistake.
-          actions={[skipArea]}
-        >
-          <TextInput
-            style={formStyles.input}
-            value={areaText}
-            onChangeText={(next) => {
-              setAreaText(next);
-              setAreaInvalid(false);
-            }}
-            editable={!busy}
-            keyboardType="decimal-pad"
-            placeholder={t('plots.form.areaPlaceholder')}
-            placeholderTextColor={colors.slate600}
-            textAlign="right"
-            importantForAutofill="no"
-            autoFocus
-          />
-          {/* The unit the number will be stored in. It is not asked as a step,
-              so this is where the farmer sees which one is being applied. */}
-          <Text style={styles.hint}>{t(areaUnitLabelKey(areaUnit))}</Text>
-          <ConfirmButton label={t('common.continue')} onPress={commitArea} disabled={busy} />
-          {areaInvalid ? <Text style={formStyles.bad}>{t('plots.form.areaInvalid')}</Text> : null}
-        </TypedStep>
-      ) : null}
-
-      {step === 'crop' ? (
-        <TilePicker
-          title={t(plotStepTitleKey('crop'))}
-          subtitle={subtitle}
-          options={crops.crops.map((value) => ({ value, label: value }))}
-          selectedValue={draft.cropName === '' ? null : draft.cropName}
-          onSelect={(value) => answered('crop', { ...draft, cropName: value })}
-          actions={[{ key: 'add', label: t('plots.form.addCrop'), onPress: () => setAdding(true) }]}
-          // The first plot on a new account lands here with an empty grid. The
-          // sentence plus the dashed square is what keeps that from reading as
-          // a broken screen, and it is the single most important path in the
-          // app for a new user.
-          emptyHint={t('plots.form.emptyCrops')}
-          disabled={busy}
-          footer={
-            adding ? (
-              <View style={styles.answer}>
-                <TextInput
-                  style={formStyles.input}
-                  value={addText}
-                  onChangeText={setAddText}
-                  editable={!busy}
-                  placeholder={t('plots.form.cropNamePlaceholder')}
-                  placeholderTextColor={colors.slate600}
-                  textAlign="right"
-                  autoFocus
-                />
-                <ConfirmButton
-                  label={t('common.confirm')}
-                  onPress={() => {
-                    const cropName = addText.trim();
-                    if (cropName) answered('crop', { ...draft, cropName });
-                  }}
-                  disabled={busy}
-                />
-              </View>
-            ) : null
-          }
+      <View style={formStyles.field}>
+        <Text style={formStyles.label}>{t('plots.form.name')}</Text>
+        <TextInput
+          style={formStyles.input}
+          value={draft.name}
+          onChangeText={(name) => setDraft({ ...draft, name })}
+          editable={!busy}
+          placeholder={t('plots.form.namePlaceholder')}
+          placeholderTextColor={colors.slate600}
+          textAlign="right"
+          autoFocus
         />
-      ) : null}
+      </View>
 
-      {step === 'review' ? (
-        <TilePicker
-          title={t(plotStepTitleKey('review'))}
-          subtitle={subtitle}
-          // The tiles are the answers, each captioned with the field it belongs
-          // to, and each one a way back into the screen that set it. This is
-          // what pays for skipping the unit question.
-          options={reviewTiles(draft, areaUnit)}
-          selectedValue={null}
-          onSelect={(value) => jumpFromReview(value as PlotStep)}
-          disabled={busy}
-          footer={
-            <View style={styles.answer}>
-              <Pressable
-                style={[formStyles.save, busy && formStyles.saveDisabled]}
-                onPress={onSave}
-                disabled={busy}
-                accessibilityRole="button"
-              >
-                <Text style={formStyles.saveText}>
-                  {busy ? t('plots.saving') : t('plots.save')}
-                </Text>
-              </Pressable>
-            </View>
-          }
+      <View style={formStyles.field}>
+        <Text style={formStyles.label}>
+          {t('plots.form.area')}
+          <Text style={styles.hint}> · {t(areaUnitLabelKey(areaUnit))}</Text>
+        </Text>
+        <TextInput
+          style={formStyles.input}
+          value={areaText}
+          onChangeText={(next) => {
+            setAreaText(next);
+            setAreaInvalid(false);
+          }}
+          editable={!busy}
+          keyboardType="decimal-pad"
+          placeholder={t('plots.form.areaPlaceholder')}
+          placeholderTextColor={colors.slate600}
+          textAlign="right"
+          importantForAutofill="no"
         />
-      ) : null}
+        {areaInvalid ? <Text style={formStyles.bad}>{t('plots.form.areaInvalid')}</Text> : null}
+      </View>
+
+      <View style={formStyles.field}>
+        <Text style={formStyles.label}>{t('plots.form.cropName')}</Text>
+        <TextInput
+          style={formStyles.input}
+          value={draft.cropName}
+          onChangeText={(cropName) => setDraft({ ...draft, cropName })}
+          editable={!busy}
+          placeholder={t('plots.form.cropNamePlaceholder')}
+          placeholderTextColor={colors.slate600}
+          textAlign="right"
+        />
+      </View>
+
+      <View style={formStyles.field}>
+        <Text style={formStyles.label}>{t('plots.forecast.yield')}</Text>
+        <TextInput
+          style={formStyles.input}
+          value={yieldText}
+          onChangeText={(next) => {
+            setYieldText(next);
+            setYieldInvalid(false);
+          }}
+          editable={!busy}
+          keyboardType="decimal-pad"
+          placeholder={t('common.numberPlaceholder')}
+          placeholderTextColor={colors.slate600}
+          textAlign="right"
+          importantForAutofill="no"
+        />
+        {yieldInvalid ? <Text style={formStyles.bad}>{t('plots.form.numberInvalid')}</Text> : null}
+      </View>
+
+      <View style={formStyles.field}>
+        <Text style={formStyles.label}>{t('plots.forecast.price')}</Text>
+        <TextInput
+          style={formStyles.input}
+          value={priceText}
+          onChangeText={(next) => {
+            setPriceText(next);
+            setPriceInvalid(false);
+          }}
+          editable={!busy}
+          keyboardType="decimal-pad"
+          placeholder={t('common.numberPlaceholder')}
+          placeholderTextColor={colors.slate600}
+          textAlign="right"
+          importantForAutofill="no"
+        />
+        {priceInvalid ? <Text style={formStyles.bad}>{t('plots.form.numberInvalid')}</Text> : null}
+      </View>
+
+      <DateField
+        label={t('plots.forecast.harvestDate')}
+        value={draft.expectedHarvestDate}
+        onChange={(value) => setDraft({ ...draft, expectedHarvestDate: value })}
+        direction="future"
+        shortcuts={false}
+        clearLabel={t('plots.forecast.harvestDateClear')}
+        disabled={busy}
+      />
+
+      <Pressable
+        style={[formStyles.save, busy && formStyles.saveDisabled]}
+        onPress={onSave}
+        disabled={busy}
+        accessibilityRole="button"
+      >
+        <Text style={formStyles.saveText}>{busy ? t('plots.saving') : t('plots.save')}</Text>
+      </Pressable>
 
       {status === 'nameRequired' || status === 'cropNameRequired' ? (
         <Text style={formStyles.bad}>{t(PLOT_BLOCKER_MESSAGE_KEYS[status])}</Text>
       ) : null}
-      {status === 'forbidden' ? (
-        <Text style={formStyles.bad}>{t('plots.form.forbidden')}</Text>
-      ) : null}
+      {status === 'forbidden' ? <Text style={formStyles.bad}>{t('plots.form.forbidden')}</Text> : null}
       {status === 'error' ? <Text style={formStyles.bad}>{t('plots.form.saveError')}</Text> : null}
     </FormScreen>
-  );
-}
-
-// The review grid. `value` is the step to jump to rather than the answer, which
-// is what lets TilePicker be reused here unchanged -- it hands back whatever
-// identity it was given.
-function reviewTiles(draft: PlotDraft, areaUnit: AreaUnit): TileOption[] {
-  const tiles: TileOption[] = [
-    {
-      value: 'name',
-      label: draft.name.trim() || t('plots.form.notSet'),
-      caption: t(plotStepFieldKey('name')),
-    },
-    {
-      value: 'area',
-      // The number with its unit, never the bare number. "40" is not an area
-      // and the profit forecast multiplies by it.
-      label: draft.area === null ? t('plots.form.notSet') : formatArea(draft.area, areaUnit),
-      caption: t(plotStepFieldKey('area')),
-    },
-  ];
-
-  // **The crop is on the review of an edit too, and hiding it was the other half
-  // of the bug.** The tile used to be pushed only on a create, on the grounds that
-  // the crop belongs to the crop_cycle and updatePlot does not touch it. That was
-  // true of the write and false of the product: "החלקה **היא** הגידול" is the
-  // founder's own sentence, the crop step is on both walks (plotVisibleSteps), and
-  // plotFormBlocker refuses to save an edit without a crop name. So the walk asked
-  // for the crop, the review hid the answer, and onSave dropped it -- an edited
-  // crop name was never written anywhere. It is written now, by setPlotCrop in
-  // onSave, so the tile is the way in to changing it.
-  tiles.push({
-    value: 'crop',
-    label: draft.cropName.trim() || t('plots.form.notSet'),
-    caption: t(plotStepFieldKey('crop')),
-  });
-
-  return tiles;
-}
-
-// **A step whose answer is typed is still a TilePicker.** The grid is empty and
-// the box sits in the footer, so the question, the step counter, the type sizes
-// and the spacing are literally the same component on every screen of the walk
-// rather than a second heading that has to be kept in step with the first. The
-// component's own adoption guide shows this shape: a footer holding the input a
-// grid cannot answer.
-const NO_TILES: readonly TileOption[] = [];
-
-function ignoreSelect() {
-  // Unreachable: a grid with no tiles has nothing to select.
-}
-
-function TypedStep({
-  title,
-  subtitle,
-  actions,
-  disabled,
-  children,
-}: {
-  title: string;
-  subtitle?: string;
-  actions?: readonly TileAction[];
-  disabled: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <TilePicker
-      title={title}
-      subtitle={subtitle}
-      options={NO_TILES}
-      selectedValue={null}
-      onSelect={ignoreSelect}
-      actions={actions}
-      disabled={disabled}
-      footer={<View style={styles.answer}>{children}</View>}
-    />
-  );
-}
-
-function ConfirmButton({
-  label,
-  onPress,
-  disabled,
-}: {
-  label: string;
-  onPress: () => void;
-  disabled: boolean;
-}) {
-  return (
-    <Pressable
-      style={[formStyles.save, disabled && formStyles.saveDisabled]}
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="button"
-    >
-      <Text style={formStyles.saveText}>{label}</Text>
-    </Pressable>
   );
 }
 
@@ -568,18 +369,9 @@ const styles = StyleSheet.create({
     color: colors.slate600,
     writingDirection: 'rtl',
   },
-  // The box, its unit and the button that accepts them, as one block under the
-  // question. Same gap the tile grid uses, so a typed step and a picked step
-  // are the same distance apart.
-  answer: {
-    gap: spacing.s12,
-    marginTop: spacing.s4,
-  },
   hint: {
     fontFamily: fonts.regular,
     fontSize: fontSize.caption,
     color: colors.slate600,
-    writingDirection: 'rtl',
-    textAlign: 'right',
   },
 });

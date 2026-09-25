@@ -6,10 +6,6 @@ import { t } from './i18n';
 // The three units, the conversion between them and the sentence that shows the
 // farmer his own arithmetic. Pure, and tested away from React; see yieldUnits.ts.
 import { forecastUnits } from './yieldUnits';
-// The one cap-and-dedupe rule the crop grid shares with the spray grids. See
-// useCropSuggestions below; plotForm.ts imports only *types* back from here, so
-// there is no import cycle at run time.
-import { plotCropOptions } from './plotForm';
 import { writeOutcome } from './postgrest';
 import { useLoadCount } from './refresh';
 import type { AreaUnit, Currency } from './settings';
@@ -381,66 +377,6 @@ export function usePlots(supabase: SupabaseClient): PlotsListState {
 }
 
 // ============================================================
-// The crops this farm has grown, for the tile grid on the plot form.
-//
-// **useSpraySuggestions' twin, and it rests on the same argument.** prd.md
-// section 8 asks for the spray material and pest to be suggested out of the
-// farm's history so that they are not typed again every time. A crop is the
-// same kind of value: a farm grows a handful of things and has grown them
-// before. The founder's sketch says it in his own words -- "this screen fills
-// up slowly according to what the farmer chose" -- and that is what turns the
-// crop from a text box into a grid of squares.
-//
-// **crop_cycles_view and not usePlots.** usePlots already carries a crop name
-// per plot, but only the *current* cycle of each, so a crop from an earlier
-// season would fall off the grid the moment its plot was replanted. This is the
-// farm's whole crop history instead. It reads the view and not the table for
-// the reason createPlot writes without a select(): the client has no SELECT on
-// crop_cycles at all, so that the role masking on the forecast columns cannot
-// be walked around.
-//
-// Fifty rows, newest first, exactly like the spray query: enough that a real
-// farm's whole vocabulary is in there, capped so the request stays small.
-// ============================================================
-
-export type CropSuggestions = { crops: string[] };
-
-const EMPTY_CROP_SUGGESTIONS: CropSuggestions = { crops: [] };
-
-export function useCropSuggestions(
-  supabase: SupabaseClient,
-  farmId: string | null,
-): CropSuggestions {
-  const [suggestions, setSuggestions] = useState<CropSuggestions>(EMPTY_CROP_SUGGESTIONS);
-
-  useEffect(() => {
-    let active = true;
-    if (!farmId) {
-      setSuggestions(EMPTY_CROP_SUGGESTIONS);
-      return;
-    }
-
-    void supabase
-      .from('crop_cycles_view')
-      .select('name')
-      .eq('farm_id', farmId)
-      .order('created_at', { ascending: false })
-      .limit(50)
-      .then(({ data }) => {
-        if (!active) return;
-        const rows = (data ?? []) as { name: string | null }[];
-        setSuggestions({ crops: plotCropOptions(rows.map((row) => row.name)) });
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [supabase, farmId]);
-
-  return suggestions;
-}
-
-// ============================================================
 // יצירת חלקה, עם ה-CropCycle הראשוני שלה
 // ============================================================
 
@@ -449,6 +385,11 @@ export type CreatePlotInput = {
   area: number | null;
   areaUnit: AreaUnit;
   cropName: string;
+  // שלושת שדות הצפי, ראה packages/shared/src/plotForm.ts סעיף 4 של
+  // docs/spec-money-and-tasks.md. אופציונליים כמו בעדכון צפי נפרד.
+  expectedYieldPerArea: number | null;
+  expectedPricePerUnit: number | null;
+  expectedHarvestDate: string | null;
 };
 
 export type CreatePlotResult =
@@ -477,16 +418,31 @@ export async function createPlot(
   const plotId = insertedPlot.id;
 
   // בלי הגידול הזה חלקה חדשה עומדת בסתירה למשפט המפורש ב-prd.md,
-  // "חלקה היא שם, שטח, ומה גדל בה, זה כל מה שנדרש כדי להתחיל". יבול
-  // ומחיר צפויים לא נשאלים כאן, הם ממתינים לכפתור עדכון צפי.
+  // "חלקה היא שם, שטח, ומה גדל בה, זה כל מה שנדרש כדי להתחיל". יבול,
+  // מחיר ומועד קטיף אופציונליים, בדיוק כמו בעדכון צפי נפרד -- סעיף 4 רק
+  // מוסיף אפשרות להזין אותם כבר כאן, ולא הופך אותם לחובה.
   //
   // בלי select() בכוונה: ה-SELECT על crop_cycles מוסר לגמרי מהלקוח
   // (ראה core_schema.sql), כדי שמיסוך התחזית לפי תפקיד ב-crop_cycles_view
   // לא יעקף על ידי RETURNING מה-INSERT. השורה נקראת בחזרה דרך ה-view.
   const season = String(new Date().getFullYear());
-  const cycleWrite = await supabase
-    .from('crop_cycles')
-    .insert({ farm_id: farmId, plot_id: plotId, name: cropName, season });
+  // forecast_updated_at נכתב רק כשלפחות ערך צפי אחד נמסר בפועל, אותו כלל
+  // כמו ב-updateForecast למטה: חלקה חדשה בלי שום צפי אינה "צפי שעודכן
+  // הרגע", והנודניק בכרטיס החלקה לא אמור להתחיל לספור מהיצירה.
+  const hasForecast =
+    input.expectedYieldPerArea != null ||
+    input.expectedPricePerUnit != null ||
+    input.expectedHarvestDate != null;
+  const cycleWrite = await supabase.from('crop_cycles').insert({
+    farm_id: farmId,
+    plot_id: plotId,
+    name: cropName,
+    season,
+    expected_yield_per_area: input.expectedYieldPerArea,
+    expected_price_per_unit: input.expectedPricePerUnit,
+    expected_harvest_date: input.expectedHarvestDate,
+    ...(hasForecast ? { forecast_updated_at: new Date().toISOString() } : {}),
+  });
   if (cycleWrite.error) return { ok: false, reason: 'error' };
 
   return { ok: true, plotId };
@@ -698,8 +654,13 @@ export async function setPlotCrop(
 // כי שורה ישנה מחזיקה יחידת יבול בטקסט חופשי, ואסור שמסך שלא הציג אותה
 // ימחק אותה בשקט.
 export type UpdateForecastInput = {
-  expectedYieldPerArea: number;
-  expectedPricePerUnit: number;
+  // **Nullable since the plot form started reusing this function.** The
+  // standalone "עדכון צפי" sheet always sends real numbers -- it refuses to
+  // submit otherwise -- so this widening changes nothing for it. The plot
+  // form's fields are optional, and a farmer clearing one out is a real edit
+  // this function has to be able to write.
+  expectedYieldPerArea: number | null;
+  expectedPricePerUnit: number | null;
   yieldUnit?: string | null;
   priceUnit?: string | null;
   expectedHarvestDate?: string | null;
