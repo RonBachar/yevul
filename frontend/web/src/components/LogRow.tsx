@@ -73,9 +73,16 @@ export function LogRow({
         ? [entry.harvestQty, entry.harvestUnit].filter(Boolean).join(' ')
         : entry.source === 'voice'
           ? t('log.row.sourceVoice')
-          : entry.source === 'task'
-            ? t('log.row.sourceTask')
-            : (entry.note ?? '');
+          : // **The task's own title, not the generic "from a finished task".**
+            // That label was written when the journal entry was optional and
+            // rare, something the farmer opted into from a prompt. Since
+            // 2026-09-25 every completed task writes one, so the label would
+            // fill the journal with identical rows that say only that work
+            // happened, never what. The note carries the task title; the label
+            // survives as the fallback for a title that somehow came back empty.
+            // Same reasoning that put the kind of work on the line below.
+            (entry.note ??
+            (entry.source === 'task' ? t('log.row.sourceTask') : ''));
 
   // The kind of work, the hours and the entry's whole cost, on the work-hours
   // screen only. Appended rather than replacing `detail`, because an entry there

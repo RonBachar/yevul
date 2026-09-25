@@ -2,19 +2,15 @@ import { useMemo, useState } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   completeTask,
-  completionPromptVisibility,
   deleteTask,
   membersByUserId,
   t,
   taskAssignee,
   joinPlotNames,
-  useFarmSettings,
   useMembers,
   useTasks,
-  workerModeShell,
   type Task,
 } from '@yevul/shared';
-import { CompletionPromptSheet } from './CompletionPromptSheet';
 import { TaskRow } from './TaskRow';
 import { TaskSheet } from './TaskSheet';
 import './TaskBoard.css';
@@ -24,9 +20,8 @@ import './TaskBoard.css';
 // שורה ואותה שאילתה מצומצמת. plotId קובע את ההבדל, showPlotName קובע
 // אם שם החלקה חוזר על עצמו בכל שורה, מיותר כשכבר בתוך מסך אותה חלקה.
 //
-// useFarmSettings נקרא כאן ולא מקבל currency כפרופ מההורה יותר: ברגע
-// שהלוח זקוק גם למתגי Completion Prompts, אין טעם שההורה ימשיך למשוך
-// הגדרות רק כדי להעביר שדה אחד ממנו הלאה.
+// **Completion Prompts נמחק ב-2026-09-25.** הלוח לא מושך יותר הגדרות
+// ולא בודק תפקיד: "בוצע" משלים ונכנס ליומן, בלי גיליון ובלי שאלות.
 export function TaskBoard({
   supabase,
   plotId,
@@ -36,23 +31,13 @@ export function TaskBoard({
   plotId?: string;
   showPlotName: boolean;
 }) {
-  const settings = useFarmSettings(supabase);
-  const currency = settings.form?.currency ?? 'ILS';
-  // Worker Mode, design.md: "The expense half of the Completion Prompts never
-  // fires; the journal half still can." worker חסום מכתיבת הוצאה במסד, ולכן
-  // שאלת ההוצאה בסיום משימה הייתה נגמרת ב"אין הרשאה". ההחלטה עצמה טהורה
-  // ב-workerModeShell.
   const tasksState = useTasks(supabase, plotId);
   // הרוסטר נטען פעם אחת ללוח ומומר למיפוי, כדי ששורת המשימה תפתור את
   // assigned_to לראשי תיבות בלי שאילתה לכל שורה, design.md, Member Avatar.
   const membersState = useMembers(supabase);
-  // התפקיד נגזר מ-useMembers (is_self) ולא בהוק useMyRole נפרד, כדי לא
-  // לשאול את farm_members_view פעמיים באותו לוח.
-  const shell = workerModeShell(membersState.myRole, membersState.loading);
   const byUserId = useMemo(() => membersByUserId(membersState.members), [membersState.members]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
-  const [completingTask, setCompletingTask] = useState<Task | null>(null);
 
   function openCreate() {
     setEditingTask(null);
@@ -64,19 +49,9 @@ export function TaskBoard({
     setSheetOpen(true);
   }
 
-  const promptVisibility = completionPromptVisibility(
-    settings.form?.journalPromptEnabled ?? false,
-    settings.form?.expensePromptEnabled ?? false,
-    !shell.showExpenseCompletionPrompt,
-  );
-
-  async function handleComplete(taskId: string) {
-    const task = tasksState.tasks.find((candidate) => candidate.id === taskId) ?? null;
-    await completeTask(supabase, taskId);
+  async function handleComplete(task: Task) {
+    await completeTask(supabase, task);
     tasksState.refresh();
-    // Completion Prompts מוצג רק אחרי שהכתיבה בפועל הצליחה, במקום
-    // ה-undo toast של חמש שניות שכבר חלף עד שהגענו לכאן.
-    if (task && promptVisibility.showPrompt) setCompletingTask(task);
   }
 
   async function handleDelete(taskId: string) {
@@ -120,7 +95,7 @@ export function TaskBoard({
               plotName={showPlotName ? joinPlotNames(task.plotIds, tasksState.plotNames) : null}
               assignee={taskAssignee(task.assignedTo, membersState.currentUserId, byUserId)}
               onEdit={() => openEdit(task)}
-              onCompleteCommit={() => handleComplete(task.id)}
+              onCompleteCommit={() => handleComplete(task)}
               onDeleteCommit={() => handleDelete(task.id)}
             />
           ))}
@@ -138,17 +113,6 @@ export function TaskBoard({
           setSheetOpen(false);
           tasksState.refresh();
         }}
-      />
-
-      <CompletionPromptSheet
-        supabase={supabase}
-        open={completingTask != null}
-        task={completingTask}
-        farmId={tasksState.farmId}
-        currency={currency}
-        journalEnabled={promptVisibility.showJournal}
-        expenseEnabled={promptVisibility.showExpense}
-        onClose={() => setCompletingTask(null)}
       />
     </div>
   );

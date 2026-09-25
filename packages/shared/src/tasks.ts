@@ -324,8 +324,13 @@ export async function taskCostMemory(
 // of the task's truth; if this write fails the expense itself is already saved
 // and there is nothing to show the farmer as an error.
 //
-// Called only from Completion Prompts, when the farmer confirms an expense at
-// "done" -- a task itself carries no cost. See completionPrompts.ts.
+// **Nothing calls this any more, as of 2026-09-25.** Its only caller was
+// confirmExpenseFromTask, and the expense question at "done" was deleted with
+// the rest of Completion Prompts. The function, the table and their tests are
+// left standing rather than dropped in the same breath: the spray-material
+// expense in docs/spec-money-and-tasks.md section 5 needs a remembered price
+// per unit built on this exact shape, though keyed by material and not by task
+// title. Recorded in docs/open-items.md so it does not simply rot here.
 export async function rememberTaskCost(
   supabase: SupabaseClient,
   farmId: string,
@@ -476,23 +481,81 @@ export async function updateTask(
 
 // ============================================================
 // השלמה כאירוע. completed_at הוא append-only, אין קריאה שהופכת אותו
-// חזרה ל-null, ראה core_schema.sql. ה-undo של חמש השניות ב-Task Row
-// (design.md, Swipe Actions) ממומש לכן בקליינט לפני שהכתיבה הזו בכלל
-// נשלחת, לא כביטול אחרי כתיבה, ראו רכיב TaskRow.
+// חזרה ל-null, ראה core_schema.sql.
+//
+// **הכתיבה ליומן קורית כאן, בתוך ההשלמה, מ-2026-09-25.** קודם היא
+// ישבה ב-completionPrompts.ts ונקראה רק אם החקלאי ענה "כן" בגיליון
+// שקפץ אחרי הסימון. הגיליון נמחק בבקשת היזם, ואיתו שתי השאלות
+// וה-undo של חמש השניות: "בוצע" נכנס ליומן, נקודה.
+//
+// **זה בתוך completeTask ולא ליד, וזו הנקודה.** הדרישה היא שליומן
+// המשימות נכנסות בדיוק המשימות שבוצעו, ומסלול שמשלים בלי לרשום לא
+// אמור להתקיים. כל עוד שתי הכתיבות בפונקציה אחת, אין כזה מסלול.
+//
+// אין כאן ניחוש של סוג יומן מתוך כותרת המשימה. הכותרת היא טקסט חופשי,
+// ובלי מנגנון ניחוש אמין התוצאה הייתה סיווג שגוי בשקט. הרשומה נכתבת
+// תמיד עם type 'other' ו-source 'task', וכותרת המשימה כהערה, שזה בדיוק
+// מה שהיא, "עבודה שנעשתה". `source = 'task'` הוא מה שמבדיל את רשומות
+// המשימות משאר היומן.
 // ============================================================
 
 export async function completeTask(
   supabase: SupabaseClient,
-  taskId: string,
+  task: Pick<Task, 'id' | 'farmId' | 'title' | 'plotIds'>,
 ): Promise<WriteOutcome> {
   const { data: userData } = await supabase.auth.getUser();
   const userId = userData?.user?.id ?? null;
   const write = await supabase
     .from('tasks')
     .update({ completed_at: new Date().toISOString(), completed_by: userId })
-    .eq('id', taskId)
+    .eq('id', task.id)
     .select('id');
-  return writeOutcome(write);
+  const outcome = writeOutcome(write);
+  // **רק אחרי שההשלמה באמת נכתבה.** רשומת יומן על משימה שה-RLS סירב
+  // להשלים הייתה מתעדת עבודה שהמסד אומר שלא קרתה.
+  if (outcome.ok) await journalCompletedTask(supabase, task);
+  return outcome;
+}
+
+// **One entry per plot.** A task attached to several plots belongs in each of
+// their journals, so each gets its own row; a farm-level task (no plots) still
+// writes a single row with no plot. Every row carries task_id, which is how the
+// farm-wide journal shows the completion once instead of once per plot (see
+// collapseTaskEntries in logEntries.ts). created_log_id keeps pointing at the
+// first row, the link has always been one-to-one.
+//
+// **Best-effort, and deliberately so.** The task is already completed by the
+// time this runs, and completed_at cannot be taken back, so a failure here must
+// not read as a failed completion. The farmer loses a journal row he can write
+// by hand, not the tick he just made.
+async function journalCompletedTask(
+  supabase: SupabaseClient,
+  task: Pick<Task, 'id' | 'farmId' | 'title' | 'plotIds'>,
+): Promise<void> {
+  // The farmer's own calendar day, not the UTC one: he ticks the task off at
+  // 22:00 and the entry belongs to the day he did the work.
+  const date = formatLocalDateOnly(new Date());
+  const plotIds: (string | null)[] = task.plotIds.length > 0 ? task.plotIds : [null];
+  const write = await supabase
+    .from('log_entries')
+    .insert(
+      plotIds.map((plotId) => ({
+        farm_id: task.farmId,
+        plot_id: plotId,
+        task_id: task.id,
+        date,
+        type: 'other',
+        source: 'task',
+        note: task.title,
+      })),
+    )
+    .select('id');
+  const logEntryId = (write.data as { id: string }[] | null)?.[0]?.id;
+  if (!write.error && logEntryId) {
+    // חייב await: PostgrestFilterBuilder הוא thenable עצל, לא Promise
+    // נלהב, ובלי await או .then() השאילתה נבנית ואף פעם לא נשלחת.
+    await supabase.from('tasks').update({ created_log_id: logEntryId }).eq('id', task.id);
+  }
 }
 
 // ============================================================

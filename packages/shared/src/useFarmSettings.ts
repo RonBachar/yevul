@@ -21,10 +21,6 @@ export type FarmSettingsForm = {
   currency: Currency;
   areaUnit: AreaUnit;
   locale: Locale;
-  // שני מתגי Completion Prompts, design.md: "Both toggles live in
-  // Settings and can be turned off independently."
-  journalPromptEnabled: boolean;
-  expensePromptEnabled: boolean;
   // The farm's hourly rate for work, Ido 2026-09-06: "fixed prices I enter once,
   // and the app knows how to compute the costs". **A default and nothing more**:
   // it pre-fills the rate box on the next journal entry, and a job already
@@ -53,8 +49,6 @@ type SettingsRow = {
   currency: Currency;
   area_unit: AreaUnit;
   locale: Locale;
-  journal_prompt_enabled: boolean;
-  expense_prompt_enabled: boolean;
   work_hourly_rate: number | null;
 };
 type FarmWithSettings = { id: string; name: string; settings: SettingsRow | null };
@@ -74,7 +68,7 @@ export function useFarmSettings(supabase: SupabaseClient): FarmSettingsState {
       // הוא מפתח ראשי שמצביע על farms(id), ו-PostgREST יודע לשבץ.
       const { data, error } = await currentFarmQuery(
         supabase,
-        'id, name, settings(currency, area_unit, locale, journal_prompt_enabled, expense_prompt_enabled, work_hourly_rate)',
+        'id, name, settings(currency, area_unit, locale, work_hourly_rate)',
       );
 
       if (!active) return;
@@ -93,8 +87,6 @@ export function useFarmSettings(supabase: SupabaseClient): FarmSettingsState {
         currency: settings.currency,
         areaUnit: settings.area_unit,
         locale: settings.locale,
-        journalPromptEnabled: settings.journal_prompt_enabled,
-        expensePromptEnabled: settings.expense_prompt_enabled,
         workHourlyRate: settings.work_hourly_rate,
       });
       setLoading(false);
@@ -124,8 +116,6 @@ export function useFarmSettings(supabase: SupabaseClient): FarmSettingsState {
             currency: next.currency,
             area_unit: next.areaUnit,
             locale: next.locale,
-            journal_prompt_enabled: next.journalPromptEnabled,
-            expense_prompt_enabled: next.expensePromptEnabled,
             work_hourly_rate: next.workHourlyRate,
           })
           .eq('farm_id', farmId)

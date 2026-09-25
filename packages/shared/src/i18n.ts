@@ -135,8 +135,7 @@ const strings: Record<string, string> = {
   'settings.locale': 'שפה',
   // Completion Prompts, design.md: "Both toggles live in Settings and
   // can be turned off independently."
-  'settings.journalPrompt': 'לשאול לפני שמירה ביומן בסיום משימה',
-  'settings.expensePrompt': 'לשאול לפני רישום הוצאה בסיום משימה',
+  // שני מתגי Completion Prompts נמחקו ב-2026-09-25 יחד עם הגיליון עצמו.
   'settings.save': 'שמירה',
   'settings.saving': 'שומר',
   'settings.saved': 'ההגדרות נשמרו',

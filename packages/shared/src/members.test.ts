@@ -326,7 +326,6 @@ describe('workerModeShell', () => {
       showMoney: true,
       captureKinds: ['expense', 'task', 'journal'],
       plotDetailTabs: ['income', 'expenses', 'tasks', 'journal'],
-      showExpenseCompletionPrompt: true,
     });
   });
 
@@ -336,7 +335,6 @@ describe('workerModeShell', () => {
       showMoney: true,
       captureKinds: ['expense', 'task', 'journal'],
       plotDetailTabs: ['income', 'expenses', 'tasks', 'journal'],
-      showExpenseCompletionPrompt: true,
     });
   });
 
@@ -346,7 +344,6 @@ describe('workerModeShell', () => {
       showMoney: false,
       captureKinds: ['task', 'journal'],
       plotDetailTabs: ['tasks', 'journal'],
-      showExpenseCompletionPrompt: false,
     });
   });
 
@@ -355,7 +352,6 @@ describe('workerModeShell', () => {
     expect(shell.showMoney).toBe(false);
     expect(shell.captureKinds).toEqual(['task', 'journal']);
     expect(shell.plotDetailTabs).toEqual(['tasks', 'journal']);
-    expect(shell.showExpenseCompletionPrompt).toBe(false);
     expect(shell.isWorker).toBe(false);
   });
 

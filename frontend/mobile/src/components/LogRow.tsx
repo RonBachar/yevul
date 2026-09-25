@@ -61,9 +61,14 @@ export function LogRow({
         ? [entry.harvestQty, entry.harvestUnit].filter(Boolean).join(' ')
         : entry.source === 'voice'
           ? t('log.row.sourceVoice')
-          : entry.source === 'task'
-            ? t('log.row.sourceTask')
-            : (entry.note ?? '');
+          : // **The task's own title, not the generic "from a finished task".**
+            // That label was written when the journal entry was optional and
+            // rare. Since 2026-09-25 every completed task writes one, so the
+            // label would fill the journal with identical rows saying only that
+            // work happened, never what. The note carries the task title; the
+            // label survives as the fallback for an empty one.
+            (entry.note ??
+            (entry.source === 'task' ? t('log.row.sourceTask') : ''));
 
   const metaParts = [plotName, detail].filter((part): part is string => Boolean(part));
 

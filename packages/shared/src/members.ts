@@ -221,8 +221,6 @@ export type WorkerModeShell = {
   captureKinds: CaptureKind[];
   // טאבי מסך פרטי החלקה. לעובד רק "משימות" ו"יומן".
   plotDetailTabs: PlotDetailTab[];
-  // חצי ההוצאה של Completion Prompts. חצי היומן נשאר גם לעובד.
-  showExpenseCompletionPrompt: boolean;
 };
 
 // **טעינה, ותפקיד לא ידוע, נחשבים כעובד לצורך הסתרת הכסף.** עובד לעולם
@@ -236,7 +234,6 @@ export function workerModeShell(role: FarmRole | null, loading: boolean): Worker
     showMoney: !moneyHidden,
     captureKinds: moneyHidden ? CAPTURE_KINDS_WORKER : CAPTURE_KINDS_FULL,
     plotDetailTabs: moneyHidden ? PLOT_DETAIL_TABS_WORKER : PLOT_DETAIL_TABS_FULL,
-    showExpenseCompletionPrompt: !moneyHidden,
   };
 }
 

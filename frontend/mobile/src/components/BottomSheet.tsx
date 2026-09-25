@@ -59,7 +59,7 @@ import { colors, radius, shadowFloat, spacing, touchTarget } from '../theme/toke
 // offset 0, needs capture-phase handlers on the sheet, because React Native
 // gives a touch to the deepest view that claims it and a parent can only take
 // it back by capturing. Capturing is exactly what would break the horizontal
-// chip rows inside TaskSheet, LogEntrySheet, CompletionPromptSheet and
+// chip rows inside TaskSheet, LogEntrySheet and
 // VoiceConfirmPanel: swiping the plot chips sideways would start dismissing the
 // sheet. Trading one unreliable gesture for four is not a fix. The handle is a
 // sibling above the ScrollView, so a farmer scrolling a long sheet cannot reach

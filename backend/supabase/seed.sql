@@ -30,6 +30,12 @@ declare
   v_plot_west uuid;
   v_plot_citrus uuid;
   v_cc_id uuid;
+  -- **שתי הצהרות ולא CTE אחד.** `with task as (insert ... returning id)
+  -- insert into task_plots ... from task` נכשל על RLS: מדיניות ההכנסה
+  -- של task_plots בודקת `exists (select 1 from public.tasks ...)`,
+  -- והשורה שנוצרה ב-CTE אינה נראית לתמונת המצב של אותה פקודה עצמה.
+  -- המשתנה מפריד את ההכנסה לשתי פקודות, ואז המשימה כבר קיימת.
+  v_task_id uuid;
 begin
   -- מדמה בקשה מאומתת של המשתמש שנוצר למעלה. הכנסת המשתמש כבר הפעילה
   -- את הטריגר on_auth_user_created שיצר לו משק אוטומטית בשם "המשק שלי",
@@ -120,52 +126,34 @@ begin
 
   -- משימות, ארבע הדחיפויות שהלוח מקבץ לפיהן (groupTasksByUrgency) פרוסות
   -- על פני חלקות שונות, בלי לגעת בשלוש המשימות שכבר היו על חלקה צפונית.
-  with task as (
-    insert into public.tasks (farm_id, title, due_date)
-      values (v_farm_id, 'ריסוס נגד כנימה', current_date + 3) returning id
-  )
-  insert into public.task_plots (task_id, plot_id) select id, v_plot_north from task;
-  with task as (
-    insert into public.tasks (farm_id, title, due_date)
-      values (v_farm_id, 'בדיקת מערכת השקיה', current_date + 7) returning id
-  )
-  insert into public.task_plots (task_id, plot_id) select id, v_plot_north from task;
-  with task as (
-    insert into public.tasks (farm_id, title, completed_at, completed_by)
-      values (v_farm_id, 'דישון יסוד', now(), '11111111-1111-1111-1111-111111111111') returning id
-  )
-  insert into public.task_plots (task_id, plot_id) select id, v_plot_north from task;
+  insert into public.tasks (farm_id, title, due_date)
+    values (v_farm_id, 'ריסוס נגד כנימה', current_date + 3) returning id into v_task_id;
+  insert into public.task_plots (task_id, plot_id) values (v_task_id, v_plot_north);
+  insert into public.tasks (farm_id, title, due_date)
+    values (v_farm_id, 'בדיקת מערכת השקיה', current_date + 7) returning id into v_task_id;
+  insert into public.task_plots (task_id, plot_id) values (v_task_id, v_plot_north);
+  insert into public.tasks (farm_id, title, completed_at, completed_by)
+    values (v_farm_id, 'דישון יסוד', now(), '11111111-1111-1111-1111-111111111111') returning id into v_task_id;
+  insert into public.task_plots (task_id, plot_id) values (v_task_id, v_plot_north);
 
-  with task as (
-    insert into public.tasks (farm_id, title, due_date)
-      values (v_farm_id, 'לבדוק עלים צהובים', current_date - 4) returning id
-  ) -- באיחור
-  insert into public.task_plots (task_id, plot_id) select id, v_plot_south from task;
-  with task as (
-    insert into public.tasks (farm_id, title, due_date)
-      values (v_farm_id, 'ריסוס נגד כנימת עץ', current_date) returning id
-  ) -- היום
-  insert into public.task_plots (task_id, plot_id) select id, v_plot_east from task;
-  with task as (
-    insert into public.tasks (farm_id, title, due_date)
-      values (v_farm_id, 'דילול פרי', current_date + 2) returning id
-  ) -- השבוע
-  insert into public.task_plots (task_id, plot_id) select id, v_plot_east from task;
-  with task as (
-    insert into public.tasks (farm_id, title, completed_at, completed_by)
-      values (v_farm_id, 'קטיף ניסיון', now() - interval '2 days', '11111111-1111-1111-1111-111111111111') returning id
-  )
-  insert into public.task_plots (task_id, plot_id) select id, v_plot_east from task;
-  with task as (
-    insert into public.tasks (farm_id, title, due_date)
-      values (v_farm_id, 'קציר חיטה', current_date + 25) returning id
-  ) -- בהמשך
-  insert into public.task_plots (task_id, plot_id) select id, v_plot_west from task;
-  with task as (
-    insert into public.tasks (farm_id, title)
-      values (v_farm_id, 'לבדוק רשת הצללה') returning id
-  ) -- ללא תאריך
-  insert into public.task_plots (task_id, plot_id) select id, v_plot_citrus from task;
+  insert into public.tasks (farm_id, title, due_date)
+    values (v_farm_id, 'לבדוק עלים צהובים', current_date - 4) returning id into v_task_id; -- באיחור
+  insert into public.task_plots (task_id, plot_id) values (v_task_id, v_plot_south);
+  insert into public.tasks (farm_id, title, due_date)
+    values (v_farm_id, 'ריסוס נגד כנימת עץ', current_date) returning id into v_task_id; -- היום
+  insert into public.task_plots (task_id, plot_id) values (v_task_id, v_plot_east);
+  insert into public.tasks (farm_id, title, due_date)
+    values (v_farm_id, 'דילול פרי', current_date + 2) returning id into v_task_id; -- השבוע
+  insert into public.task_plots (task_id, plot_id) values (v_task_id, v_plot_east);
+  insert into public.tasks (farm_id, title, completed_at, completed_by)
+    values (v_farm_id, 'קטיף ניסיון', now() - interval '2 days', '11111111-1111-1111-1111-111111111111') returning id into v_task_id;
+  insert into public.task_plots (task_id, plot_id) values (v_task_id, v_plot_east);
+  insert into public.tasks (farm_id, title, due_date)
+    values (v_farm_id, 'קציר חיטה', current_date + 25) returning id into v_task_id; -- בהמשך
+  insert into public.task_plots (task_id, plot_id) values (v_task_id, v_plot_west);
+  insert into public.tasks (farm_id, title)
+    values (v_farm_id, 'לבדוק רשת הצללה') returning id into v_task_id; -- ללא תאריך
+  insert into public.task_plots (task_id, plot_id) values (v_task_id, v_plot_citrus);
 
   -- רשומות יומן, סוגים שונים על חלקות שונות, כולל רשומה כללית בלי
   -- חלקה (plot_id null) וסוג מהעשרה שהתווספו במיגרציית הרחבת ה-domain.

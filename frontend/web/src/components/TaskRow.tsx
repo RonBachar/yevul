@@ -1,18 +1,23 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Check, Trash2 } from 'lucide-react';
 import { t, taskDueDisplay, type Task, type TaskAssignee } from '@yevul/shared';
 import { ConfirmDialog } from './ConfirmDialog';
 import './TaskRow.css';
 
-const UNDO_MS = 5000;
-
 // אטום התכונה בווב, מקביל ל-Task Row של design.md. שני כפתורי אייקון
 // קטנים, ירוק "בוצע" ואדום "מחיקה" (לא snooze יותר, בקשת חקלאי
 // מפורשת: לפעמים משימה כבר לא רלוונטית ואין טעם לרשום אותה כבוצעה, רק
-// להסיר). שני מנגנוני בטיחות שונים במכוון: "בוצע" עם undo toast של חמש
-// שניות (completed_at הוא אירוע חד-כיווני במסד, הכתיבה נדחית ולא
-// מבוטלת אחרי שנשלחה), "מחיקה" עם דיאלוג אישור מודעי במקום, בקשת
-// חקלאי מפורשת: מחיקה מרגישה סופית יותר מהשלמה.
+// להסיר).
+//
+// **ה-undo של חמש השניות על "בוצע" נמחק ב-2026-09-25.** הוא דחה את
+// הכתיבה בחמש שניות והציג רצועת "בוטל" במקום השורה, וכך גם הגיליון
+// ששאל שתי שאלות אחריו. היזם: הוא נסגר מהר מדי מכדי להספיק לחשוב.
+// עכשיו לחיצה על "בוצע" משלימה מיד ונכנסת ליומן.
+//
+// **המחיקה שומרת את דיאלוג האישור שלה,** והפער בין השתיים מכוון:
+// מחיקה מרגישה סופית יותר מהשלמה, בקשת חקלאי מפורשת. שים לב
+// ש-completed_at הוא אירוע חד-כיווני במסד, ולכן להשלמה שגויה אין יותר
+// שום דרך חזרה בממשק, רק מחיקת רשומת היומן שנוצרה ממנה.
 export function TaskRow({
   task,
   plotName,
@@ -31,35 +36,11 @@ export function TaskRow({
   onCompleteCommit: () => void;
   onDeleteCommit: () => void;
 }) {
-  const [pending, setPending] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  function fireComplete() {
-    setPending(true);
-    timerRef.current = setTimeout(onCompleteCommit, UNDO_MS);
-  }
-
-  function undo() {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = null;
-    setPending(false);
-  }
 
   function confirmDelete() {
     setConfirmingDelete(false);
     onDeleteCommit();
-  }
-
-  if (pending) {
-    return (
-      <div className="task-row task-row--undo">
-        <span className="task-row__undo-text">{t('tasks.completedToast')}</span>
-        <button type="button" className="task-row__undo-action" onClick={undo}>
-          {t('tasks.action.undo')}
-        </button>
-      </div>
-    );
   }
 
   const due = task.dueDate ? taskDueDisplay(task.dueDate) : null;
@@ -90,7 +71,7 @@ export function TaskRow({
       <div className="task-row__actions">
         {/* פעולה ראשית עם כיתוב, כי אייקון V לבדו לא אמר מה הוא עושה.
             בקשת היזם: כפתור שכתוב עליו "בוצע", לא סימן בלבד. */}
-        <button type="button" className="task-row__done" onClick={fireComplete}>
+        <button type="button" className="task-row__done" onClick={onCompleteCommit}>
           <Check size={18} strokeWidth={2.5} aria-hidden="true" />
           <span>{t('tasks.action.complete')}</span>
         </button>

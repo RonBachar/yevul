@@ -819,7 +819,7 @@ async function syncEntryExpense(
   const outcome = await createExpense(supabase, farmId, expenseInput, expenseSourceFor(source));
   if (!outcome.ok) return;
   // חייב await: PostgrestFilterBuilder הוא thenable עצל ולא Promise נלהב, ובלי
-  // await השאילתה נבנית ואף פעם לא נשלחת. אותו כלל בדיוק כמו ב-completionPrompts.
+  // await השאילתה נבנית ואף פעם לא נשלחת. אותו כלל בדיוק כמו ב-completeTask.
   await supabase
     .from('log_entries')
     .update({ created_expense_id: outcome.id })

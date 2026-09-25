@@ -466,12 +466,9 @@ export {
   type FarmProfitState,
   type PlotProfitRow,
 } from './profit';
-export {
-  confirmJournalFromTask,
-  confirmExpenseFromTask,
-  completionPromptVisibility,
-  type CompletionPromptVisibility,
-} from './completionPrompts';
+// completionPrompts נמחק ב-2026-09-25. `confirmJournalFromTask` עברה
+// לתוך `completeTask` ב-tasks.ts, ושאלת ההוצאה בסיום משימה בוטלה
+// לגמרי. ראה docs/spec-money-and-tasks.md סעיף 3.
 // Writing a spray as a walk through tiles, one question per screen. The
 // founder's standing instruction for every data-entry screen in this app --
 // "it should always be squares, big tappable squares" -- and the retirement of

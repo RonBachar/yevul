@@ -7,7 +7,6 @@ import { t, taskDueDisplay, type Task, type TaskAssignee } from '@yevul/shared';
 import { colors, fonts, fontSize, radius, spacing } from '../theme/tokens';
 import { ConfirmDialog } from './ConfirmDialog';
 
-const UNDO_MS = 5000;
 const ROW_HEIGHT = 72;
 const ACTION_SIZE = 48;
 
@@ -17,12 +16,15 @@ const ACTION_SIZE = 48;
 // עגול קטן (48px, מעל רצפת הנגישות של 56 כי זה לא כל אזור המגע, ראה
 // למטה) וגם החלקה על השורה כולה, אותה פעולה בשתי הדרכים.
 //
-// שני מנגנוני בטיחות שונים, במכוון לא אותו אחד: "בוצע" משתמש ב-undo
-// toast של חמש שניות (completed_at הוא אירוע חד-כיווני במסד, אין
-// UPDATE שהופך אותו בחזרה, אז הכתיבה בפועל נדחית ולא מבוטלת אחרי
-// שנשלחה). "מחיקה" מציגה דיאלוג אישור מודעי במקום, בקשת חקלאי מפורשת:
-// מחיקה מרגישה סופית יותר מהשלמה, ומגיעה אחרי אישור ולא אחרי חלון
-// המתנה שקט.
+// **ה-undo של חמש השניות על "בוצע" נמחק ב-2026-09-25.** הוא דחה את
+// הכתיבה והחליף את השורה ברצועת "בוטל", וכך גם הגיליון ששאל שתי שאלות
+// אחריו. היזם: הוא נסגר מהר מדי מכדי להספיק לחשוב. עכשיו "בוצע" משלים
+// מיד ונכנס ליומן.
+//
+// **המחיקה שומרת את דיאלוג האישור שלה,** והפער מכוון: מחיקה מרגישה
+// סופית יותר מהשלמה, בקשת חקלאי מפורשת. שים לב ש-completed_at הוא
+// אירוע חד-כיווני במסד, ולכן להשלמה שגויה אין יותר דרך חזרה בממשק, רק
+// מחיקת רשומת היומן שנוצרה ממנה.
 export function TaskRow({
   task,
   plotName,
@@ -41,10 +43,8 @@ export function TaskRow({
   onCompleteCommit: () => void;
   onDeleteCommit: () => void;
 }) {
-  const [pending, setPending] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const translateX = useRef(new Animated.Value(0)).current;
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // ref ולא state: ה-PanResponder נבנה פעם אחת בלבד ב-useRef למטה,
   // ונועל בסגירה (closure) את הערך של כל משתנה חיצוני כפי שהיה ברגע
   // ה-mount. עם state נשאר הרוחב תמיד 0 בתוך onPanResponderRelease.
@@ -58,16 +58,11 @@ export function TaskRow({
     Animated.spring(translateX, { toValue: 0, useNativeDriver: true, friction: 8 }).start();
   }
 
+  // ההחלקה חוזרת למקומה לפני הכתיבה: השורה תיעלם ברענון הרשימה, ובלי
+  // האיפוס היא הייתה נשארת מוסטת לרגע בדרך החוצה.
   function fireComplete() {
-    setPending(true);
-    timerRef.current = setTimeout(onCompleteCommit, UNDO_MS);
-  }
-
-  function undo() {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = null;
     translateX.setValue(0);
-    setPending(false);
+    onCompleteCommit();
   }
 
   function askDelete() {
@@ -105,19 +100,6 @@ export function TaskRow({
       },
     }),
   ).current;
-
-  // ללא אנימציה: השורה מתחלפת מיד לחיווי ה-undo ונשארת בו לכל אורך
-  // חמש השניות, אותו גובה בדיוק כמו השורה הרגילה.
-  if (pending) {
-    return (
-      <View style={styles.undoRow}>
-        <Text style={styles.undoText}>{t('tasks.completedToast')}</Text>
-        <Pressable onPress={undo} accessibilityRole="button" hitSlop={12}>
-          <Text style={styles.undoAction}>{t('tasks.action.undo')}</Text>
-        </Pressable>
-      </View>
-    );
-  }
 
   const due = task.dueDate ? taskDueDisplay(task.dueDate) : null;
   const overdue = due?.tone === 'overdue';
@@ -287,25 +269,5 @@ const styles = StyleSheet.create({
   },
   deleteButton: {
     backgroundColor: colors.loss600,
-  },
-  undoRow: {
-    minHeight: ROW_HEIGHT,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.s20,
-    borderRadius: radius.card,
-    backgroundColor: colors.mist200,
-  },
-  undoText: {
-    fontFamily: fonts.regular,
-    fontSize: fontSize.bodySm,
-    color: colors.slate600,
-    writingDirection: 'rtl',
-  },
-  undoAction: {
-    fontFamily: fonts.bold,
-    fontSize: fontSize.bodySm,
-    color: colors.field700,
   },
 });

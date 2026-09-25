@@ -125,22 +125,3 @@
 .task-row__delete:hover {
   background: var(--color-loss-100);
 }
-
-.task-row--undo {
-  justify-content: space-between;
-}
-
-.task-row__undo-text {
-  font-size: var(--text-body-sm);
-  color: var(--color-slate-600);
-}
-
-.task-row__undo-action {
-  border: none;
-  background: transparent;
-  padding: 0;
-  font-size: var(--text-body-sm);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-field-700);
-  cursor: pointer;
-}
