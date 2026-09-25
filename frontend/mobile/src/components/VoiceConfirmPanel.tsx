@@ -444,7 +444,7 @@ export function VoiceConfirmPanel({
           onChange={setDate}
           direction={editable.includes('dueDate') ? 'future' : 'past'}
           shortcuts={!editable.includes('dueDate')}
-          clearLabel={editable.includes('dueDate') ? t('tasks.form.dueSomeday') : undefined}
+          clearLabel={editable.includes('dueDate') ? t('tasks.form.dueEmpty') : undefined}
           disabled={busy}
         />
       )}

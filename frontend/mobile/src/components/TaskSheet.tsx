@@ -1,59 +1,31 @@
 import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import {
-  assignableMembers,
-  createTask,
-  formatLocalDateOnly,
-  t,
-  toggleTaskPlot,
-  updateTask,
-  useMembers,
-  usePlots,
-  type Task,
-} from '@yevul/shared';
+import { createTask, t, updateTask, usePlots, type Task } from '@yevul/shared';
 import { colors } from '../theme/tokens';
 import { formStyles } from '../theme/formStyles';
 import { BottomSheet } from './BottomSheet';
 import { DateField } from './DateField';
 import { TilePicker } from './TilePicker';
 
-type DueMode = 'someday' | 'week' | 'date';
-
-// TilePicker values are strings, so the "general" (no plot) and "unassigned"
-// (no member) tiles carry an empty-string sentinel that maps back to null on
-// select. Plot ids and user ids are UUIDs and never empty, so nothing clashes.
+// TilePicker values are strings, so the "general" (no plot) tile carries an
+// empty-string sentinel that maps back to null on select. Plot ids are UUIDs
+// and never empty, so nothing clashes.
 const NONE = '';
 
-const DUE_MODES: readonly DueMode[] = ['someday', 'week', 'date'];
-const DUE_MODE_LABEL_KEY: Record<DueMode, string> = {
-  someday: 'tasks.form.dueSomeday',
-  week: 'tasks.form.dueWeek',
-  date: 'tasks.form.dueDate',
-};
-
-// **The three modes stay and the calendar sits behind the third.** They are
-// this sheet's own shortcuts and they already point the right way: "someday"
-// and "this week" are how a farmer talks about a job ahead of him, and the
-// today / yesterday / the-day-before squares the expense and journal sheets got
-// would all be pointing backwards on a field that means a target. Only "by a
-// date" changed, from two number boxes to a month of days.
-//
-// "This week" is still a week on the user's own calendar. toISOString would
-// make it six days whenever the button is pressed between local midnight and
-// 02:00 or 03:00.
-function computeDueDate(mode: DueMode, customDate: string | null, now: Date): string | null {
-  if (mode === 'someday') return null;
-  if (mode === 'week') {
-    return formatLocalDateOnly(new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000));
-  }
-  return customDate;
-}
-
-// גיליון יצירה/עריכה של משימה, design.md "Task Sheet". כותרת, חלקה,
+// גיליון יצירה/עריכה של משימה, design.md "Task Sheet". שם, חלקה,
 // תאריך, בלי עלות: עלות שאלה על "בוצע", לא על יצירה, ראה
-// Completion Prompts (טרם נבנה). בלי כפתורי מצלמה ומיקרופון, אלה
-// תלויים בתשתית הקול שנבנית בשלב 5.
+// Completion Prompts. בלי כפתורי מצלמה ומיקרופון, אלה תלויים בתשתית
+// הקול שנבנית בשלב 5.
+//
+// **חלקה אחת למשימה, בבקשת היזם.** הסכימה עדיין מחזיקה `task_plots`
+// כטבלת קשר, ולכן `plotIds` נשאר מערך בשכבת הכתיבה, אבל הגיליון כותב
+// אליו אפס איברים או אחד בדיוק. משימה ישנה שנושאת כמה חלקות תיפתח על
+// הראשונה שלה, ושמירה תצמצם אותה לאותה אחת.
+//
+// **תאריך היעד הוא שדה אחד ולא שלוש קוביות ואז לוח.** הוא אינו חובה,
+// וריק הוא מצב תקין ולא בחירה שצריך ללחוץ עליה, ולכן אין יותר מצב
+// "מתישהו" נפרד: הלוח פתוח ו"נקה תאריך" מחזיר לריק.
 //
 // **Still no native date picker, and now not two number boxes either.** The
 // line that used to be here said the day/month pair was the price of avoiding a
@@ -81,15 +53,9 @@ export function TaskSheet({
   onSaved: () => void;
 }) {
   const plotsState = usePlots(supabase);
-  // הרוסטר לבורר האחראי, שלב 6. הבורר מופיע רק כשיש חברים שאפשר
-  // להציב, ולכן נעלם לגמרי במשק של אדם אחד (design.md, Sharing).
-  const membersState = useMembers(supabase);
-  const assignable = assignableMembers(membersState.members);
 
   const [title, setTitle] = useState('');
-  const [plotIds, setPlotIds] = useState<string[]>([]);
-  const [assignedTo, setAssignedTo] = useState<string | null>(null);
-  const [dueMode, setDueMode] = useState<DueMode>('someday');
+  const [plotId, setPlotId] = useState<string | null>(null);
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [status, setStatus] = useState<'idle' | 'saving' | 'titleRequired' | 'forbidden' | 'error'>(
     'idle',
@@ -102,24 +68,15 @@ export function TaskSheet({
     if (!visible) return;
     if (task) {
       setTitle(task.title);
-      setPlotIds(task.plotIds);
-      setAssignedTo(task.assignedTo);
-      if (task.dueDate) {
-        setDueMode('date');
-        // **Passed through as the string it already is.** tasks.due_date is a
-        // Postgres date column and arrives as YYYY-MM-DD; the previous version
-        // parsed it into a Date and read getDate() off it, which is UTC
-        // midnight read on a local calendar. See safeHarvestDate.ts.
-        setDueDate(task.dueDate);
-      } else {
-        setDueMode('someday');
-        setDueDate(null);
-      }
+      setPlotId(task.plotIds[0] ?? null);
+      // **Passed through as the string it already is.** tasks.due_date is a
+      // Postgres date column and arrives as YYYY-MM-DD; an older version parsed
+      // it into a Date and read getDate() off it, which is UTC midnight read on
+      // a local calendar. See safeHarvestDate.ts.
+      setDueDate(task.dueDate);
     } else {
       setTitle('');
-      setPlotIds(defaultPlotId ? [defaultPlotId] : []);
-      setAssignedTo(null);
-      setDueMode('someday');
+      setPlotId(defaultPlotId);
       setDueDate(null);
     }
     setStatus('idle');
@@ -128,17 +85,14 @@ export function TaskSheet({
   async function onSave() {
     if (!farmId) return;
     setStatus('saving');
+    // **`assignedTo` is deliberately absent, not null.** The form no longer asks
+    // who is responsible, and an update writes only the fields it is handed, so
+    // leaving the key out keeps whatever the row already carries instead of
+    // clearing it on every edit.
     const input = {
       title,
-      plotIds,
-      dueDate: computeDueDate(dueMode, dueDate, new Date()),
-      // **The roster guard is an `undefined` and not a `null`.**
-      // `assignableMembers` returns [] while useMembers is
-      // still loading, not only when the farm really is a one-man operation, so the
-      // old `assignable.length > 0 ? assignedTo : null` unassigned a task whenever
-      // the farmer hit save before the member list came back. Now: no picker on
-      // screen, nothing written.
-      ...(assignable.length > 0 ? { assignedTo } : {}),
+      plotIds: plotId ? [plotId] : [],
+      dueDate,
     };
     const result = task
       ? await updateTask(supabase, task.id, farmId, input)
@@ -165,9 +119,10 @@ export function TaskSheet({
         />
       </View>
 
-      {/* בורר החלקה כרשת קוביות, אותה תבנית בדיוק שההוצאה והחלקה
-          משתמשות בה, במקום רצועת הצ'יפים הנגללת, "הדבר הכי לא נוח בחוויה"
-          לפי היזם. הקובייה "כללי" היא ה-null, ראה NONE. */}
+      {/* בורר החלקה כרשת קוביות, בחירה יחידה. בנייד הקוביות נשארות
+          במקום תפריט נפתח, כי בשדה ביד אחת בחירה בלחיצה אחת עדיפה,
+          אותה הפרדה בין הלקוחות שכבר קיימת כאן. "כללי" הוא ה-null,
+          ראה NONE. */}
       <View style={sheetGap}>
         <TilePicker
           title={t('plots.form.name')}
@@ -175,76 +130,27 @@ export function TaskSheet({
             { value: NONE, label: t('tasks.plotGeneral') },
             ...plotsState.plots.map((plot) => ({ value: plot.id, label: plot.name })),
           ]}
-          selectedValue={null}
-          selectedValues={plotIds.length > 0 ? plotIds : [NONE]}
-          onSelect={(value) =>
-            setPlotIds((current) => toggleTaskPlot(current, value === NONE ? null : value))
-          }
+          selectedValue={plotId ?? NONE}
+          onSelect={(value) => setPlotId(value === NONE ? null : value)}
           disabled={busy}
         />
       </View>
 
-      {/* בורר האחראי, שלב 6, כרשת קוביות במקום רצועת צ'יפים נגללת. מופיע
-          רק כשיש במשק חברים שאפשר להציב, ולכן נעלם לגמרי במשק של אדם
-          אחד, design.md, Sharing. הקובייה "לא משויך" היא ה-null, ראה NONE. */}
-      {assignable.length > 0 && (
-        <View style={sheetGap}>
-          <TilePicker
-            title={t('tasks.form.assignee')}
-            options={[
-              { value: NONE, label: t('tasks.form.assigneeNone') },
-              ...assignable.map((member) => ({
-                value: member.userId ?? NONE,
-                label: member.email ?? member.userId ?? '',
-              })),
-            ]}
-            selectedValue={assignedTo ?? NONE}
-            onSelect={(value) => setAssignedTo(value === NONE ? null : value)}
-            disabled={busy}
-          />
-        </View>
-      )}
-
-      <View style={[formStyles.field, sheetGap]}>
-        <Text style={formStyles.label}>{t('tasks.form.due')}</Text>
-        <View style={formStyles.chips}>
-          {DUE_MODES.map((mode) => {
-            const active = dueMode === mode;
-            return (
-              <Pressable
-                key={mode}
-                style={[formStyles.chip, active && formStyles.chipActive]}
-                onPress={() => setDueMode(mode)}
-                disabled={busy}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: active }}
-              >
-                <Text style={[formStyles.chipText, active && formStyles.chipTextActive]}>
-                  {t(DUE_MODE_LABEL_KEY[mode])}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-        {/* **The one place in the app where the calendar looks forwards.** A
-            due date is a target, so `direction="future"` blocks the days behind
-            today -- except the one an overdue task is already carrying, which
-            calendarBounds keeps selectable so editing such a task cannot
-            silently argue with its own record. No shortcut chips: the three
-            mode chips above are this field's shortcuts, and the calendar is
-            always open here because there is nothing to fold it behind. */}
-        {dueMode === 'date' && (
-          <View style={dueCalendar}>
-            <DateField
-              label={t('tasks.form.dueDate')}
-              value={dueDate}
-              onChange={setDueDate}
-              direction="future"
-              shortcuts={false}
-              disabled={busy}
-            />
-          </View>
-        )}
+      {/* **The one place in the app where the calendar looks forwards.** A
+          due date is a target, so `direction="future"` blocks the days behind
+          today -- except the one an overdue task is already carrying, which
+          calendarBounds keeps selectable so editing such a task cannot
+          silently argue with its own record. */}
+      <View style={sheetGap}>
+        <DateField
+          label={t('tasks.form.dueOptional')}
+          value={dueDate}
+          onChange={setDueDate}
+          direction="future"
+          shortcuts={false}
+          clearLabel={t('tasks.form.dueClear')}
+          disabled={busy}
+        />
       </View>
 
       <Pressable
@@ -269,4 +175,3 @@ export function TaskSheet({
 }
 
 const sheetGap = { marginTop: 16 };
-const dueCalendar = { marginTop: 8 };

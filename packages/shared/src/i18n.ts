@@ -373,10 +373,8 @@ const strings: Record<string, string> = {
   'tasks.group.today': 'היום',
   'tasks.group.week': 'השבוע',
   'tasks.group.later': 'בהמשך',
-  // "ללא תאריך" ולא "מתישהו" (כמו בצ'יפ הבחירה בגיליון), הערת מוצר:
-  // ככותרת קבוצה על משימות שכבר קיימות "מתישהו" נשמע לא רציני. הצ'יפ
-  // בגיליון היצירה/עריכה (tasks.form.dueSomeday) לא השתנה, שם זו בחירה
-  // פעילה ולא תיאור של רשימה קיימת.
+  // "ללא תאריך" ולא "מתישהו": ככותרת קבוצה על משימות שכבר קיימות
+  // "מתישהו" נשמע לא רציני.
   'tasks.group.someday': 'ללא תאריך',
   'tasks.due.today': 'היום',
   'tasks.due.tomorrow': 'מחר',
@@ -396,19 +394,17 @@ const strings: Record<string, string> = {
   // גיליון יצירה/עריכה
   'tasks.form.titleNew': 'משימה חדשה',
   'tasks.form.titleEdit': 'עריכת משימה',
-  'tasks.form.titlePlaceholder': 'מה צריך לעשות?',
+  'tasks.form.titlePlaceholder': 'שם המשימה',
   'tasks.form.titleRequired': 'כותרת המשימה לא יכולה להיות ריקה',
-  // המשויך למשימה, שלב 6, שיתוף המשק. prd.md סעיף 11: "לכל משימה למי
-  // היא מיועדת". הבורר מופיע רק כשיש במשק חברים שאפשר להציב, ונעלם
-  // במשק של אדם אחד. "לא משויך" הוא ברירת המחדל.
-  'tasks.form.assignee': 'אחראי',
-  'tasks.form.assigneeNone': 'לא משויך',
   // תווית נגישות לאווטאר החבר בשורת המשימה, design.md, Member Avatar.
+  // הבורר עצמו הוסר מטופס המשימה בבקשת היזם, העמודה נשארה במסד.
   'tasks.assignedTo': 'משויך ל',
+  // **תאריך היעד הוא שדה אחד ולא שלוש קוביות.** ריק פירושו "מתישהו",
+  // בלי מצב נפרד שצריך לבחור בו, ולכן משימה בלי תאריך היא אפס לחיצות.
   'tasks.form.due': 'תאריך יעד',
-  'tasks.form.dueSomeday': 'מתישהו',
-  'tasks.form.dueWeek': 'השבוע',
-  'tasks.form.dueDate': 'עד תאריך',
+  'tasks.form.dueOptional': 'תאריך יעד (לא חובה)',
+  'tasks.form.dueEmpty': 'בלי תאריך',
+  'tasks.form.dueClear': 'נקה תאריך',
   'tasks.form.forbidden': 'אין לכם הרשאה ליצור או לערוך משימות',
   'tasks.form.saveError': 'לא הצלחנו לשמור, נסו שוב',
   'tasks.save': 'שמירה',
