@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="חקלאי רווחי">
+  <!-- Colours are the brand tokens from packages/shared/src/colors.ts,
+       field700 and field100, written out because a favicon is a static file
+       that never runs the app's stylesheet. A filled tile rather than a bare
+       glyph: at 16px a thin sprout on transparent disappears into a light tab
+       strip and again into a dark one, while a solid tile keeps its shape on
+       both. -->
+  <rect width="32" height="32" rx="7" fill="#1d6b45"/>
+  <g fill="none" stroke="#e1f4e9" stroke-width="2.4" stroke-linecap="round">
+    <path d="M16 27V14"/>
+  </g>
+  <!-- Two leaves, offset rather than mirrored on the same line, so the pair
+       still reads as a sprout once the detail between them is gone. -->
+  <path d="M16.4 16.6c.4-5.2 4.2-8.8 9.1-9.3.2 5.2-3.6 9.1-9.1 9.3z" fill="#e1f4e9"/>
+  <path d="M15.6 19.4c-.4-5.2-4.2-8.8-9.1-9.3-.2 5.2 3.6 9.1 9.1 9.3z" fill="#e1f4e9"/>
+</svg>
